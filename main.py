@@ -10,7 +10,7 @@ TOKEN = os.getenv("TOKEN")
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=">", intents=intents)
 
-# -------- GLOBAL SESSION DATA --------
+# -------- GLOBAL DATA --------
 
 startup_active = False
 startup_host = None
@@ -21,15 +21,12 @@ startup_time = None
 
 bot_start_time = datetime.datetime.utcnow()
 
-# -------- ROLE --------
+# -------- IDs --------
 
 NOTIFY_ROLE = 1480656237027660046
-
-# -------- CHANNELS --------
-
 WELCOME_CHANNEL = 1471452865796116576
-FEEDBACK_CHANNEL = 1481568923504611439
 SESSION_LOG_CHANNEL = 1481568871679787088
+FEEDBACK_CHANNEL = 1481568923504611439
 
 # -------- IMAGES --------
 
@@ -75,32 +72,30 @@ async def say(ctx, *, message):
 # -------- REACTION TRACKING --------
 
 @bot.event
-async def on_reaction_add(reaction, user):
+async def on_raw_reaction_add(payload):
 
     global startup_reactors
 
-    if user.bot:
-        return
+    if payload.message_id == getattr(startup_message, "id", None):
 
-    if startup_message and reaction.message.id == startup_message.id:
+        if str(payload.emoji) == "✅":
 
-        if str(reaction.emoji) == "✅":
-            startup_reactors.add(user.id)
+            startup_reactors.add(payload.user_id)
 
 # -------- STARTUP --------
 
 @bot.tree.command(name="startup")
-@app_commands.describe(count="Number of convoy participants")
 
-async def startup(interaction: discord.Interaction, count: int):
+async def startup(interaction: discord.Interaction):
 
     global startup_active
     global startup_host
     global startup_message
-    global startup_time
     global startup_reactors
+    global startup_time
 
     if startup_active:
+
         await interaction.response.send_message(
             "A convoy session is already active.",
             ephemeral=True
@@ -109,8 +104,8 @@ async def startup(interaction: discord.Interaction, count: int):
 
     startup_active = True
     startup_host = interaction.user
-    startup_time = datetime.datetime.utcnow()
     startup_reactors = set()
+    startup_time = datetime.datetime.utcnow()
 
     embed = discord.Embed(
 
@@ -145,7 +140,7 @@ async def startup(interaction: discord.Interaction, count: int):
     startup_message = await interaction.original_response()
     await startup_message.add_reaction("✅")
 
-# -------- LINK BUTTON --------
+# -------- LINK VIEW --------
 
 class LinkView(ui.View):
 
@@ -154,6 +149,7 @@ class LinkView(ui.View):
         self.url = url
 
     @ui.button(label="Join Private Server", style=discord.ButtonStyle.primary)
+
     async def join(self, interaction: discord.Interaction, button: ui.Button):
 
         if interaction.user.id not in startup_reactors:
@@ -164,21 +160,18 @@ class LinkView(ui.View):
             )
             return
 
-        await interaction.response.send_message(
-            self.url,
-            ephemeral=True
-        )
+        await interaction.response.send_message(self.url, ephemeral=True)
 
-# -------- LINK COMMAND --------
+# -------- LINK --------
 
 @bot.tree.command(name="link")
-@app_commands.describe(url="Private server URL")
 
 async def link(interaction: discord.Interaction, url: str):
 
     global link_message
 
     if not startup_active:
+
         await interaction.response.send_message(
             "No active convoy.",
             ephemeral=True
@@ -186,8 +179,9 @@ async def link(interaction: discord.Interaction, url: str):
         return
 
     if interaction.user != startup_host:
+
         await interaction.response.send_message(
-            "Only the host can release the session link.",
+            "Only the host can release the link.",
             ephemeral=True
         )
         return
@@ -232,6 +226,43 @@ async def link(interaction: discord.Interaction, url: str):
 
     link_message = await interaction.original_response()
 
+# -------- FEEDBACK MODAL --------
+
+class FeedbackModal(ui.Modal, title="Convoy Feedback"):
+
+    rating = ui.TextInput(label="Rating (1-5)")
+    feedback = ui.TextInput(label="Feedback", style=discord.TextStyle.paragraph)
+
+    async def on_submit(self, interaction: discord.Interaction):
+
+        channel = bot.get_channel(FEEDBACK_CHANNEL)
+
+        embed = discord.Embed(
+            title="NEW CONVOY FEEDBACK",
+            description=f"User: {interaction.user.mention}",
+            color=0x87CEFA
+        )
+
+        embed.add_field(name="Rating", value=self.rating.value)
+        embed.add_field(name="Feedback", value=self.feedback.value)
+
+        await channel.send(embed=embed)
+
+        await interaction.response.send_message(
+            "Feedback submitted.",
+            ephemeral=True
+        )
+
+# -------- END VIEW --------
+
+class EndView(ui.View):
+
+    @ui.button(label="Give Feedback", style=discord.ButtonStyle.secondary)
+
+    async def feedback(self, interaction: discord.Interaction, button: ui.Button):
+
+        await interaction.response.send_modal(FeedbackModal())
+
 # -------- END COMMAND --------
 
 @bot.tree.command(name="end")
@@ -239,22 +270,11 @@ async def link(interaction: discord.Interaction, url: str):
 async def end(interaction: discord.Interaction):
 
     global startup_active
-    global startup_message
-    global link_message
-    global startup_time
 
     if not startup_active:
 
         await interaction.response.send_message(
             "No active convoy.",
-            ephemeral=True
-        )
-        return
-
-    if interaction.user != startup_host:
-
-        await interaction.response.send_message(
-            "Only the host can end the convoy.",
             ephemeral=True
         )
         return
@@ -272,22 +292,33 @@ async def end(interaction: discord.Interaction):
         pass
 
     embed = discord.Embed(
+
         title="CONVOY CONCLUSION",
+
         description=(
-            f"The convoy hosted by {startup_host.mention} has ended.\n\n"
+            f"Hosted by {startup_host.mention}\n"
             f"Duration: {str(duration).split('.')[0]}"
         ),
+
         color=0x87CEFA
     )
 
     embed.set_thumbnail(url=startup_host.display_avatar.url)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
-    await interaction.response.send_message(embed=embed)
+    view = EndView()
+
+    await interaction.response.send_message(embed=embed, view=view)
+
+    # -------- LOG SESSION --------
+
+    log_channel = bot.get_channel(SESSION_LOG_CHANNEL)
+
+    await log_channel.send(embed=embed)
 
     startup_active = False
 
-# -------- INFO COMMAND --------
+# -------- INFO --------
 
 @bot.tree.command(name="info")
 
@@ -305,8 +336,6 @@ async def info(interaction: discord.Interaction):
         "Very likely"
     ]
 
-    risk = random.choice(risks)
-
     embed = discord.Embed(
         title="BOT INFO",
         description=(
@@ -314,16 +343,11 @@ async def info(interaction: discord.Interaction):
             f"Uptime: {str(uptime).split('.')[0]}\n"
             f"Ping: {ping}ms\n"
             f"Status: Online\n"
-            f"Crash Risk: {risk}"
+            f"Crash Risk: {random.choice(risks)}"
         ),
         color=0x87CEFA
     )
 
-    embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
-
     await interaction.response.send_message(embed=embed)
 
 bot.run(TOKEN)
-
-# ===== Bot Run =====
-bot.run(os.getenv("TOKEN"))
