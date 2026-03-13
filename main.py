@@ -15,7 +15,7 @@ ALLOWED_COMMAND_ROLES = [1474116769458421973, 1474121009656500225, 1479832999435
 STARTUP_ROLE = 1479832999435440178
 NOTIFY_ROLE = 1480656237027660046
 
-# ===== Banner Image =====
+# ===== Banner =====
 CONVOY_BANNER = "https://media.discordapp.net/attachments/1467783372469178442/1481896699763888270/Convoy_2.png"
 
 # ===== Intents =====
@@ -32,6 +32,7 @@ session_active = False
 session_host = None
 session_start = None
 startup_message = None
+release_message = None
 
 
 # ===== Embed Helper =====
@@ -45,7 +46,7 @@ def convoy_embed(title, description):
     return embed
 
 
-# ===== Ready Event =====
+# ===== Ready =====
 @bot.event
 async def on_ready():
     await bot.change_presence(
@@ -55,10 +56,10 @@ async def on_ready():
         )
     )
     await tree.sync()
-    print(f"{bot.user} is online.")
+    print(f"{bot.user} online.")
 
 
-# ===== SAY COMMAND =====
+# ===== SAY =====
 @bot.command()
 async def say(ctx, *, message: str):
 
@@ -74,7 +75,7 @@ async def say(ctx, *, message: str):
 # STARTUP
 # ==================================================
 
-@tree.command(name="startup", description="Start a convoy session")
+@tree.command(name="startup", description="Start convoy session")
 @app_commands.describe(players="Expected players (3-50)")
 async def startup(interaction: discord.Interaction, players: int):
 
@@ -85,7 +86,7 @@ async def startup(interaction: discord.Interaction, players: int):
 
     if session_active:
         await interaction.response.send_message(
-            "A convoy is already active.",
+            "A convoy session is already active.",
             ephemeral=True
         )
         return
@@ -133,6 +134,8 @@ async def startup(interaction: discord.Interaction, players: int):
 @app_commands.describe(link="Roblox private server link")
 async def release(interaction: discord.Interaction, link: str):
 
+    global release_message
+
     if not any(role.id in ALLOWED_COMMAND_ROLES for role in interaction.user.roles):
         await interaction.response.send_message(
             "You cannot run this command.",
@@ -160,6 +163,8 @@ async def release(interaction: discord.Interaction, link: str):
         view=view
     )
 
+    release_message = await interaction.original_response()
+
 
 # ==================================================
 # FEEDBACK MODAL
@@ -179,7 +184,7 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
 
     async def on_submit(self, interaction: discord.Interaction):
 
-        feedback_channel = bot.get_channel(FEEDBACK_CHANNEL)
+        channel = bot.get_channel(FEEDBACK_CHANNEL)
 
         embed = convoy_embed(
             "Convoy Feedback",
@@ -189,17 +194,13 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
             f"**Feedback:** {self.feedback.value}"
         )
 
-        await feedback_channel.send(embed=embed)
+        await channel.send(embed=embed)
 
         await interaction.response.send_message(
-            "Feedback submitted successfully.",
+            "Feedback submitted.",
             ephemeral=True
         )
 
-
-# ==================================================
-# FEEDBACK BUTTON
-# ==================================================
 
 class FeedbackView(ui.View):
 
@@ -212,13 +213,14 @@ class FeedbackView(ui.View):
 # END
 # ==================================================
 
-@tree.command(name="end", description="End the convoy session")
+@tree.command(name="end", description="End convoy session")
 async def end(interaction: discord.Interaction):
 
     global session_active
     global session_host
     global session_start
     global startup_message
+    global release_message
 
     if not session_active:
         await interaction.response.send_message(
@@ -249,6 +251,17 @@ async def end(interaction: discord.Interaction):
             if str(reaction.emoji) == "✅":
                 reaction_count = reaction.count - 1
 
+        try:
+            await startup_message.delete()
+        except:
+            pass
+
+    if release_message:
+        try:
+            await release_message.delete()
+        except:
+            pass
+
     log_channel = bot.get_channel(SESSION_LOG_CHANNEL)
 
     log_embed = convoy_embed(
@@ -274,6 +287,7 @@ async def end(interaction: discord.Interaction):
     session_host = None
     session_start = None
     startup_message = None
+    release_message = None
 
 
 bot.run(os.getenv("TOKEN"))
