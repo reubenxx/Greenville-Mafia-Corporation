@@ -35,7 +35,6 @@ startup_message = None
 release_message = None
 
 
-# ===== Embed Helper =====
 def convoy_embed(title, description):
     embed = discord.Embed(
         title=title,
@@ -46,7 +45,6 @@ def convoy_embed(title, description):
     return embed
 
 
-# ===== Ready =====
 @bot.event
 async def on_ready():
     await bot.change_presence(
@@ -59,7 +57,6 @@ async def on_ready():
     print(f"{bot.user} online.")
 
 
-# ===== SAY =====
 @bot.command()
 async def say(ctx, *, message: str):
 
@@ -110,10 +107,11 @@ async def startup(interaction: discord.Interaction, players: int):
     session_start = time.time()
 
     embed = convoy_embed(
-        "GVMC Convoy Launch",
-        f"A convoy is currently being hosted by {interaction.user.mention}.\n\n"
-        f"React with ✅ if you are intending to join.\n\n"
-        f"Please review the convoy rules before attending."
+        "Greenville Mafia Corporation Startup",
+        f"A Convoy is currently being setup by {interaction.user.mention}. Please read through our **[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** before attending. If you are affected by any form of **in-game chat restriction**, please communicate in our [convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286).\n\n"
+        f"If you are willing to attend, please react with the **checkmark** below. If there are any issues joining or in session, please ping the host in our [convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286).\n\n"
+        f"-# Of course, please remain respectful and patient with hosts and members. Most importantly, enjoy your time in the **convoy!**\n\n"
+        f"-# Hope to see you there!"
     )
 
     await interaction.response.send_message(
