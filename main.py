@@ -36,6 +36,8 @@ STARTUP_BANNER = "https://media.discordapp.net/attachments/1467783372469178442/1
 
 LINK_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481965398411968512/Convoy_5_1.png"
 
+END_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481965219818373262/Convoy_4_12.png"
+
 # -------- READY --------
 
 @bot.event
@@ -137,7 +139,8 @@ async def startup(interaction: discord.Interaction):
 
     await interaction.response.send_message(
         content=f"<@&{NOTIFY_ROLE}>",
-        embed=embed
+        embed=embed,
+        allowed_mentions=discord.AllowedMentions(roles=True)
     )
 
     startup_message = await interaction.original_response()
@@ -169,10 +172,7 @@ class LinkView(ui.View):
             color=0x87CEFA
         )
 
-        await interaction.response.send_message(
-            embed=embed,
-            ephemeral=True
-        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # -------- LINK --------
 
@@ -183,17 +183,11 @@ async def link(interaction: discord.Interaction, url: str):
     global link_message
 
     if not startup_active:
-        await interaction.response.send_message(
-            "No active convoy.",
-            ephemeral=True
-        )
+        await interaction.response.send_message("No active convoy.", ephemeral=True)
         return
 
     if interaction.user != startup_host:
-        await interaction.response.send_message(
-            "Only the host can release the link.",
-            ephemeral=True
-        )
+        await interaction.response.send_message("Only the host can release the link.", ephemeral=True)
         return
 
     embed = discord.Embed(
@@ -229,7 +223,8 @@ async def link(interaction: discord.Interaction, url: str):
     await interaction.response.send_message(
         content=f"<@&{NOTIFY_ROLE}>",
         embed=embed,
-        view=view
+        view=view,
+        allowed_mentions=discord.AllowedMentions(roles=True)
     )
 
     link_message = await interaction.original_response()
@@ -245,10 +240,7 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
 
         channel = bot.get_channel(FEEDBACK_CHANNEL)
 
-        embed = discord.Embed(
-            title="NEW CONVOY FEEDBACK",
-            color=0x87CEFA
-        )
+        embed = discord.Embed(title="NEW CONVOY FEEDBACK", color=0x87CEFA)
 
         embed.add_field(name="User", value=interaction.user.mention)
         embed.add_field(name="Rating", value=self.rating.value)
@@ -256,35 +248,31 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
 
         await channel.send(embed=embed)
 
-        await interaction.response.send_message(
-            "Feedback submitted.",
-            ephemeral=True
-        )
+        await interaction.response.send_message("Feedback submitted.", ephemeral=True)
 
 # -------- END VIEW --------
 
 class EndView(ui.View):
 
-    @ui.button(label="Give Feedback", style=discord.ButtonStyle.secondary)
+    @ui.button(label="Feedback", style=discord.ButtonStyle.secondary)
 
     async def feedback(self, interaction: discord.Interaction, button: ui.Button):
 
         await interaction.response.send_modal(FeedbackModal())
 
-# -------- END --------
+# -------- END COMMAND --------
 
 @bot.tree.command(name="end")
 
-async def end(interaction: discord.Interaction):
+@app_commands.describe(host_note="Host note for the convoy")
+
+async def end(interaction: discord.Interaction, host_note: str):
 
     global startup_active
 
     if not startup_active:
 
-        await interaction.response.send_message(
-            "No active convoy.",
-            ephemeral=True
-        )
+        await interaction.response.send_message("No active convoy.", ephemeral=True)
         return
 
     duration = datetime.datetime.utcnow() - startup_time
@@ -301,17 +289,27 @@ async def end(interaction: discord.Interaction):
 
     embed = discord.Embed(
 
-        title="CONVOY CONCLUSION",
+        title="Convoy Conclusion",
 
         description=(
-            f"Host: {startup_host.mention}\n"
-            f"Duration: {str(duration).split('.')[0]}"
+
+            f"This convoy has **concluded** by {interaction.user.mention}. "
+            f"We highly appreciate you for attending the convoy. We cannot wait for more!\n\n"
+
+            f"We host frequently so stay tuned for the next event as it will be hosted right here. "
+            f"Once again, thank you for your participation. We hope to see you in the future!\n\n"
+
+            f"**Hosts Note** - {host_note}\n\n"
+
+            f"-# Want to give feedback? Click on the **feedback** button attached to this message."
+
         ),
 
         color=0x87CEFA
     )
 
-    embed.set_thumbnail(url=startup_host.display_avatar.url)
+    embed.set_thumbnail(url=interaction.user.display_avatar.url)
+    embed.set_image(url=END_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     view = EndView()
@@ -321,10 +319,11 @@ async def end(interaction: discord.Interaction):
     log_channel = bot.get_channel(SESSION_LOG_CHANNEL)
 
     log_embed = discord.Embed(
-        title="SESSION LOG",
+        title="Session Logged",
         description=(
-            f"Host: {startup_host.mention}\n"
-            f"Duration: {str(duration).split('.')[0]}"
+            f"Host: {interaction.user.mention}\n"
+            f"Duration: {str(duration).split('.')[0]}\n"
+            f"Host Note: {host_note}"
         ),
         color=0x87CEFA
     )
