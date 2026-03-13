@@ -21,7 +21,7 @@ startup_time = None
 
 bot_start_time = datetime.datetime.utcnow()
 
-# -------- IDs --------
+# -------- IDS --------
 
 NOTIFY_ROLE = 1480656237027660046
 WELCOME_CHANNEL = 1471452865796116576
@@ -76,10 +76,9 @@ async def on_raw_reaction_add(payload):
 
     global startup_reactors
 
-    if payload.message_id == getattr(startup_message, "id", None):
+    if startup_message and payload.message_id == startup_message.id:
 
         if str(payload.emoji) == "✅":
-
             startup_reactors.add(payload.user_id)
 
 # -------- STARTUP --------
@@ -95,7 +94,6 @@ async def startup(interaction: discord.Interaction):
     global startup_time
 
     if startup_active:
-
         await interaction.response.send_message(
             "A convoy session is already active.",
             ephemeral=True
@@ -113,13 +111,18 @@ async def startup(interaction: discord.Interaction):
 
         description=(
 
-            f"A Convoy is currently being setup by {interaction.user.mention}. "
-            f"Please read through our "
-            f"**[convoy rules]"
-            f"(https://discord.com/channels/1441901639739904125/1481562585781239969)** "
-            f"before attending.\n\n"
+            f"A Convoy is currently being setup by {interaction.user.mention}. Please read through our "
+            f"**[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** "
+            f"before attending. If you are affected by any form of **in-game chat restriction**, "
+            f"please communicate in our "
+            f"[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286).\n\n"
 
-            f"If you are willing to attend, please react with **✅** below.\n\n"
+            f"If you are willing to attend, please react with the **checkmark** below. "
+            f"If there are any issues joining or in session, please ping the host in our "
+            f"[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286).\n\n"
+
+            f"-# Of course, please remain respectful and patient with hosts and members. "
+            f"Most importantly, enjoy your time in the **convoy!**\n\n"
 
             f"-# Hope to see you there!"
 
@@ -160,7 +163,16 @@ class LinkView(ui.View):
             )
             return
 
-        await interaction.response.send_message(self.url, ephemeral=True)
+        embed = discord.Embed(
+            title="Private Server Link",
+            description=f"Click **[here]({self.url})** to join the private server.",
+            color=0x87CEFA
+        )
+
+        await interaction.response.send_message(
+            embed=embed,
+            ephemeral=True
+        )
 
 # -------- LINK --------
 
@@ -171,7 +183,6 @@ async def link(interaction: discord.Interaction, url: str):
     global link_message
 
     if not startup_active:
-
         await interaction.response.send_message(
             "No active convoy.",
             ephemeral=True
@@ -179,7 +190,6 @@ async def link(interaction: discord.Interaction, url: str):
         return
 
     if interaction.user != startup_host:
-
         await interaction.response.send_message(
             "Only the host can release the link.",
             ephemeral=True
@@ -194,15 +204,13 @@ async def link(interaction: discord.Interaction, url: str):
 
             f"Thank you for your patience. {interaction.user.mention} has released the session link. "
             f"Please ensure you have read through all of our "
-            f"**[convoy rules]"
-            f"(https://discord.com/channels/1441901639739904125/1481562585781239969)** "
+            f"**[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** "
             f"before continuing.\n\n"
 
             f"We ask of you to maintain full respect and patience with hosts, members & staff. "
             f"If you have any issues joining, we suggest you check your privacy settings. "
             f"If all seems fine, ping the host in "
-            f"**[convoy chat]"
-            f"(https://discord.com/channels/1441901639739904125/1474109435751305286)** "
+            f"**[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** "
             f"for assistance.\n\n"
 
             f"-# Most importantly, enjoy the convoy. We are always here to help if needed."
@@ -239,10 +247,10 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
 
         embed = discord.Embed(
             title="NEW CONVOY FEEDBACK",
-            description=f"User: {interaction.user.mention}",
             color=0x87CEFA
         )
 
+        embed.add_field(name="User", value=interaction.user.mention)
         embed.add_field(name="Rating", value=self.rating.value)
         embed.add_field(name="Feedback", value=self.feedback.value)
 
@@ -263,7 +271,7 @@ class EndView(ui.View):
 
         await interaction.response.send_modal(FeedbackModal())
 
-# -------- END COMMAND --------
+# -------- END --------
 
 @bot.tree.command(name="end")
 
@@ -296,7 +304,7 @@ async def end(interaction: discord.Interaction):
         title="CONVOY CONCLUSION",
 
         description=(
-            f"Hosted by {startup_host.mention}\n"
+            f"Host: {startup_host.mention}\n"
             f"Duration: {str(duration).split('.')[0]}"
         ),
 
@@ -310,11 +318,18 @@ async def end(interaction: discord.Interaction):
 
     await interaction.response.send_message(embed=embed, view=view)
 
-    # -------- LOG SESSION --------
-
     log_channel = bot.get_channel(SESSION_LOG_CHANNEL)
 
-    await log_channel.send(embed=embed)
+    log_embed = discord.Embed(
+        title="SESSION LOG",
+        description=(
+            f"Host: {startup_host.mention}\n"
+            f"Duration: {str(duration).split('.')[0]}"
+        ),
+        color=0x87CEFA
+    )
+
+    await log_channel.send(embed=log_embed)
 
     startup_active = False
 
