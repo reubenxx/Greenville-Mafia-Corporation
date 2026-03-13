@@ -35,13 +35,18 @@ startup_message = None
 release_message = None
 
 
-def convoy_embed(title, description):
+def convoy_embed(title, description, user=None):
     embed = discord.Embed(
         title=title,
         description=description,
         color=0x87CEFA
     )
+
     embed.set_image(url=CONVOY_BANNER)
+
+    if user:
+        embed.set_thumbnail(url=user.display_avatar.url)
+
     return embed
 
 
@@ -53,7 +58,9 @@ async def on_ready():
             name="Greenville Mafia Corporation"
         )
     )
+
     await tree.sync()
+
     print(f"{bot.user} online.")
 
 
@@ -65,6 +72,7 @@ async def say(ctx, *, message: str):
         return
 
     await ctx.message.delete()
+
     await ctx.send(message)
 
 
@@ -111,7 +119,8 @@ async def startup(interaction: discord.Interaction, players: int):
         f"A Convoy is currently being setup by {interaction.user.mention}. Please read through our **[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** before attending. If you are affected by any form of **in-game chat restriction**, please communicate in our [convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286).\n\n"
         f"If you are willing to attend, please react with the **checkmark** below. If there are any issues joining or in session, please ping the host in our [convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286).\n\n"
         f"-# Of course, please remain respectful and patient with hosts and members. Most importantly, enjoy your time in the **convoy!**\n\n"
-        f"-# Hope to see you there!"
+        f"-# Hope to see you there!",
+        interaction.user
     )
 
     await interaction.response.send_message(
@@ -143,7 +152,8 @@ async def release(interaction: discord.Interaction, link: str):
 
     embed = convoy_embed(
         "Convoy Server Released",
-        "Click the button below to join the convoy server."
+        "Click the button below to join the convoy server.",
+        interaction.user
     )
 
     view = ui.View()
@@ -189,7 +199,8 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
             f"**Host:** {session_host.mention if session_host else 'Unknown'}\n"
             f"**Feedback From:** {interaction.user.mention}\n\n"
             f"**Rating:** {self.rating.value}\n"
-            f"**Feedback:** {self.feedback.value}"
+            f"**Feedback:** {self.feedback.value}",
+            interaction.user
         )
 
         await channel.send(embed=embed)
@@ -266,14 +277,16 @@ async def end(interaction: discord.Interaction):
         "Convoy Session Logged",
         f"**Host:** {session_host.mention}\n"
         f"**Duration:** {minutes}m {seconds}s\n"
-        f"**Participants:** {reaction_count}"
+        f"**Participants:** {reaction_count}",
+        session_host
     )
 
     await log_channel.send(embed=log_embed)
 
     end_embed = convoy_embed(
         "Convoy Ended",
-        "Thank you for attending.\n\nPlease leave feedback below."
+        "Thank you for attending.\n\nPlease leave feedback below.",
+        interaction.user
     )
 
     await interaction.response.send_message(
