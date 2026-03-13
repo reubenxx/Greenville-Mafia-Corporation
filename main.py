@@ -1,6 +1,6 @@
 import discord
-from discord import app_commands, ui
 from discord.ext import commands
+from discord import app_commands, ui
 import os
 import time
 
@@ -15,8 +15,8 @@ ALLOWED_COMMAND_ROLES = [1474116769458421973, 1474121009656500225, 1479832999435
 STARTUP_ROLE = 1479832999435440178
 NOTIFY_ROLE = 1480656237027660046
 
-# ===== Convoy Image =====
-CONVOY_IMAGE = "https://media.discordapp.net/attachments/1467783372469178442/1481896699763888270/Convoy_2.png"
+# ===== Banner Image =====
+CONVOY_BANNER = "https://media.discordapp.net/attachments/1467783372469178442/1481896699763888270/Convoy_2.png"
 
 # ===== Intents =====
 intents = discord.Intents.default()
@@ -27,7 +27,7 @@ intents.message_content = True
 bot = commands.Bot(command_prefix=">", intents=intents)
 tree = bot.tree
 
-# ===== Session State =====
+# ===== Session Data =====
 session_active = False
 session_host = None
 session_start = None
@@ -35,23 +35,17 @@ startup_message = None
 
 
 # ===== Embed Helper =====
-def clean_embed(title, description):
-
+def convoy_embed(title, description):
     embed = discord.Embed(
         title=title,
         description=description,
         color=0x87CEFA
     )
-
-    embed.set_footer(
-        text="Greenville Mafia Corporation",
-        icon_url=CONVOY_IMAGE
-    )
-
+    embed.set_image(url=CONVOY_BANNER)
     return embed
 
 
-# ===== Ready =====
+# ===== Ready Event =====
 @bot.event
 async def on_ready():
     await bot.change_presence(
@@ -60,13 +54,11 @@ async def on_ready():
             name="Greenville Mafia Corporation"
         )
     )
-
     await tree.sync()
+    print(f"{bot.user} is online.")
 
-    print(f"{bot.user} online.")
 
-
-# ===== SAY =====
+# ===== SAY COMMAND =====
 @bot.command()
 async def say(ctx, *, message: str):
 
@@ -78,11 +70,11 @@ async def say(ctx, *, message: str):
     await ctx.send(message)
 
 
-# =================================================
+# ==================================================
 # STARTUP
-# =================================================
+# ==================================================
 
-@tree.command(name="startup", description="Start a convoy")
+@tree.command(name="startup", description="Start a convoy session")
 @app_commands.describe(players="Expected players (3-50)")
 async def startup(interaction: discord.Interaction, players: int):
 
@@ -93,7 +85,7 @@ async def startup(interaction: discord.Interaction, players: int):
 
     if session_active:
         await interaction.response.send_message(
-            "A convoy session is already active.",
+            "A convoy is already active.",
             ephemeral=True
         )
         return
@@ -107,7 +99,7 @@ async def startup(interaction: discord.Interaction, players: int):
 
     if players < 3 or players > 50:
         await interaction.response.send_message(
-            "Players must be between **3 and 50**.",
+            "Player count must be between **3 and 50**.",
             ephemeral=True
         )
         return
@@ -116,12 +108,11 @@ async def startup(interaction: discord.Interaction, players: int):
     session_host = interaction.user
     session_start = time.time()
 
-    embed = clean_embed(
+    embed = convoy_embed(
         "GVMC Convoy Launch",
         f"A convoy is currently being hosted by {interaction.user.mention}.\n\n"
         f"React with ✅ if you are intending to join.\n\n"
-        f"Please review our **convoy rules** before attending.\n\n"
-        f"Enjoy your time in **Greenville Mafia Corporation** convoys."
+        f"Please review the convoy rules before attending."
     )
 
     await interaction.response.send_message(
@@ -134,9 +125,9 @@ async def startup(interaction: discord.Interaction, players: int):
     await startup_message.add_reaction("✅")
 
 
-# =================================================
-# RELEASE LINK
-# =================================================
+# ==================================================
+# RELEASE
+# ==================================================
 
 @tree.command(name="release", description="Release convoy server link")
 @app_commands.describe(link="Roblox private server link")
@@ -149,7 +140,7 @@ async def release(interaction: discord.Interaction, link: str):
         )
         return
 
-    embed = clean_embed(
+    embed = convoy_embed(
         "Convoy Server Released",
         "Click the button below to join the convoy server."
     )
@@ -170,9 +161,9 @@ async def release(interaction: discord.Interaction, link: str):
     )
 
 
-# =================================================
+# ==================================================
 # FEEDBACK MODAL
-# =================================================
+# ==================================================
 
 class FeedbackModal(ui.Modal, title="Convoy Feedback"):
 
@@ -188,17 +179,17 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
 
     async def on_submit(self, interaction: discord.Interaction):
 
-        channel = bot.get_channel(FEEDBACK_CHANNEL)
+        feedback_channel = bot.get_channel(FEEDBACK_CHANNEL)
 
-        embed = clean_embed(
-            "Convoy Feedback Submitted",
-            f"**Host:** {session_host.mention}\n"
+        embed = convoy_embed(
+            "Convoy Feedback",
+            f"**Host:** {session_host.mention if session_host else 'Unknown'}\n"
             f"**Feedback From:** {interaction.user.mention}\n\n"
             f"**Rating:** {self.rating.value}\n"
             f"**Feedback:** {self.feedback.value}"
         )
 
-        await channel.send(embed=embed)
+        await feedback_channel.send(embed=embed)
 
         await interaction.response.send_message(
             "Feedback submitted successfully.",
@@ -206,19 +197,22 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
         )
 
 
-# =================================================
-# END SESSION
-# =================================================
+# ==================================================
+# FEEDBACK BUTTON
+# ==================================================
 
-class FeedbackButton(ui.View):
+class FeedbackView(ui.View):
 
     @ui.button(label="Give Feedback", style=discord.ButtonStyle.primary)
     async def feedback(self, interaction: discord.Interaction, button: ui.Button):
-
         await interaction.response.send_modal(FeedbackModal())
 
 
-@tree.command(name="end", description="End convoy session")
+# ==================================================
+# END
+# ==================================================
+
+@tree.command(name="end", description="End the convoy session")
 async def end(interaction: discord.Interaction):
 
     global session_active
@@ -235,7 +229,7 @@ async def end(interaction: discord.Interaction):
 
     if interaction.user != session_host:
         await interaction.response.send_message(
-            "Only the session host can end the convoy.",
+            "Only the convoy host can end the session.",
             ephemeral=True
         )
         return
@@ -248,15 +242,16 @@ async def end(interaction: discord.Interaction):
     reaction_count = 0
 
     if startup_message:
-        message = await interaction.channel.fetch_message(startup_message.id)
 
-        for reaction in message.reactions:
+        msg = await interaction.channel.fetch_message(startup_message.id)
+
+        for reaction in msg.reactions:
             if str(reaction.emoji) == "✅":
                 reaction_count = reaction.count - 1
 
     log_channel = bot.get_channel(SESSION_LOG_CHANNEL)
 
-    log_embed = clean_embed(
+    log_embed = convoy_embed(
         "Convoy Session Logged",
         f"**Host:** {session_host.mention}\n"
         f"**Duration:** {minutes}m {seconds}s\n"
@@ -265,15 +260,14 @@ async def end(interaction: discord.Interaction):
 
     await log_channel.send(embed=log_embed)
 
-    end_embed = clean_embed(
-        "Convoy Session Ended",
-        "Thanks for attending the convoy.\n\n"
-        "Please leave feedback below."
+    end_embed = convoy_embed(
+        "Convoy Ended",
+        "Thank you for attending.\n\nPlease leave feedback below."
     )
 
     await interaction.response.send_message(
         embed=end_embed,
-        view=FeedbackButton()
+        view=FeedbackView()
     )
 
     session_active = False
@@ -282,6 +276,4 @@ async def end(interaction: discord.Interaction):
     startup_message = None
 
 
-bot.run(os.getenv("TOKEN"))
-# ===== Bot Run =====
 bot.run(os.getenv("TOKEN"))
