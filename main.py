@@ -10,8 +10,6 @@ TOKEN = os.getenv("TOKEN")
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=">", intents=intents)
 
-# -------- GLOBAL DATA --------
-
 startup_active = False
 startup_host = None
 startup_message = None
@@ -21,14 +19,10 @@ startup_time = None
 
 bot_start_time = datetime.datetime.utcnow()
 
-# -------- IDS --------
-
 NOTIFY_ROLE = 1480656237027660046
 WELCOME_CHANNEL = 1471452865796116576
 SESSION_LOG_CHANNEL = 1481568871679787088
 FEEDBACK_CHANNEL = 1481568923504611439
-
-# -------- IMAGES --------
 
 FOOTER_ICON = "https://media.discordapp.net/attachments/1467783372469178442/1480467031571693710/image.png"
 
@@ -38,14 +32,10 @@ LINK_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481
 
 END_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481965219818373262/Convoy_4_12.png"
 
-# -------- READY --------
-
 @bot.event
 async def on_ready():
     await bot.tree.sync()
     print(f"{bot.user} ready")
-
-# -------- WELCOME --------
 
 @bot.event
 async def on_member_join(member):
@@ -54,7 +44,7 @@ async def on_member_join(member):
 
     embed = discord.Embed(
         title="WELCOME TO GREENVILLE MAFIA CORPORATION",
-        description=f"Welcome {member.mention}!",
+        description=f"> Welcome {member.mention}!",
         color=0x87CEFA
     )
 
@@ -64,14 +54,10 @@ async def on_member_join(member):
 
     await channel.send(embed=embed)
 
-# -------- SAY COMMAND --------
-
 @bot.command()
 async def say(ctx, *, message):
     await ctx.message.delete()
     await ctx.send(message)
-
-# -------- REACTION TRACKING --------
 
 @bot.event
 async def on_raw_reaction_add(payload):
@@ -83,10 +69,7 @@ async def on_raw_reaction_add(payload):
         if str(payload.emoji) == "✅":
             startup_reactors.add(payload.user_id)
 
-# -------- STARTUP --------
-
 @bot.tree.command(name="startup")
-
 async def startup(interaction: discord.Interaction):
 
     global startup_active
@@ -96,10 +79,7 @@ async def startup(interaction: discord.Interaction):
     global startup_time
 
     if startup_active:
-        await interaction.response.send_message(
-            "A convoy session is already active.",
-            ephemeral=True
-        )
+        await interaction.response.send_message("A convoy session is already active.", ephemeral=True)
         return
 
     startup_active = True
@@ -113,20 +93,22 @@ async def startup(interaction: discord.Interaction):
 
         description=(
 
-            f"A Convoy is currently being setup by {interaction.user.mention}. Please read through our "
+            f"> A Convoy is currently being setup by {interaction.user.mention}. Please read through our "
             f"**[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** "
-            f"before attending. If you are affected by any form of **in-game chat restriction**, "
-            f"please communicate in our "
+            f"before attending.\n\n"
+
+            f"> If you are affected by any form of **in-game chat restriction**, please communicate in our "
             f"[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286).\n\n"
 
-            f"If you are willing to attend, please react with the **checkmark** below. "
-            f"If there are any issues joining or in session, please ping the host in our "
+            f"> If you are willing to attend, please react with the **checkmark** below.\n\n"
+
+            f"> If there are any issues joining or in session, please ping the host in our "
             f"[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286).\n\n"
 
-            f"-# Of course, please remain respectful and patient with hosts and members. "
-            f"Most importantly, enjoy your time in the **convoy!**\n\n"
+            f"> Of course, please remain respectful and patient with hosts and members.\n"
+            f"> Most importantly, enjoy your time in the **convoy!**\n\n"
 
-            f"-# Hope to see you there!"
+            f"> Hope to see you there!"
 
         ),
 
@@ -145,8 +127,6 @@ async def startup(interaction: discord.Interaction):
 
     startup_message = await interaction.original_response()
     await startup_message.add_reaction("✅")
-
-# -------- LINK VIEW --------
 
 class LinkView(ui.View):
 
@@ -168,16 +148,13 @@ class LinkView(ui.View):
 
         embed = discord.Embed(
             title="Private Server Link",
-            description=f"Click **[here]({self.url})** to join the private server.",
+            description=f"> Click **[here]({self.url})** to join the private server.",
             color=0x87CEFA
         )
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# -------- LINK --------
-
 @bot.tree.command(name="link")
-
 async def link(interaction: discord.Interaction, url: str):
 
     global link_message
@@ -196,18 +173,21 @@ async def link(interaction: discord.Interaction, url: str):
 
         description=(
 
-            f"Thank you for your patience. {interaction.user.mention} has released the session link. "
-            f"Please ensure you have read through all of our "
+            f"> Thank you for your patience. {interaction.user.mention} has released the session link.\n\n"
+
+            f"> Please ensure you have read through all of our "
             f"**[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** "
             f"before continuing.\n\n"
 
-            f"We ask of you to maintain full respect and patience with hosts, members & staff. "
-            f"If you have any issues joining, we suggest you check your privacy settings. "
-            f"If all seems fine, ping the host in "
+            f"> We ask of you to maintain full respect and patience with hosts, members & staff.\n\n"
+
+            f"> If you have any issues joining, we suggest you check your privacy settings.\n\n"
+
+            f"> If all seems fine, ping the host in "
             f"**[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** "
             f"for assistance.\n\n"
 
-            f"-# Most importantly, enjoy the convoy. We are always here to help if needed."
+            f"> Most importantly, enjoy the convoy. We are always here to help if needed."
 
         ),
 
@@ -229,8 +209,6 @@ async def link(interaction: discord.Interaction, url: str):
 
     link_message = await interaction.original_response()
 
-# -------- FEEDBACK MODAL --------
-
 class FeedbackModal(ui.Modal, title="Convoy Feedback"):
 
     rating = ui.TextInput(label="Rating (1-5)")
@@ -250,8 +228,6 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
 
         await interaction.response.send_message("Feedback submitted.", ephemeral=True)
 
-# -------- END VIEW --------
-
 class EndView(ui.View):
 
     @ui.button(label="Feedback", style=discord.ButtonStyle.secondary)
@@ -260,10 +236,7 @@ class EndView(ui.View):
 
         await interaction.response.send_modal(FeedbackModal())
 
-# -------- END COMMAND --------
-
 @bot.tree.command(name="end")
-
 @app_commands.describe(host_note="Host note for the convoy")
 
 async def end(interaction: discord.Interaction, host_note: str):
@@ -293,15 +266,16 @@ async def end(interaction: discord.Interaction, host_note: str):
 
         description=(
 
-            f"This convoy has **concluded** by {interaction.user.mention}. "
-            f"We highly appreciate you for attending the convoy. We cannot wait for more!\n\n"
+            f"> This convoy has **concluded** by {interaction.user.mention}. "
+            f"We highly appreciate you for attending the convoy.\n\n"
 
-            f"We host frequently so stay tuned for the next event as it will be hosted right here. "
-            f"Once again, thank you for your participation. We hope to see you in the future!\n\n"
+            f"> We host frequently so stay tuned for the next event as it will be hosted right here.\n\n"
 
-            f"**Hosts Note** - {host_note}\n\n"
+            f"> Once again, thank you for your participation. We hope to see you in the future!\n\n"
 
-            f"-# Want to give feedback? Click on the **feedback** button attached to this message."
+            f"> **Hosts Note** - {host_note}\n\n"
+
+            f"> Want to give feedback? Click on the **feedback** button attached to this message."
 
         ),
 
@@ -320,19 +294,13 @@ async def end(interaction: discord.Interaction, host_note: str):
 
     log_embed = discord.Embed(
         title="Session Logged",
-        description=(
-            f"Host: {interaction.user.mention}\n"
-            f"Duration: {str(duration).split('.')[0]}\n"
-            f"Host Note: {host_note}"
-        ),
+        description=f"Host: {interaction.user.mention}\nDuration: {str(duration).split('.')[0]}\nHost Note: {host_note}",
         color=0x87CEFA
     )
 
     await log_channel.send(embed=log_embed)
 
     startup_active = False
-
-# -------- INFO --------
 
 @bot.tree.command(name="info")
 
@@ -352,13 +320,7 @@ async def info(interaction: discord.Interaction):
 
     embed = discord.Embed(
         title="BOT INFO",
-        description=(
-            f"Prefix: `>`\n"
-            f"Uptime: {str(uptime).split('.')[0]}\n"
-            f"Ping: {ping}ms\n"
-            f"Status: Online\n"
-            f"Crash Risk: {random.choice(risks)}"
-        ),
+        description=f"> Prefix: `>`\n> Uptime: {str(uptime).split('.')[0]}\n> Ping: {ping}ms\n> Status: Online\n> Crash Risk: {random.choice(risks)}",
         color=0x87CEFA
     )
 
