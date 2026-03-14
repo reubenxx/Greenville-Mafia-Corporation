@@ -5,8 +5,23 @@ from discord import app_commands, ui
 import datetime
 import os
 import random
+import threading
+from flask import Flask
 
 TOKEN = os.getenv("TOKEN")
+
+# --- Flask server for gunicorn ---
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Bot running"
+
+def run_bot():
+    bot.run(TOKEN)
+
+# --- Discord Setup ---
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=">", intents=intents)
@@ -25,7 +40,6 @@ WELCOME_CHANNEL = 1471452865796116576
 SESSION_LOG_CHANNEL = 1481568871679787088
 FEEDBACK_CHANNEL = 1481568923504611439
 
-FOOTER_ICON = "https://media.discordapp.net/attachments/1467783372469178442/1480467031571693710/image.png"
 STARTUP_BANNER = "https://media.discordapp.net/attachments/1467783372469178442/1481896699763888270/Convoy_2.png"
 LINK_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481965398411968512/Convoy_5_1.png"
 END_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481965219818373262/Convoy_4_12.png"
@@ -34,7 +48,7 @@ END_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/14819
 @bot.event
 async def on_ready():
     await bot.tree.sync()
-    print(f"{bot.user} online")
+    print(f"{bot.user} ready")
 
 
 @bot.event
@@ -96,16 +110,13 @@ async def startup(interaction: discord.Interaction):
         title="GREENVILLE MAFIA CORPORATION STARTUP",
         description=(
             f"> A convoy is currently being setup by {interaction.user.mention}. "
-            f"Please read the **[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** before attending.\n\n"
+            f"Please read the **convoy rules** before attending.\n\n"
 
-            f"> If you have an **in-game chat restriction**, communicate in "
-            f"[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286).\n\n"
+            f"> If you have an in-game chat restriction, communicate in convoy chat.\n\n"
 
-            f"> React with the **checkmark** below if attending. "
-            f"If issues occur joining, ping the host in convoy chat.\n\n"
+            f"> React with the **checkmark** below if attending.\n\n"
 
-            f"> Please remain respectful and patient with hosts and members. "
-            f"Most importantly, enjoy your time in the convoy!"
+            f"> Please remain respectful and enjoy the convoy!"
         ),
         color=0x87CEFA
     )
@@ -155,33 +166,15 @@ async def link(interaction: discord.Interaction, url: str):
     global link_message
 
     if not startup_active:
-        await interaction.response.send_message(
-            "No active convoy.",
-            ephemeral=True
-        )
-        return
-
-    if interaction.user != startup_host:
-        await interaction.response.send_message(
-            "Only the host can release the link.",
-            ephemeral=True
-        )
+        await interaction.response.send_message("No active convoy.", ephemeral=True)
         return
 
     embed = discord.Embed(
         title="SESSION RELEASE",
         description=(
-            f"> Thank you for your patience. {interaction.user.mention} has released the session link.\n\n"
-
-            f"> Please read the **[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** before continuing.\n\n"
-
-            f"> Maintain respect with hosts, members, and staff. "
-            f"If joining issues occur check privacy settings first.\n\n"
-
-            f"> If problems continue ping the host in "
-            f"**[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)**.\n\n"
-
-            f"> Most importantly enjoy the convoy!"
+            f"> {interaction.user.mention} has released the session link.\n\n"
+            f"> Maintain respect with hosts and members.\n\n"
+            f"> Enjoy the convoy!"
         ),
         color=0x87CEFA
     )
@@ -266,16 +259,10 @@ async def end(interaction: discord.Interaction, host_note: str):
     embed = discord.Embed(
         title="Convoy Conclusion",
         description=(
-            f"> This convoy has **concluded** by {interaction.user.mention}. "
-            f"We highly appreciate you for attending.\n\n"
-
-            f"> We host frequently so stay tuned for the next event hosted right here.\n\n"
-
-            f"> Thank you again for your participation. We hope to see you in the future!\n\n"
-
-            f"> **Host Note —** {host_note}\n\n"
-
-            f"> Want to give feedback? Click the **feedback** button below."
+            f"> This convoy has **concluded** by {interaction.user.mention}.\n\n"
+            f"> Thank you for attending the convoy!\n\n"
+            f"> **Host Note:** {host_note}\n\n"
+            f"> Use the feedback button below."
         ),
         color=0x87CEFA
     )
@@ -291,11 +278,7 @@ async def end(interaction: discord.Interaction, host_note: str):
 
     log_embed = discord.Embed(
         title="Session Logged",
-        description=(
-            f"Host: {interaction.user.mention}\n"
-            f"Duration: {str(duration).split('.')[0]}\n"
-            f"Host Note: {host_note}"
-        ),
+        description=f"Host: {interaction.user.mention}\nDuration: {str(duration).split('.')[0]}\nHost Note: {host_note}",
         color=0x87CEFA
     )
 
@@ -324,7 +307,7 @@ async def info(interaction: discord.Interaction):
         description=(
             f"> Prefix: `>` | Ping: {ping}ms\n"
             f"> Uptime: {str(uptime).split('.')[0]}\n"
-            f"> Status: Online | Crash Risk: {random.choice(risks)}"
+            f"> Crash Risk: {random.choice(risks)}"
         ),
         color=0x87CEFA
     )
@@ -332,5 +315,5 @@ async def info(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 
-bot.run(TOKEN)
+threading.Thread(target=run_bot).start()
 ```
