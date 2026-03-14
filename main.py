@@ -1,27 +1,11 @@
-```python
 import discord
 from discord.ext import commands
 from discord import app_commands, ui
 import datetime
 import os
 import random
-import threading
-from flask import Flask
 
 TOKEN = os.getenv("TOKEN")
-
-# --- Flask server for gunicorn ---
-
-app = Flask(__name__)
-
-@app.route("/")
-def home():
-    return "Bot running"
-
-def run_bot():
-    bot.run(TOKEN)
-
-# --- Discord Setup ---
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=">", intents=intents)
@@ -40,16 +24,18 @@ WELCOME_CHANNEL = 1471452865796116576
 SESSION_LOG_CHANNEL = 1481568871679787088
 FEEDBACK_CHANNEL = 1481568923504611439
 
-STARTUP_BANNER = "https://media.discordapp.net/attachments/1467783372469178442/1481896699763888270/Convoy_2.png"
-LINK_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481965398411968512/Convoy_5_1.png"
-END_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481965219818373262/Convoy_4_12.png"
+FOOTER_ICON = "https://media.discordapp.net/attachments/1467783372469178442/1480467031571693710/image.png"
 
+STARTUP_BANNER = "https://media.discordapp.net/attachments/1467783372469178442/1481896699763888270/Convoy_2.png"
+
+LINK_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481965398411968512/Convoy_5_1.png"
+
+END_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481965219818373262/Convoy_4_12.png"
 
 @bot.event
 async def on_ready():
     await bot.tree.sync()
     print(f"{bot.user} ready")
-
 
 @bot.event
 async def on_member_join(member):
@@ -58,21 +44,20 @@ async def on_member_join(member):
 
     embed = discord.Embed(
         title="WELCOME TO GREENVILLE MAFIA CORPORATION",
-        description=f"> Welcome {member.mention}! We're glad you're here.",
+        description=f"> Welcome {member.mention}!",
         color=0x87CEFA
     )
 
     embed.set_thumbnail(url=member.display_avatar.url)
     embed.set_image(url=STARTUP_BANNER)
+    embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     await channel.send(embed=embed)
-
 
 @bot.command()
 async def say(ctx, *, message):
     await ctx.message.delete()
     await ctx.send(message)
-
 
 @bot.event
 async def on_raw_reaction_add(payload):
@@ -84,7 +69,6 @@ async def on_raw_reaction_add(payload):
         if str(payload.emoji) == "✅":
             startup_reactors.add(payload.user_id)
 
-
 @bot.tree.command(name="startup")
 async def startup(interaction: discord.Interaction):
 
@@ -95,10 +79,7 @@ async def startup(interaction: discord.Interaction):
     global startup_time
 
     if startup_active:
-        await interaction.response.send_message(
-            "A convoy session is already active.",
-            ephemeral=True
-        )
+        await interaction.response.send_message("A convoy session is already active.", ephemeral=True)
         return
 
     startup_active = True
@@ -107,22 +88,36 @@ async def startup(interaction: discord.Interaction):
     startup_time = datetime.datetime.utcnow()
 
     embed = discord.Embed(
+
         title="GREENVILLE MAFIA CORPORATION STARTUP",
+
         description=(
-            f"> A convoy is currently being setup by {interaction.user.mention}. "
-            f"Please read the **convoy rules** before attending.\n\n"
 
-            f"> If you have an in-game chat restriction, communicate in convoy chat.\n\n"
+            f"> A Convoy is currently being setup by {interaction.user.mention}. Please read through our "
+            f"**[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** "
+            f"before attending.\n\n"
 
-            f"> React with the **checkmark** below if attending.\n\n"
+            f"> If you are affected by any form of **in-game chat restriction**, please communicate in our "
+            f"[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286).\n\n"
 
-            f"> Please remain respectful and enjoy the convoy!"
+            f"> If you are willing to attend, please react with the **checkmark** below.\n\n"
+
+            f"> If there are any issues joining or in session, please ping the host in our "
+            f"[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286).\n\n"
+
+            f"> Of course, please remain respectful and patient with hosts and members.\n"
+            f"> Most importantly, enjoy your time in the **convoy!**\n\n"
+
+            f"> Hope to see you there!"
+
         ),
+
         color=0x87CEFA
     )
 
     embed.set_thumbnail(url=interaction.user.display_avatar.url)
     embed.set_image(url=STARTUP_BANNER)
+    embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     await interaction.response.send_message(
         content=f"<@&{NOTIFY_ROLE}>",
@@ -133,7 +128,6 @@ async def startup(interaction: discord.Interaction):
     startup_message = await interaction.original_response()
     await startup_message.add_reaction("✅")
 
-
 class LinkView(ui.View):
 
     def __init__(self, url):
@@ -141,6 +135,7 @@ class LinkView(ui.View):
         self.url = url
 
     @ui.button(label="Join Private Server", style=discord.ButtonStyle.primary)
+
     async def join(self, interaction: discord.Interaction, button: ui.Button):
 
         if interaction.user.id not in startup_reactors:
@@ -159,7 +154,6 @@ class LinkView(ui.View):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-
 @bot.tree.command(name="link")
 async def link(interaction: discord.Interaction, url: str):
 
@@ -169,18 +163,40 @@ async def link(interaction: discord.Interaction, url: str):
         await interaction.response.send_message("No active convoy.", ephemeral=True)
         return
 
+    if interaction.user != startup_host:
+        await interaction.response.send_message("Only the host can release the link.", ephemeral=True)
+        return
+
     embed = discord.Embed(
+
         title="SESSION RELEASE",
+
         description=(
-            f"> {interaction.user.mention} has released the session link.\n\n"
-            f"> Maintain respect with hosts and members.\n\n"
-            f"> Enjoy the convoy!"
+
+            f"> Thank you for your patience. {interaction.user.mention} has released the session link.\n\n"
+
+            f"> Please ensure you have read through all of our "
+            f"**[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** "
+            f"before continuing.\n\n"
+
+            f"> We ask of you to maintain full respect and patience with hosts, members & staff.\n\n"
+
+            f"> If you have any issues joining, we suggest you check your privacy settings.\n\n"
+
+            f"> If all seems fine, ping the host in "
+            f"**[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** "
+            f"for assistance.\n\n"
+
+            f"> Most importantly, enjoy the convoy. We are always here to help if needed."
+
         ),
+
         color=0x87CEFA
     )
 
     embed.set_thumbnail(url=interaction.user.display_avatar.url)
     embed.set_image(url=LINK_BANNER)
+    embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     view = LinkView(url)
 
@@ -193,7 +209,6 @@ async def link(interaction: discord.Interaction, url: str):
 
     link_message = await interaction.original_response()
 
-
 class FeedbackModal(ui.Modal, title="Convoy Feedback"):
 
     rating = ui.TextInput(label="Rating (1-5)")
@@ -203,10 +218,7 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
 
         channel = bot.get_channel(FEEDBACK_CHANNEL)
 
-        embed = discord.Embed(
-            title="NEW CONVOY FEEDBACK",
-            color=0x87CEFA
-        )
+        embed = discord.Embed(title="NEW CONVOY FEEDBACK", color=0x87CEFA)
 
         embed.add_field(name="User", value=interaction.user.mention)
         embed.add_field(name="Rating", value=self.rating.value)
@@ -214,19 +226,15 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
 
         await channel.send(embed=embed)
 
-        await interaction.response.send_message(
-            "Feedback submitted.",
-            ephemeral=True
-        )
-
+        await interaction.response.send_message("Feedback submitted.", ephemeral=True)
 
 class EndView(ui.View):
 
     @ui.button(label="Feedback", style=discord.ButtonStyle.secondary)
+
     async def feedback(self, interaction: discord.Interaction, button: ui.Button):
 
         await interaction.response.send_modal(FeedbackModal())
-
 
 @bot.tree.command(name="end")
 @app_commands.describe(host_note="Host note for the convoy")
@@ -236,39 +244,47 @@ async def end(interaction: discord.Interaction, host_note: str):
     global startup_active
 
     if not startup_active:
-        await interaction.response.send_message(
-            "No active convoy.",
-            ephemeral=True
-        )
+
+        await interaction.response.send_message("No active convoy.", ephemeral=True)
         return
 
     duration = datetime.datetime.utcnow() - startup_time
 
     try:
-        if startup_message:
-            await startup_message.delete()
+        await startup_message.delete()
     except:
         pass
 
     try:
-        if link_message:
-            await link_message.delete()
+        await link_message.delete()
     except:
         pass
 
     embed = discord.Embed(
+
         title="Convoy Conclusion",
+
         description=(
-            f"> This convoy has **concluded** by {interaction.user.mention}.\n\n"
-            f"> Thank you for attending the convoy!\n\n"
-            f"> **Host Note:** {host_note}\n\n"
-            f"> Use the feedback button below."
+
+            f"> This convoy has **concluded** by {interaction.user.mention}. "
+            f"We highly appreciate you for attending the convoy.\n\n"
+
+            f"> We host frequently so stay tuned for the next event as it will be hosted right here.\n\n"
+
+            f"> Once again, thank you for your participation. We hope to see you in the future!\n\n"
+
+            f"> **Hosts Note** - {host_note}\n\n"
+
+            f"> Want to give feedback? Click on the **feedback** button attached to this message."
+
         ),
+
         color=0x87CEFA
     )
 
     embed.set_thumbnail(url=interaction.user.display_avatar.url)
     embed.set_image(url=END_BANNER)
+    embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     view = EndView()
 
@@ -286,8 +302,8 @@ async def end(interaction: discord.Interaction, host_note: str):
 
     startup_active = False
 
-
 @bot.tree.command(name="info")
+
 async def info(interaction: discord.Interaction):
 
     uptime = datetime.datetime.utcnow() - bot_start_time
@@ -304,16 +320,10 @@ async def info(interaction: discord.Interaction):
 
     embed = discord.Embed(
         title="BOT INFO",
-        description=(
-            f"> Prefix: `>` | Ping: {ping}ms\n"
-            f"> Uptime: {str(uptime).split('.')[0]}\n"
-            f"> Crash Risk: {random.choice(risks)}"
-        ),
+        description=f"> Prefix: `>`\n> Uptime: {str(uptime).split('.')[0]}\n> Ping: {ping}ms\n> Status: Online\n> Crash Risk: {random.choice(risks)}",
         color=0x87CEFA
     )
 
     await interaction.response.send_message(embed=embed)
 
-
-threading.Thread(target=run_bot).start()
-```
+bot.run(TOKEN)
