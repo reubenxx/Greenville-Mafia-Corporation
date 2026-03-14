@@ -32,6 +32,8 @@ LINK_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481
 
 END_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481965219818373262/Convoy_4_12.png"
 
+WELCOME_BANNER = "https://media.discordapp.net/attachments/1467783372469178442/1480467031571693710/image.png"
+
 @bot.event
 async def on_ready():
     await bot.tree.sync()
@@ -49,7 +51,7 @@ async def on_member_join(member):
     )
 
     embed.set_thumbnail(url=member.display_avatar.url)
-    embed.set_image(url=STARTUP_BANNER)
+    embed.set_image(url=WELCOME_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     await channel.send(embed=embed)
