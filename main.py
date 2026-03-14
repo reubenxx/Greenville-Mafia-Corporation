@@ -91,31 +91,26 @@ async def startup(interaction: discord.Interaction):
 
     embed = discord.Embed(
 
-        title="GREENVILLE MAFIA CORPORATION STARTUP",
+    title="GREENVILLE MAFIA CORPORATION STARTUP",
 
-        description=(
+    description=(
 
-            f"> A Convoy is currently being setup by {interaction.user.mention}. Please read through our "
-            f"**[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** "
-            f"before attending.\n\n"
+        f"> A Convoy is currently being setup by {interaction.user.mention}. Please read through our "
+        f"**[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** "
+        f"before attending. If you are affected by any form of **in-game chat restriction**, please communicate in our "
+        f"[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286).\n\n"
 
-            f"> If you are affected by any form of **in-game chat restriction**, please communicate in our "
-            f"[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286).\n\n"
+        f"> If you are willing to attend, please react with the **checkmark** below. "
+        f"If there are any issues joining or in session, please ping the host in our "
+        f"[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286). "
+        f"Of course, please remain respectful and patient with hosts and members. "
+        
+        f"Most importantly, enjoy your time in the **convoy!** Hope to see you there!"
 
-            f"> If you are willing to attend, please react with the **checkmark** below.\n\n"
+    ),
 
-            f"> If there are any issues joining or in session, please ping the host in our "
-            f"[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286).\n\n"
-
-            f"> Of course, please remain respectful and patient with hosts and members.\n"
-            f"> Most importantly, enjoy your time in the **convoy!**\n\n"
-
-            f"> Hope to see you there!"
-
-        ),
-
-        color=0x87CEFA
-    )
+    color=0x87CEFA
+)
 
     embed.set_thumbnail(url=interaction.user.display_avatar.url)
     embed.set_image(url=STARTUP_BANNER)
