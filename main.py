@@ -73,7 +73,7 @@ async def say(ctx, *, message):
 async def on_raw_reaction_add(payload):
     global startup_reactors
     if startup_message and payload.message_id == startup_message.id:
-        if str(payload.emoji) == "✅":
+        if str(payload.emoji) == "<:blueheart:1483008124024524820>":
             startup_reactors.add(payload.user_id)
 
 # -------- STARTUP COMMAND --------
