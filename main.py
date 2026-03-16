@@ -11,6 +11,7 @@ TOKEN = os.getenv("TOKEN")
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=">", intents=intents)
 
+# ----- Convoy state -----
 startup_active = False
 startup_host = None
 startup_message = None
@@ -18,7 +19,9 @@ link_message = None
 startup_reactors = set()
 startup_time = None
 bot_start_time = datetime.datetime.utcnow()
+required_reactions = 5  # Add default minimum reactions here
 
+# ----- IDs & constants -----
 NOTIFY_ROLE = 1480656237027660046
 WELCOME_CHANNEL = 1471452865796116576
 SESSION_LOG_CHANNEL = 1481568871679787088
@@ -46,13 +49,9 @@ async def on_member_join(member):
         title="Welcome to __**Greenville Mafia Corporation**__  <:blueheart:1483008124024524820>",
         description=(
             "┃ <:gvmc_star:1480630313234333758> We warmly welcome you to __**Greenville Mafia Corporation**__! "
-            "We appreciate having you here with us. To get started, please read through our "
-            "**[server guidelines](https://discord.com/channels/1441901639739904125/1442242436138274826).** "
-            "If you require any additional support, please reach out to our staff "
-            "**[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**.\n\n"
-            "<:verified:1483008933365813330> Also a reminder that you must verify "
-            "**[here](https://discord.com/channels/1441901639739904125/1471452917163884738)** "
-            "to get full access to our server."
+            "Please read through our **[server guidelines](https://discord.com/channels/1441901639739904125/1442242436138274826)**. "
+            "For support, reach out to staff **[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**.\n\n"
+            "<:verified:1483008933365813330> Remember to verify **[here](https://discord.com/channels/1441901639739904125/1471452917163884738)** to get full access."
         ),
         color=0x87CEFA
     )
@@ -90,28 +89,21 @@ async def startup(interaction: discord.Interaction):
     startup_reactors = set()
     startup_time = datetime.datetime.utcnow()
 
-   embed = discord.Embed(
-    title="Greenville Mafia Corporation Convoy Startup <:announcement:1480640464737800253>",
-    description=(
-        f"{interaction.user.mention} is currently __**hosting a Convoy**__. "
-        "Please ensure that you have your Roblox privacy settings set to __**everyone**__. "
-        "If they're not, you may be unable to join the session. During this time, please review our "
-        "**[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** before proceeding.\n\n"
+    embed = discord.Embed(
+        title="Greenville Mafia Corporation Convoy Startup <:announcement:1480640464737800253>",
+        description=(
+            f"{interaction.user.mention} is currently __**hosting a Convoy**__. "
+            "Please ensure Roblox privacy settings are __**everyone**__. Review our "
+            "**[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)**.\n\n"
+            f"┃ <:dot:1480643720687915058> To confirm, react with <:blueheart:1483008124024524820>. "
+            f"You will be pinged again when the session releases.\n\n"
+            f"┃ <:dot:1480643720687915058> Host requested __**{required_reactions}+**__ reactions to start."
+        ),
+        color=0x87CEFA
+    )
 
-        "┃ <:dot:1480643720687915058> To confirm your presence, please react with the "
-        "<:blueheart:1483008124024524820> below. You will be pinged in this channel again when the "
-        "session releases. If there are any issues with joining or other session related issues, "
-        "please ping the host in **[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** "
-        "and they will assist you accordingly.\n\n"
-
-        f"┃ <:dot:1480643720687915058> The host has requested __**{required_reactions}+**__ reactions before this session commences."
-    ),
-    color=0x87CEFA
-)
-
-embed.set_thumbnail(url=interaction.user.display_avatar.url)
-embed.set_image(url=STARTUP_BANNER)
-embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
+    embed.set_thumbnail(url=interaction.user.display_avatar.url)
+    embed.set_image(url=STARTUP_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     await interaction.response.send_message(
@@ -120,10 +112,7 @@ embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
         allowed_mentions=discord.AllowedMentions(roles=True)
     )
 
-  startup_message = await interaction.channel.send(
-    content="<@&1480656237027660046>",
-    embed=embed
-)
+    startup_message = await interaction.original_response()
     await startup_message.add_reaction("<:blueheart:1483008124024524820>")
 
 # -------- LINK COMMAND --------
@@ -161,16 +150,10 @@ async def link(interaction: discord.Interaction, url: str):
     embed = discord.Embed(
         title="SESSION RELEASE",
         description=(
-            f"> Thank you for your patience. {interaction.user.mention} has released the session link.\n\n"
-            f"> Please ensure you have read through all of our "
-            f"**[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** "
-            f"before continuing.\n\n"
-            f"> Maintain full respect and patience with hosts, members & staff.\n\n"
-            f"> If you have any issues joining, check your privacy settings.\n\n"
-            f"> If all seems fine, ping the host in "
-            f"**[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** "
-            f"for assistance.\n\n"
-            f"> Most importantly, enjoy the convoy."
+            f"> {interaction.user.mention} has released the session link.\n"
+            "Please read all **[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)**.\n"
+            "Respect hosts, members & staff. If issues arise, ping host in "
+            "**[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)**."
         ),
         color=0x87CEFA
     )
@@ -187,7 +170,7 @@ async def link(interaction: discord.Interaction, url: str):
     )
     link_message = await interaction.original_response()
 
-# -------- FEEDBACK --------
+# -------- FEEDBACK SYSTEM --------
 class FeedbackModal(ui.Modal, title="Convoy Feedback"):
     rating = ui.TextInput(label="Rating (1-5)")
     feedback = ui.TextInput(label="Feedback", style=discord.TextStyle.paragraph)
@@ -225,10 +208,9 @@ async def end(interaction: discord.Interaction, host_note: str):
         title="Convoy Conclusion",
         description=(
             f"> This convoy has **concluded** by {interaction.user.mention}.\n"
-            f"> We highly appreciate you for attending the convoy.\n\n"
-            f"> We host frequently so stay tuned for the next event as it will be hosted right here.\n\n"
-            f"> **Hosts Note** - {host_note}\n\n"
-            f"> Want to give feedback? Click on the **feedback** button attached to this message."
+            f"> Thank you for attending.\n\n"
+            f"> **Host Note:** {host_note}\n"
+            f"> Click **feedback** below to submit feedback."
         ),
         color=0x87CEFA
     )
@@ -259,7 +241,7 @@ async def info(interaction: discord.Interaction):
             f"> Developer: Reuben2k11\n"
             f"> Prefix: `>`\n"
             f"> Uptime: {str(uptime).split('.')[0]}\n"
-            f"> Ping: {api_ping}ms (API latency)\n"
+            f"> Ping: {api_ping}ms\n"
             f"> Discord.py Version: {discord.__version__}\n"
             f"> Status: Online"
         ),
