@@ -3,7 +3,6 @@ from discord.ext import commands
 from discord import app_commands, ui
 import datetime
 import os
-import random
 import sys
 
 TOKEN = os.getenv("TOKEN")
@@ -18,8 +17,7 @@ startup_message = None
 link_message = None
 startup_reactors = set()
 startup_time = None
-bot_start_time = datetime.datetime.utcnow()
-required_reactions = 5  # Add default minimum reactions here
+required_reactions = 5
 
 # ----- IDs & constants -----
 NOTIFY_ROLE = 1480656237027660046
@@ -34,6 +32,8 @@ LINK_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481
 END_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481965219818373262/Convoy_4_12.png"
 WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/1482361429188284606/Welcome_1.png"
 
+bot_start_time = datetime.datetime.utcnow()
+
 # -------- EVENTS --------
 @bot.event
 async def on_ready():
@@ -44,22 +44,19 @@ async def on_ready():
 @bot.event
 async def on_member_join(member):
     channel = bot.get_channel(WELCOME_CHANNEL)
-
     embed = discord.Embed(
         title="Welcome to __**Greenville Mafia Corporation**__  <:blueheart:1483008124024524820>",
         description=(
-            "┃ <:gvmc_star:1480630313234333758> We warmly welcome you to __**Greenville Mafia Corporation**__! "
-            "Please read through our **[server guidelines](https://discord.com/channels/1441901639739904125/1442242436138274826)**. "
-            "For support, reach out to staff **[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**.\n\n"
-            "<:verified:1483008933365813330> Remember to verify **[here](https://discord.com/channels/1441901639739904125/1471452917163884738)** to get full access."
+            "┃ <:gvmc_star:1480630313234333758> We warmly welcome you! "
+            "Please read **[server guidelines](https://discord.com/channels/1441901639739904125/1442242436138274826)**. "
+            "For support, reach staff **[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**.\n\n"
+            "<:verified:1483008933365813330> Remember to verify **[here](https://discord.com/channels/1441901639739904125/1471452917163884738)**."
         ),
         color=0x87CEFA
     )
-
     embed.set_thumbnail(url=member.display_avatar.url)
     embed.set_image(url=WELCOME_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
-
     await channel.send(content=member.mention, embed=embed)
 
 # -------- SAY COMMAND --------
@@ -68,13 +65,20 @@ async def say(ctx, *, message):
     await ctx.message.delete()
     await ctx.send(message)
 
-# -------- STARTUP REACTIONS --------
+# -------- REACTION TRACKING --------
 @bot.event
 async def on_raw_reaction_add(payload):
     global startup_reactors
-    if startup_message and payload.message_id == startup_message.id:
+    if startup_active and startup_message and payload.message_id == startup_message.id:
         if str(payload.emoji) == "<:blueheart:1483008124024524820>":
             startup_reactors.add(payload.user_id)
+
+@bot.event
+async def on_raw_reaction_remove(payload):
+    global startup_reactors
+    if startup_active and startup_message and payload.message_id == startup_message.id:
+        if str(payload.emoji) == "<:blueheart:1483008124024524820>":
+            startup_reactors.discard(payload.user_id)
 
 # -------- STARTUP COMMAND --------
 @bot.tree.command(name="startup")
@@ -93,31 +97,24 @@ async def startup(interaction: discord.Interaction):
         title="Greenville Mafia Corporation Convoy Startup <:announcement:1480640464737800253>",
         description=(
             f"{interaction.user.mention} is currently __**hosting a Convoy**__. "
-            "Please ensure that you have your Roblox privacy settings set to __**everyone**__. "
-            "If they're not, you may be unable to join the session. During this time, please review our "
-            "**[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** before proceeding.\n\n"
-            "┃ <:dot:1480643720687915058> To confirm your presence, please react with the "
-            "<:blueheart:1483008124024524820> below. You will be pinged in this channel again when the "
-            "session releases. If there are any issues with joining or other session related issues, "
-            "please ping the host in **[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** "
-            "and they will assist you accordingly.\n\n"
-            f"┃ <:dot:1480643720687915058> The host has requested __**{required_reactions}+**__ reactions before this session commences."
+            "Ensure your Roblox privacy settings are set to __**everyone**__. "
+            "Review **[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)**.\n\n"
+            "┃ <:dot:1480643720687915058> To confirm your presence, react with "
+            "<:blueheart:1483008124024524820> below.\n\n"
+            f"┃ <:dot:1480643720687915058> Minimum reactions required: __**{required_reactions}+**__"
         ),
         color=0x87CEFA
     )
-
     embed.set_thumbnail(url=interaction.user.display_avatar.url)
     embed.set_image(url=STARTUP_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
-    # Send initial message with role ping
     await interaction.response.send_message(
         content=f"<@&{NOTIFY_ROLE}>",
         embed=embed,
         allowed_mentions=discord.AllowedMentions(roles=True)
     )
 
-    # Store the message object for reactions
     startup_message = await interaction.original_response()
     await startup_message.add_reaction("<:blueheart:1483008124024524820>")
 
@@ -129,10 +126,14 @@ class LinkView(ui.View):
 
     @ui.button(label="Join Private Server", style=discord.ButtonStyle.primary)
     async def join(self, interaction: discord.Interaction, button: ui.Button):
+        if not startup_active:
+            await interaction.response.send_message("No active convoy.", ephemeral=True)
+            return
+
+        # Only allow users who have reacted and meet required reaction count
         if interaction.user.id not in startup_reactors:
             await interaction.response.send_message(
-                "You must react to the startup message first.",
-                ephemeral=True
+                "You must react to the startup message first.", ephemeral=True
             )
             return
 
@@ -158,8 +159,8 @@ async def link(interaction: discord.Interaction, url: str):
         description=(
             f"> {interaction.user.mention} has released the session link.\n"
             "Please read all **[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)**.\n"
-            "Respect hosts, members & staff. If issues arise, ping host in "
-            "**[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)**."
+            "Respect hosts, members & staff. Ping host in "
+            "**[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** if needed."
         ),
         color=0x87CEFA
     )
@@ -259,7 +260,7 @@ async def info(interaction: discord.Interaction):
 @bot.tree.command(name="kill")
 async def kill(interaction: discord.Interaction):
     if KILL_ROLE not in [role.id for role in interaction.user.roles]:
-        await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
+        await interaction.response.send_message("You are not authorized.", ephemeral=True)
         return
     await interaction.response.send_message("Shutting down...", ephemeral=True)
     sys.exit()
