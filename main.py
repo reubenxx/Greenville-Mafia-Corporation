@@ -110,7 +110,6 @@ async def startup(interaction: discord.Interaction):
         color=0x87CEFA
     )
 
-    embed.set_thumbnail(url=interaction.user.display_avatar.url)
     embed.set_image(url=STARTUP_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
