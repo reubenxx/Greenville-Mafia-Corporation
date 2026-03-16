@@ -29,7 +29,7 @@ FOOTER_ICON = "https://media.discordapp.net/attachments/1467783372469178442/1480
 STARTUP_BANNER = "https://media.discordapp.net/attachments/1467783372469178442/1481896699763888270/Convoy_2.png"
 LINK_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481965398411968512/Convoy_5_1.png"
 END_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481965219818373262/Convoy_4_12.png"
-WELCOME_BANNER = "https://media.discordapp.net/attachments/1467783372469178442/1480467031571693710/image.png"
+WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/1482361429188284606/Welcome_1.png"
 
 # -------- EVENTS --------
 @bot.event
@@ -58,6 +58,7 @@ async def on_member_join(member):
     )
 
     embed.set_thumbnail(url=member.display_avatar.url)
+    embed.set_image(url=WELCOME_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     await channel.send(content=member.mention, embed=embed)
