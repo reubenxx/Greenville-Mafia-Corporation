@@ -55,7 +55,6 @@ async def on_member_join(member):
         color=0x87CEFA
     )
     embed.set_thumbnail(url=member.display_avatar.url)
-    embed.set_image(url=WELCOME_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
     await channel.send(content=member.mention, embed=embed)
 
