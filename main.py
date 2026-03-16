@@ -41,15 +41,27 @@ async def on_ready():
 @bot.event
 async def on_member_join(member):
     channel = bot.get_channel(WELCOME_CHANNEL)
+
     embed = discord.Embed(
-        title="WELCOME TO GREENVILLE MAFIA CORPORATION",
-        description=f"> Welcome {member.mention}!",
+        title="Welcome to __**Greenville Mafia Corporation**__  <:blueheart:1483008124024524820>",
+        description=(
+            "┃ <:gvmc_star:1480630313234333758> We warmly welcome you to __**Greenville Mafia Corporation**__! "
+            "We appreciate having you here with us. To get started, please read through our "
+            "**[server guidelines](https://discord.com/channels/1441901639739904125/1442242436138274826).** "
+            "If you require any additional support, please reach out to our staff "
+            "**[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**.\n\n"
+            "<:verified:1483008933365813330> Also a reminder that you must verify "
+            "**[here](https://discord.com/channels/1441901639739904125/1471452917163884738)** "
+            "to get full access to our server."
+        ),
         color=0x87CEFA
     )
+
     embed.set_thumbnail(url=member.display_avatar.url)
     embed.set_image(url=WELCOME_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
-    await channel.send(embed=embed)
+
+    await channel.send(content=member.mention, embed=embed)
 
 # -------- SAY COMMAND --------
 @bot.command()
