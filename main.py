@@ -93,11 +93,15 @@ async def startup(interaction: discord.Interaction):
         title="Greenville Mafia Corporation Convoy Startup <:announcement:1480640464737800253>",
         description=(
             f"{interaction.user.mention} is currently __**hosting a Convoy**__. "
-            "Please ensure Roblox privacy settings are __**everyone**__. Review our "
-            "**[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)**.\n\n"
-            f"┃ <:dot:1480643720687915058> To confirm, react with <:blueheart:1483008124024524820>. "
-            f"You will be pinged again when the session releases.\n\n"
-            f"┃ <:dot:1480643720687915058> Host requested __**{required_reactions}+**__ reactions to start."
+            "Please ensure that you have your Roblox privacy settings set to __**everyone**__. "
+            "If they're not, you may be unable to join the session. During this time, please review our "
+            "**[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** before proceeding.\n\n"
+            "┃ <:dot:1480643720687915058> To confirm your presence, please react with the "
+            "<:blueheart:1483008124024524820> below. You will be pinged in this channel again when the "
+            "session releases. If there are any issues with joining or other session related issues, "
+            "please ping the host in **[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** "
+            "and they will assist you accordingly.\n\n"
+            f"┃ <:dot:1480643720687915058> The host has requested __**{required_reactions}+**__ reactions before this session commences."
         ),
         color=0x87CEFA
     )
@@ -106,12 +110,14 @@ async def startup(interaction: discord.Interaction):
     embed.set_image(url=STARTUP_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
+    # Send initial message with role ping
     await interaction.response.send_message(
         content=f"<@&{NOTIFY_ROLE}>",
         embed=embed,
         allowed_mentions=discord.AllowedMentions(roles=True)
     )
 
+    # Store the message object for reactions
     startup_message = await interaction.original_response()
     await startup_message.add_reaction("<:blueheart:1483008124024524820>")
 
