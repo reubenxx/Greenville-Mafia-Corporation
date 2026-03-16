@@ -38,7 +38,7 @@ bot_start_time = datetime.datetime.utcnow()
 @bot.event
 async def on_ready():
     await bot.tree.sync()
-    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Managing Greenville Mafia Corporation"))
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Watching 'Greenville Mafia Corporation'"))
     print(f"{bot.user} ready")
 
 @bot.event
