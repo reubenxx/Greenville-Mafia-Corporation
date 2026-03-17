@@ -55,7 +55,7 @@ async def on_member_join(member):
     embed = discord.Embed(
         color=0x87CEFA,
         description=(
-            f"**Welcome to __Greenville Mafia Corporation__** <a:welcome:1483008041413509141> \n\n"
+            f"**Welcome to __Greenville Mafia Corporation__** <a:welcome:1483008041413509141>\n\n"
             f"┃ <a:gvmc_heart:1480637190685069472> We warmly welcome you!\n"
             "Please read **[server guidelines](https://discord.com/channels/1441901639739904125/1442242436138274826)**.\n"
             "For support, reach staff **[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**.\n\n"
@@ -63,8 +63,16 @@ async def on_member_join(member):
         )
     )
 
-    embed.set_thumbnail(url=https://media.discordapp.net/attachments/1451418684752134146/1483400617023111250/Untitled_design.png)
+    # Use your image as the main embed image (not thumbnail)
+    embed.set_image(url="https://media.discordapp.net/attachments/1451418684752134146/1483400617023111250/Untitled_design.png")
+
+    # Optional thumbnail: member avatar
+    embed.set_thumbnail(url=member.display_avatar.url)
+
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
+
+    # Send message mentioning the user
+    await channel.send(content=member.mention, embed=embed)
 
     # Send message mentioning the user
     await channel.send(content=member.mention, embed=embed)
