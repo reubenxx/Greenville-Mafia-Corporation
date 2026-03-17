@@ -246,32 +246,23 @@ async def info(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 # -------- MEMBERCOUNT COMMAND --------
-from datetime import datetime, timedelta
-
 @bot.tree.command(name="membercount", description="Show total member count")
 async def members(interaction: discord.Interaction):
+    import datetime
+
     guild = interaction.guild
     count = guild.member_count
 
-    now = datetime.utcnow()  # UTC for consistency
-    local_now = now + timedelta(seconds=interaction.user.created_at.timestamp() - now.timestamp())  # approx user local time
-    # fallback if we can't reliably get timezone, will display server time
+    now = datetime.datetime.utcnow()  # always use UTC for Discord timestamps
+    timestamp = int(now.timestamp())   # convert to Discord timestamp integer
 
-    # Determine text for Today / Yesterday / Date
-    today = datetime.utcnow().date()
-    yesterday = today - timedelta(days=1)
-    current_date = datetime.utcnow().date()
-
-    if current_date == today:
-        date_text = f"Today at {now.strftime('%-I:%M %p')}"
-    elif current_date == yesterday:
-        date_text = f"Yesterday at {now.strftime('%-I:%M %p')}"
-    else:
-        date_text = now.strftime("%-m/%-d/%y")  # e.g., 3/18/26
+    # Discord inline timestamp formatting
+    # 'f' = Short Date/Time → "Today at 10:27 AM" style, auto adjusts to user's timezone
+    discord_time = f"<t:{timestamp}:f>"
 
     embed = discord.Embed(
-        title="**<a:pulsating_heart:1478774678645637160> Member Count <a:pulsating_heart:1478774678645637160>**",
-        description=f"{count} members\n\n{date_text}",
+        title="**<a:gvmc_heart:1480637190685069472> Member Count <a:gvmc_heart:1480637190685069472>**",
+        description=f"{count} members\n\n{discord_time}",
         color=0x87CEFA
     )
 
