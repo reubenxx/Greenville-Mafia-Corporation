@@ -63,7 +63,7 @@ async def on_member_join(member):
         )
     )
 
-    embed.set_thumbnail(url=member.display_avatar.url)
+    embed.set_thumbnail(url=https://media.discordapp.net/attachments/1451418684752134146/1483400617023111250/Untitled_design.png)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     # Send message mentioning the user
