@@ -250,11 +250,17 @@ async def info(interaction: discord.Interaction):
 async def members(interaction: discord.Interaction):
     guild = interaction.guild
     count = guild.member_count
+    now = datetime.datetime.utcnow()
+    
+    # Discord timestamp formatting: <t:unix_timestamp:f> shows full local time for user
+    timestamp = int(now.timestamp())
+    
     embed = discord.Embed(
-        title="Member Count",
-        description=f"{count} members\n{datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}",
+        title="**Member Count**",
+        description=f"{count} members\n\n<t:{timestamp}:f>",
         color=0x87CEFA
     )
+
     await interaction.response.send_message(embed=embed)
 
 # -------- KILL COMMAND --------
