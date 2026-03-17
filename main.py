@@ -51,24 +51,29 @@ async def on_ready():
 async def on_member_join(member):
     channel = bot.get_channel(WELCOME_CHANNEL)
 
-    # Embed
     embed = discord.Embed(
+        title="<a:welcome:1483008041413509141> Welcome to __**Greenville Mafia Corporation**__ <a:welcome:1483008041413509141>",
         color=0x87CEFA,
         description=(
-            f"**Welcome to __Greenville Mafia Corporation__** <a:welcome:1483008041413509141>\n\n"
-            f"┃ <a:gvmc_heart:1480637190685069472> We warmly welcome you!\n"
-            "Please read **[server guidelines](https://discord.com/channels/1441901639739904125/1442242436138274826)**.\n"
-            "For support, reach staff **[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**.\n\n"
-            "<:verified:1483008933365813330> Remember to verify **[here](https://discord.com/channels/1441901639739904125/1471452917163884738)** to get full access."
+            "> <a:gvmc_heart:1480637190685069472> Welcome to __**Greenville Mafia Corporation!**__! "
+            "We are honored to have you here with us! Before you venture off into **GVMC**, "
+            "please **[verify](https://discord.com/channels/1441901639739904125/1471452917163884738)** "
+            "to gain full access to our server.\n\n"
+            "> <a:pulsating_heart:1478774678645637160> We host daily Convoys, Events, Occasional Giveaways "
+            "and other fun surprises! We look forward to seeing you participate in the full life of "
+            "__**Greenville Mafia Corporation**__. If you require any form of assistance, please do not "
+            "hesitate to contact our lovely Staff Team "
+            "**[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**. "
+            "<a:pulsating_heart:1478774678645637160>"
         )
     )
 
-    # Top-left thumbnail
-    embed.set_thumbnail(url="https://media.discordapp.net/attachments/1451418684752134146/1483404347441156166/Untitled_design_1024x1024.png")
+    embed.set_thumbnail(
+        url="https://media.discordapp.net/attachments/1451418684752134146/1483404347441156166/Untitled_design_1024x1024.png"
+    )
 
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
-    # Send message mentioning the user
     await channel.send(content=member.mention, embed=embed)
 # -------- SAY COMMAND --------
 
