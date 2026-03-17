@@ -55,7 +55,7 @@ async def on_member_join(member):
     embed = discord.Embed(
         color=0x87CEFA,
         description=(
-            f"**Welcome to __Greenville Mafia Corporation__** <a:welcome:143008041413509141> \n\n"
+            f"**Welcome to __Greenville Mafia Corporation__** <a:welcome:1483008041413509141> \n\n"
             f"┃ <a:gvmc_heart:1480637190685069472> We warmly welcome you!\n"
             "Please read **[server guidelines](https://discord.com/channels/1441901639739904125/1442242436138274826)**.\n"
             "For support, reach staff **[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**.\n\n"
