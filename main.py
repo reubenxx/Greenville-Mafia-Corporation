@@ -112,13 +112,13 @@ async def startup(interaction: discord.Interaction):
     embed.set_image(url=STARTUP_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
-    await interaction.response.send_message(
-        content=f"<@&{NOTIFY_ROLE}>",
-        embed=embed,
-        allowed_mentions=discord.AllowedMentions(roles=True)
-    )
+  await interaction.response.defer()
 
-    startup_message = await interaction.original_response()
+startup_message = await interaction.followup.send(
+    content=f"<@&{NOTIFY_ROLE}>",
+    embed=embed,
+    allowed_mentions=discord.AllowedMentions(roles=True)
+)
     await startup_message.add_reaction("<:blueheart:1483008124024524820>")
 
 # -------- LINK COMMAND --------
@@ -172,13 +172,14 @@ async def link(interaction: discord.Interaction, url: str):
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     view = LinkView(url)
-    await interaction.response.send_message(
-        content=f"<@&{NOTIFY_ROLE}>",
-        embed=embed,
-        view=view,
-        allowed_mentions=discord.AllowedMentions(roles=True)
-    )
-    link_message = await interaction.original_response()
+await interaction.response.defer()
+
+link_message = await interaction.followup.send(
+    content=f"<@&{NOTIFY_ROLE}>",
+    embed=embed,
+    view=view,
+    allowed_mentions=discord.AllowedMentions(roles=True)
+)
 
 # -------- FEEDBACK SYSTEM --------
 class FeedbackModal(ui.Modal, title="Convoy Feedback"):
@@ -229,7 +230,8 @@ async def end(interaction: discord.Interaction, host_note: str):
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     view = EndView()
-    await interaction.response.send_message(embed=embed, view=view)
+   await interaction.response.defer()
+await interaction.followup.send(embed=embed, view=view)
 
     log_channel = bot.get_channel(SESSION_LOG_CHANNEL)
     log_embed = discord.Embed(
