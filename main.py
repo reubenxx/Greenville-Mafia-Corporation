@@ -63,20 +63,13 @@ async def on_member_join(member):
         )
     )
 
-    # Use your image as the main embed image (not thumbnail)
-    embed.set_image(url="https://media.discordapp.net/attachments/1451418684752134146/1483400617023111250/Untitled_design.png")
-
-    # Optional thumbnail: member avatar
-    embed.set_thumbnail(url=member.display_avatar.url)
+    # Top-left thumbnail
+    embed.set_thumbnail(url="https://media.discordapp.net/attachments/1451418684752134146/1483404347441156166/Untitled_design_1024x1024.png")
 
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     # Send message mentioning the user
     await channel.send(content=member.mention, embed=embed)
-
-    # Send message mentioning the user
-    await channel.send(content=member.mention, embed=embed)
-
 # -------- SAY COMMAND --------
 
 @bot.command()
