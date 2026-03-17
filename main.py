@@ -19,14 +19,13 @@ startup_reactors = set()
 startup_time = None
 required_reactions = 5
 
-# ----- IDs -----
+# ----- IDs & constants -----
 NOTIFY_ROLE = 1480656237027660046
 WELCOME_CHANNEL = 1471452865796116576
 SESSION_LOG_CHANNEL = 1481568871679787088
 FEEDBACK_CHANNEL = 1481568923504611439
 KILL_ROLE = 1481266824917287124
 
-# ----- Assets -----
 FOOTER_ICON = "https://media.discordapp.net/attachments/1467783372469178442/1480467031571693710/image.png"
 STARTUP_BANNER = "https://media.discordapp.net/attachments/1467783372469178442/1481896699763888270/Convoy_2.png"
 LINK_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481965398411968512/Convoy_5_1.png"
@@ -35,7 +34,8 @@ WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/148
 
 bot_start_time = datetime.datetime.utcnow()
 
-# -------- READY --------
+# -------- EVENTS --------
+
 @bot.event
 async def on_ready():
     await bot.tree.sync()
@@ -47,7 +47,6 @@ async def on_ready():
     )
     print(f"{bot.user} ready")
 
-# -------- WELCOME --------
 @bot.event
 async def on_member_join(member):
     channel = bot.get_channel(WELCOME_CHANNEL)
@@ -55,26 +54,28 @@ async def on_member_join(member):
     embed = discord.Embed(
         title="Welcome to __**Greenville Mafia Corporation**__ <:blueheart:1483008124024524820>",
         description=(
-            "┃ <:gvmc_star:1480630313234333758> We warmly welcome you!\n"
-            "Please read **[server guidelines](https://discord.com/channels/1441901639739904125/1442242436138274826)**.\n\n"
-            "<:verified:1483008933365813330> Verify **[here](https://discord.com/channels/1441901639739904125/1471452917163884738)**."
+            "┃ <:gvmc_star:1480630313234333758> We warmly welcome you! "
+            "Please read **[server guidelines](https://discord.com/channels/1441901639739904125/1442242436138274826)**. "
+            "For support, reach staff **[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**.\n\n"
+            "<:verified:1483008933365813330> Remember to verify **[here](https://discord.com/channels/1441901639739904125/1471452917163884738)**."
         ),
         color=0x87CEFA
     )
 
     embed.set_thumbnail(url=member.display_avatar.url)
-    embed.set_image(url=WELCOME_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
-    await channel.send(member.mention, embed=embed)
+    await channel.send(content=member.mention, embed=embed)
 
-# -------- SAY --------
+# -------- SAY COMMAND --------
+
 @bot.command()
 async def say(ctx, *, message):
     await ctx.message.delete()
     await ctx.send(message)
 
 # -------- REACTION TRACKING --------
+
 @bot.event
 async def on_raw_reaction_add(payload):
     global startup_reactors
@@ -91,13 +92,17 @@ async def on_raw_reaction_remove(payload):
         if str(payload.emoji) == "<:blueheart:1483008124024524820>":
             startup_reactors.discard(payload.user_id)
 
-# -------- STARTUP --------
+# -------- STARTUP COMMAND --------
+
 @bot.tree.command(name="startup")
 async def startup(interaction: discord.Interaction):
     global startup_active, startup_host, startup_message, startup_reactors, startup_time
 
     if startup_active:
-        await interaction.response.send_message("A convoy session is already active.", ephemeral=True)
+        await interaction.response.send_message(
+            "A convoy session is already active.",
+            ephemeral=True
+        )
         return
 
     startup_active = True
@@ -109,9 +114,15 @@ async def startup(interaction: discord.Interaction):
         title="Greenville Mafia Corporation Convoy Startup <:announcement:1480640464737800253>",
         description=(
             f"{interaction.user.mention} is currently __**hosting a Convoy**__. "
-            "Please ensure your Roblox privacy settings are set to **everyone**.\n\n"
-            "React with <:blueheart:1483008124024524820> to confirm presence.\n\n"
-            f"Minimum reactions required: **{required_reactions}+**"
+            "Please ensure that you have your Roblox privacy settings set to __**everyone**__. "
+            "If they're not, you may be unable to join the session. During this time, please review our "
+            "**[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** before proceeding.\n\n"
+            "┃ <:dot:1480643720687915058> To confirm your presence, please react with the "
+            "<:blueheart:1483008124024524820> below. You will be pinged in this channel again when the "
+            "session releases. If there are any issues with joining or other session related issues, "
+            "please ping the host in **[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** "
+            "and they will assist you accordingly.\n\n"
+            f"┃ <:dot:1480643720687915058> The host has requested __**{required_reactions}+**__ reactions before this session commences."
         ),
         color=0x87CEFA
     )
@@ -119,17 +130,17 @@ async def startup(interaction: discord.Interaction):
     embed.set_image(url=STARTUP_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
-    await interaction.response.defer()
-
-    startup_message = await interaction.followup.send(
+    await interaction.response.send_message(
         content=f"<@&{NOTIFY_ROLE}>",
         embed=embed,
         allowed_mentions=discord.AllowedMentions(roles=True)
     )
 
+    startup_message = await interaction.original_response()
     await startup_message.add_reaction("<:blueheart:1483008124024524820>")
 
-# -------- LINK BUTTON --------
+# -------- LINK COMMAND --------
+
 class LinkView(ui.View):
 
     def __init__(self, url):
@@ -138,6 +149,13 @@ class LinkView(ui.View):
 
     @ui.button(label="Join Private Server", style=discord.ButtonStyle.primary)
     async def join(self, interaction: discord.Interaction, button: ui.Button):
+
+        if not startup_active:
+            await interaction.response.send_message(
+                "No active convoy.",
+                ephemeral=True
+            )
+            return
 
         if interaction.user.id not in startup_reactors:
             await interaction.response.send_message(
@@ -148,28 +166,38 @@ class LinkView(ui.View):
 
         embed = discord.Embed(
             title="Private Server Link",
-            description=f"[Join Server]({self.url})",
+            description=f"> Click **[here]({self.url})** to join the private server.",
             color=0x87CEFA
         )
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# -------- LINK --------
 @bot.tree.command(name="link")
 async def link(interaction: discord.Interaction, url: str):
     global link_message
 
     if not startup_active:
-        await interaction.response.send_message("No active convoy.", ephemeral=True)
+        await interaction.response.send_message(
+            "No active convoy.",
+            ephemeral=True
+        )
         return
 
     if interaction.user != startup_host:
-        await interaction.response.send_message("Only the host can release the link.", ephemeral=True)
+        await interaction.response.send_message(
+            "Only the host can release the link.",
+            ephemeral=True
+        )
         return
 
     embed = discord.Embed(
         title="SESSION RELEASE",
-        description=f"{interaction.user.mention} has released the convoy session.",
+        description=(
+            f"> {interaction.user.mention} has released the session link.\n"
+            "Please read all **[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)**.\n"
+            "Respect hosts, members & staff. Ping host in "
+            "**[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** if needed."
+        ),
         color=0x87CEFA
     )
 
@@ -179,16 +207,17 @@ async def link(interaction: discord.Interaction, url: str):
 
     view = LinkView(url)
 
-    await interaction.response.defer()
-
-    link_message = await interaction.followup.send(
+    await interaction.response.send_message(
         content=f"<@&{NOTIFY_ROLE}>",
         embed=embed,
         view=view,
         allowed_mentions=discord.AllowedMentions(roles=True)
     )
 
-# -------- FEEDBACK --------
+    link_message = await interaction.original_response()
+
+# -------- FEEDBACK SYSTEM --------
+
 class FeedbackModal(ui.Modal, title="Convoy Feedback"):
 
     rating = ui.TextInput(label="Rating (1-5)")
@@ -220,16 +249,19 @@ class EndView(ui.View):
     async def feedback(self, interaction: discord.Interaction, button: ui.Button):
         await interaction.response.send_modal(FeedbackModal())
 
-# -------- END --------
+# -------- END COMMAND --------
+
 @bot.tree.command(name="end")
 @app_commands.describe(host_note="Host note for the convoy")
-
 async def end(interaction: discord.Interaction, host_note: str):
 
     global startup_active
 
     if not startup_active:
-        await interaction.response.send_message("No active convoy.", ephemeral=True)
+        await interaction.response.send_message(
+            "No active convoy.",
+            ephemeral=True
+        )
         return
 
     duration = datetime.datetime.utcnow() - startup_time
@@ -247,8 +279,10 @@ async def end(interaction: discord.Interaction, host_note: str):
     embed = discord.Embed(
         title="Convoy Conclusion",
         description=(
-            f"Host: {interaction.user.mention}\n"
-            f"Host Note: {host_note}"
+            f"> This convoy has **concluded** by {interaction.user.mention}.\n"
+            f"> Thank you for attending.\n\n"
+            f"> **Host Note:** {host_note}\n"
+            f"> Click **feedback** below to submit feedback."
         ),
         color=0x87CEFA
     )
@@ -259,18 +293,16 @@ async def end(interaction: discord.Interaction, host_note: str):
 
     view = EndView()
 
-    await interaction.response.defer()
-    await interaction.followup.send(embed=embed, view=view)
+    await interaction.response.send_message(
+        embed=embed,
+        view=view
+    )
 
     log_channel = bot.get_channel(SESSION_LOG_CHANNEL)
 
     log_embed = discord.Embed(
         title="Session Logged",
-        description=(
-            f"Host: {interaction.user.mention}\n"
-            f"Duration: {str(duration).split('.')[0]}\n"
-            f"Note: {host_note}"
-        ),
+        description=f"Host: {interaction.user.mention}\nDuration: {str(duration).split('.')[0]}\nHost Note: {host_note}",
         color=0x87CEFA
     )
 
@@ -278,38 +310,48 @@ async def end(interaction: discord.Interaction, host_note: str):
 
     startup_active = False
 
-# -------- INFO --------
+# -------- INFO COMMAND --------
+
 @bot.tree.command(name="info")
 async def info(interaction: discord.Interaction):
 
     uptime = datetime.datetime.utcnow() - bot_start_time
-    ping = round(bot.latency * 1000)
+    api_ping = round(bot.latency * 1000)
 
     embed = discord.Embed(
         title="BOT INFO",
         description=(
-            f"Developer: Reuben2k11\n"
-            f"Prefix: >\n"
-            f"Uptime: {str(uptime).split('.')[0]}\n"
-            f"Ping: {ping}ms\n"
-            f"Discord.py: {discord.__version__}"
+            f"> Developer: Reuben2k11\n"
+            f"> Prefix: >\n"
+            f"> Uptime: {str(uptime).split('.')[0]}\n"
+            f"> Ping: {api_ping}ms\n"
+            f"> Discord.py Version: {discord.__version__}\n"
+            f"> Status: Online"
         ),
         color=0x87CEFA
     )
 
     await interaction.response.send_message(embed=embed)
 
-# -------- KILL --------
+# -------- KILL COMMAND --------
+
 @bot.tree.command(name="kill")
 async def kill(interaction: discord.Interaction):
 
     if KILL_ROLE not in [role.id for role in interaction.user.roles]:
-        await interaction.response.send_message("Not authorized.", ephemeral=True)
+        await interaction.response.send_message(
+            "You are not authorized.",
+            ephemeral=True
+        )
         return
 
-    await interaction.response.send_message("Shutting down...", ephemeral=True)
+    await interaction.response.send_message(
+        "Shutting down...",
+        ephemeral=True
+    )
 
     sys.exit()
 
-# -------- RUN --------
+# -------- RUN BOT --------
+
 bot.run(TOKEN)
