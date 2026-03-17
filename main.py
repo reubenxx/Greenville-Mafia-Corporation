@@ -52,9 +52,9 @@ async def on_member_join(member):
     channel = bot.get_channel(WELCOME_CHANNEL)
 
     embed = discord.Embed(
-        title="Welcome to __**Greenville Mafia Corporation**__ <:blueheart:1483008124024524820>",
+        title="<a:welcome:143008041413509141> Welcome to __**Greenville Mafia Corporation**__ <a:welcome:143008041413509141>",
         description=(
-            "┃ <:gvmc_star:1480630313234333758> We warmly welcome you! "
+            "┃ <a:gvmc_heart:1480637190685069472> We warmly welcome you! "
             "Please read **[server guidelines](https://discord.com/channels/1441901639739904125/1442242436138274826)**. "
             "For support, reach staff **[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**.\n\n"
             "<:verified:1483008933365813330> Remember to verify **[here](https://discord.com/channels/1441901639739904125/1471452917163884738)**."
