@@ -72,7 +72,10 @@ async def on_member_join(member):
         url="https://media.discordapp.net/attachments/1451418684752134146/1483404347441156166/Untitled_design_1024x1024.png"
     )
 
-    embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
+    embed.set_footer(
+        text="Greenville Mafia Corporation",
+        icon_url=FOOTER_ICON
+    )
 
     await channel.send(content=member.mention, embed=embed)
 # -------- SAY COMMAND --------
