@@ -246,18 +246,29 @@ async def info(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 # -------- MEMBERCOUNT COMMAND --------
-@bot.tree.command(name="members", description="Show total member count")
+@bot.tree.command(name="membercount", description="Show total member count")
 async def members(interaction: discord.Interaction):
+    import datetime
+
+    now = datetime.datetime.now()
     guild = interaction.guild
     count = guild.member_count
-    now = datetime.datetime.utcnow()
-    
-    # Discord timestamp formatting: <t:unix_timestamp:f> shows full local time for user
-    timestamp = int(now.timestamp())
-    
+
+    # Determine formatted date/time
+    today = now.date()
+    yesterday = today - datetime.timedelta(days=1)
+    timestamp = now.strftime("%-I:%M %p")  # e.g., 9:33 AM
+
+    if now.date() == today:
+        date_str = f"Today at {timestamp}"
+    elif now.date() == yesterday:
+        date_str = f"Yesterday at {timestamp}"
+    else:
+        date_str = now.strftime("%-m/%-d/%y")  # e.g., 3/13/26
+
     embed = discord.Embed(
-        title="**Member Count <a:gvmc_heart:1480637190685069472>**",
-        description=f"{count} members\n\n<t:{timestamp}:f>",
+        title="**<a:gvmc_heart:1480637190685069472> Member Count <a:gvmc_heart:1480637190685069472>**",
+        description=f"{count} members\n\n{date_str}",
         color=0x87CEFA
     )
 
