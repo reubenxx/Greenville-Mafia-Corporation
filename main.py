@@ -246,34 +246,27 @@ async def info(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 # -------- MEMBERCOUNT COMMAND --------
-@bot.tree.command(name="membercount", description="Show total member count")
+@bot.tree.command(name="members", description="Show total member count")
 async def members(interaction: discord.Interaction):
     import datetime
 
-    now = datetime.datetime.now()
     guild = interaction.guild
     count = guild.member_count
 
-    # Determine formatted date/time
-    today = now.date()
-    yesterday = today - datetime.timedelta(days=1)
-    timestamp = now.strftime("%-I:%M %p")  # e.g., 9:33 AM
+    now = datetime.datetime.utcnow()  # always use UTC for Discord timestamps
+    timestamp = int(now.timestamp())   # convert to Discord timestamp integer
 
-    if now.date() == today:
-        date_str = f"Today at {timestamp}"
-    elif now.date() == yesterday:
-        date_str = f"Yesterday at {timestamp}"
-    else:
-        date_str = now.strftime("%-m/%-d/%y")  # e.g., 3/13/26
+    # Discord inline timestamp formatting
+    # 'f' = Short Date/Time → "Today at 10:27 AM" style, auto adjusts to user's timezone
+    discord_time = f"<t:{timestamp}:f>"
 
     embed = discord.Embed(
-        title="**<a:gvmc_heart:1480637190685069472> Member Count <a:gvmc_heart:1480637190685069472>**",
-        description=f"{count} members\n\n{date_str}",
+        title="**Member Count**",
+        description=f"{count} members\n\n{discord_time}",
         color=0x87CEFA
     )
 
     await interaction.response.send_message(embed=embed)
-
 # -------- KILL COMMAND --------
 @bot.tree.command(name="kill", description="Shut down the bot")
 async def kill(interaction: discord.Interaction):
