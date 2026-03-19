@@ -25,6 +25,7 @@ WELCOME_CHANNEL = 1471452865796116576
 SESSION_LOG_CHANNEL = 1481568871679787088
 FEEDBACK_CHANNEL = 1481568923504611439
 KILL_ROLE = 1481266824917287124
+ALLOWED_ROLES = [1474121009656500225, 1479832999435440178]
 
 FOOTER_ICON = "https://media.discordapp.net/attachments/1467783372469178442/1480467031571693710/image.png"
 STARTUP_BANNER = "https://media.discordapp.net/attachments/1455902346440740894/1484092580613591140/Your_paragraph_text.png"
@@ -84,6 +85,9 @@ async def on_raw_reaction_remove(payload):
 @bot.tree.command(name="startup", description="Start a convoy session.")
 @app_commands.describe(reactions="Number of reactions required to release link")
 async def startup(interaction: discord.Interaction, reactions: int):
+    if not any(role.id in ALLOWED_ROLES for role in interaction.user.roles):
+    await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
+    return
     global startup_active, startup_host, startup_message, startup_reactors, startup_time, required_reactions
 
     if startup_active:
@@ -135,6 +139,9 @@ class LinkView(ui.View):
 
 @bot.tree.command(name="link", description="Release the private server link")
 async def link(interaction: discord.Interaction, url: str):
+    if not any(role.id in ALLOWED_ROLES for role in interaction.user.roles):
+    await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
+    return
     global link_message
 
     if not startup_active:
@@ -184,6 +191,9 @@ class EndView(ui.View):
 @bot.tree.command(name="end", description="End the current convoy")
 @app_commands.describe(host_note="Host note for the convoy")
 async def end(interaction: discord.Interaction, host_note: str):
+    if not any(role.id in ALLOWED_ROLES for role in interaction.user.roles):
+    await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
+    return
     global startup_active
 
     if not startup_active:
