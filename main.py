@@ -27,9 +27,9 @@ FEEDBACK_CHANNEL = 1481568923504611439
 KILL_ROLE = 1481266824917287124
 
 FOOTER_ICON = "https://media.discordapp.net/attachments/1467783372469178442/1480467031571693710/image.png"
-STARTUP_BANNER = "https://media.discordapp.net/attachments/1467783372469178442/1481896699763888270/Convoy_2.png"
-LINK_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481965398411968512/Convoy_5_1.png"
-END_BANNER = "https://media.discordapp.net/attachments/1451418684752134146/1481965219818373262/Convoy_4_12.png"
+STARTUP_BANNER = "https://media.discordapp.net/attachments/1455902346440740894/1484092580613591140/Your_paragraph_text.png"
+LINK_BANNER = "https://media.discordapp.net/attachments/1455902346440740894/1484093217744879636/Your_paragraph_text_1.png"
+END_BANNER = "https://cdn.discordapp.com/attachments/1455902346440740894/1484093510763155587/Your_paragraph_text_2.png"
 WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/1482361429188284606/Welcome_1.png"
 
 bot_start_time = datetime.datetime.utcnow()
