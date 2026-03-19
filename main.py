@@ -185,7 +185,7 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
         await interaction.response.send_message("Feedback submitted.", ephemeral=True)
 
 class EndView(ui.View):
-    @ui.button(label="Feedback", style=discord.ButtonStyle.secondary)
+    @ui.button(label="Provide Feedback <:IM_Messaging:1484126040073834497>", style=discord.ButtonStyle.secondary)
     async def feedback(self, interaction: discord.Interaction, button: ui.Button):
         await interaction.response.send_modal(FeedbackModal())
 
@@ -234,7 +234,6 @@ async def end(interaction: discord.Interaction, host_note: str):
         color=0x87CEFA
     )
 
-    embed.set_thumbnail(url=member.display_avatar.url)
     embed.set_image(url=END_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
