@@ -171,6 +171,7 @@ async def link(interaction: discord.Interaction, url: str):
     link_message = await interaction.channel.send(content=f"<@&{NOTIFY_ROLE}>", embed=embed, view=view, allowed_mentions=discord.AllowedMentions(roles=True))
 
 # -------- END COMMAND --------
+# -------- END COMMAND --------
 class FeedbackModal(ui.Modal, title="Convoy Feedback"):
     rating = ui.TextInput(label="Rating (1-5)")
     feedback = ui.TextInput(label="Feedback", style=discord.TextStyle.paragraph)
@@ -197,47 +198,52 @@ async def end(interaction: discord.Interaction, host_note: str):
         await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
         return
 
-    global startup_active
+    global startup_active, startup_message, link_message, startup_time, startup_host, startup_reactors
 
     if not startup_active:
         await interaction.response.send_message("No active convoy.", ephemeral=True)
         return
 
-    duration = datetime.datetime.utcnow() - startup_time
+    end_time = datetime.datetime.utcnow()
+    duration = end_time - startup_time
 
+    # Delete startup & link messages safely
     if startup_message:
-        await startup_message.delete()
+        try: await startup_message.delete()
+        except: pass
     if link_message:
-        await link_message.delete()
+        try: await link_message.delete()
+        except: pass
 
-   embed = discord.Embed(
-    title=" <:Gvmc_crown:1480630263456464957> Greenville Mafia Corporation Conclusion <:Gvmc_crown:1480630263456464957>",
-    description=(
-        f"<a:Animated_Arrow_Bluelite:1484055930919190589> | The Event that was hosted by {member.mention} has concluded. "
-        "We appreciate those who were actively involved & participating in this event. "
-        "We hope to see you in more of our events in the future as there are **many** more to come!\n\n"
+    embed = discord.Embed(
+        title=" <:Gvmc_crown:1480630263456464957> Greenville Mafia Corporation Conclusion <:Gvmc_crown:1480630263456464957>",
+        description=(
+            f"<a:Animated_Arrow_Bluelite:1484055930919190589> | The Event that was hosted by {member.mention} has concluded. "
+            "We appreciate those who were actively involved & participating in this event. "
+            "We hope to see you in more of our events in the future as there are **many** more to come!\n\n"
 
-        f"**Event Information**\n"
-        f"<:dot:1480643720687915058> Event Start Time | <t:{int(startup_time.timestamp())}:f>\n"
-        f"<:dot:1480643720687915058> Event End Time | <t:{int(datetime.datetime.utcnow().timestamp())}:f>\n"
-        f"<:dot:1480643720687915058> Event Duration | {str(datetime.datetime.utcnow() - startup_time).split('.')[0]}\n\n"
+            f"**Event Information**\n"
+            f"<:dot:1480643720687915058> Event Start Time | <t:{int(startup_time.timestamp())}:f>\n"
+            f"<:dot:1480643720687915058> Event End Time | <t:{int(end_time.timestamp())}:f>\n"
+            f"<:dot:1480643720687915058> Event Duration | {str(duration).split('.')[0]}\n\n"
 
-        f"<:announcement:1480640464737800253> Additional Notes | {host_note}\n\n"
+            f"<:announcement:1480640464737800253> Additional Notes | {host_note}\n\n"
 
-        "<a:gvmc_heart:1480637190685069472> | Want to help improve our Events? Give us feedback by clicking the feedback button below!"
-    ),
-    color=0x87CEFA
-)
+            "<a:gvmc_heart:1480637190685069472> | Want to help improve our Events? Give us feedback by clicking the feedback button below!"
+        ),
+        color=0x87CEFA
+    )
 
-embed.set_thumbnail(url=member.display_avatar.url)
-embed.set_image(url=END_BANNER)
-embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
+    embed.set_thumbnail(url=member.display_avatar.url)
+    embed.set_image(url=END_BANNER)
+    embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     view = EndView()
 
     await interaction.response.send_message("Convoy ended!", ephemeral=True)
     await interaction.channel.send(embed=embed, view=view)
 
+    # Log the session
     log_channel = bot.get_channel(SESSION_LOG_CHANNEL)
     log_embed = discord.Embed(
         title="Session Logged",
@@ -245,8 +251,14 @@ embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
         color=0x87CEFA
     )
     await log_channel.send(embed=log_embed)
-    startup_active = False
 
+    # Reset convoy state
+    startup_active = False
+    startup_host = None
+    startup_message = None
+    link_message = None
+    startup_reactors = set()
+    startup_time = None
 # -------- INFO COMMAND --------
 @bot.tree.command(name="info", description="Show bot information")
 async def info(interaction: discord.Interaction):
