@@ -125,7 +125,7 @@ async def startup(interaction: discord.Interaction, reactions: int):
             "<:dot:1480643720687915058> | Affected by **Roblox Chat Restriction**? Feel free to communicate with others or the host in our "
             "**[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)**\n\n"
 
-            "<a:pulsating_heart:1478774678645637160> | Please wait for the **session release**. "
+            "<a:pulsatingheart:1480637910347940064> | Please wait for the **session release**. "
             "You will be notified within this channel when it has been **released**."
         ),
         color=0x87CEFA
