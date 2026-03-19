@@ -50,7 +50,7 @@ async def on_member_join(member):
         color=0x87CEFA,
         description=(
             "> <a:gvmc_heart:1480637190685069472> Welcome to __**Greenville Mafia Corporation!**__! We are honored to have you here with us! Before you venture off into **GVMC**, please **[verify](https://discord.com/channels/1441901639739904125/1471452917163884738)** to gain full access to our server.\n\n"
-            "> <a:pulsating_heart:1478774678645637160> We host daily Convoys, Events, Occasional Giveaways and other fun surprises! We look forward to seeing you participate in the full life of __**Greenville Mafia Corporation**__. If you require any form of assistance, please do not hesitate to contact our lovely Staff Team **[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**. <a:pulsating_heart:1478774678645637160>"
+            "> <a:pulsatingheart:1480637910347940064> We host daily Convoys, Events, Occasional Giveaways and other fun surprises! We look forward to seeing you participate in the full life of __**Greenville Mafia Corporation**__. If you require any form of assistance, please do not hesitate to contact our lovely Staff Team **[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**. <a:pulsatingheart:1480637910347940064>"
         )
     )
 
