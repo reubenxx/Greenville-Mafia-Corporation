@@ -210,20 +210,28 @@ async def end(interaction: discord.Interaction, host_note: str):
     if link_message:
         await link_message.delete()
 
-    embed = discord.Embed(
-        title="Convoy Conclusion",
-        description=(
-            f"> This convoy has **concluded** by {member.mention}.\n"
-            f"> Thank you for attending.\n\n"
-            f"> **Host Note:** {host_note}\n"
-            f"> Click **feedback** below to submit feedback."
-        ),
-        color=0x87CEFA
-    )
+   embed = discord.Embed(
+    title=" <:Gvmc_crown:1480630263456464957> Greenville Mafia Corporation Conclusion <:Gvmc_crown:1480630263456464957>",
+    description=(
+        f"<a:Animated_Arrow_Bluelite:1484055930919190589> | The Event that was hosted by {member.mention} has concluded. "
+        "We appreciate those who were actively involved & participating in this event. "
+        "We hope to see you in more of our events in the future as there are **many** more to come!\n\n"
 
-    embed.set_thumbnail(url=member.display_avatar.url)
-    embed.set_image(url=END_BANNER)
-    embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
+        f"**Event Information**\n"
+        f"<:dot:1480643720687915058> Event Start Time | <t:{int(startup_time.timestamp())}:f>\n"
+        f"<:dot:1480643720687915058> Event End Time | <t:{int(datetime.datetime.utcnow().timestamp())}:f>\n"
+        f"<:dot:1480643720687915058> Event Duration | {str(datetime.datetime.utcnow() - startup_time).split('.')[0]}\n\n"
+
+        f"<:announcement:1480640464737800253> Additional Notes | {host_note}\n\n"
+
+        "<a:gvmc_heart:1480637190685069472> | Want to help improve our Events? Give us feedback by clicking the feedback button below!"
+    ),
+    color=0x87CEFA
+)
+
+embed.set_thumbnail(url=member.display_avatar.url)
+embed.set_image(url=END_BANNER)
+embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     view = EndView()
 
