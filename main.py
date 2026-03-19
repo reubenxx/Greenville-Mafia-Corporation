@@ -85,9 +85,11 @@ async def on_raw_reaction_remove(payload):
 @bot.tree.command(name="startup", description="Start a convoy session.")
 @app_commands.describe(reactions="Number of reactions required to release link")
 async def startup(interaction: discord.Interaction, reactions: int):
-    if not any(role.id in ALLOWED_ROLES for role in interaction.user.roles):
-    await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
-    return
+    member = interaction.guild.get_member(interaction.user.id)
+    if not any(role.id in ALLOWED_ROLES for role in member.roles):
+        await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
+        return
+
     global startup_active, startup_host, startup_message, startup_reactors, startup_time, required_reactions
 
     if startup_active:
@@ -96,14 +98,14 @@ async def startup(interaction: discord.Interaction, reactions: int):
 
     required_reactions = reactions
     startup_active = True
-    startup_host = interaction.user
+    startup_host = member
     startup_reactors = set()
     startup_time = datetime.datetime.utcnow()
 
     embed = discord.Embed(
         title="Greenville Mafia Corporation Convoy Startup <:announcement:1480640464737800253>",
         description=(
-            f"{interaction.user.mention} is currently __**hosting a Convoy**__. Please ensure that you have your Roblox privacy settings set to __**everyone**__. If they're not, you may be unable to join the session. During this time, please review our **[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** before proceeding.\n\n"
+            f"{member.mention} is currently __**hosting a Convoy**__. Please ensure that you have your Roblox privacy settings set to __**everyone**__. If they're not, you may be unable to join the session. During this time, please review our **[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)** before proceeding.\n\n"
             f"┃ <:dot:1480643720687915058> To confirm your presence, please react with the <:blueheart:1483008124024524820> below. You will be pinged in this channel again when the session releases. If there are any issues with joining or other session related issues, please ping the host in **[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** and they will assist you accordingly.\n\n"
             f"┃ <:dot:1480643720687915058> The host has requested __**{required_reactions}+**__ reactions before this session commences."
         ),
@@ -113,10 +115,7 @@ async def startup(interaction: discord.Interaction, reactions: int):
     embed.set_image(url=STARTUP_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
-    # Step 1: ephemeral for host
     await interaction.response.send_message("Convoy started!", ephemeral=True)
-
-    # Step 2: send public embed without command header
     startup_message = await interaction.channel.send(content=f"<@&{NOTIFY_ROLE}>", embed=embed, allowed_mentions=discord.AllowedMentions(roles=True))
     await startup_message.add_reaction("<:blueheart:1483008124024524820>")
 
@@ -139,28 +138,30 @@ class LinkView(ui.View):
 
 @bot.tree.command(name="link", description="Release the private server link")
 async def link(interaction: discord.Interaction, url: str):
-    if not any(role.id in ALLOWED_ROLES for role in interaction.user.roles):
-    await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
-    return
+    member = interaction.guild.get_member(interaction.user.id)
+    if not any(role.id in ALLOWED_ROLES for role in member.roles):
+        await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
+        return
+
     global link_message
 
     if not startup_active:
         await interaction.response.send_message("No active convoy.", ephemeral=True)
         return
-    if interaction.user != startup_host:
+    if member != startup_host:
         await interaction.response.send_message("Only the host can release the link.", ephemeral=True)
         return
 
     embed = discord.Embed(
         title="SESSION RELEASE",
         description=(
-            f"> {interaction.user.mention} has released the session link.\n"
+            f"> {member.mention} has released the session link.\n"
             "Please read all **[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)**.\n"
             "Respect hosts, members & staff. Ping host in **[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** if needed."
         ),
         color=0x87CEFA
     )
-    embed.set_thumbnail(url=interaction.user.display_avatar.url)
+    embed.set_thumbnail(url=member.display_avatar.url)
     embed.set_image(url=LINK_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
@@ -191,9 +192,11 @@ class EndView(ui.View):
 @bot.tree.command(name="end", description="End the current convoy")
 @app_commands.describe(host_note="Host note for the convoy")
 async def end(interaction: discord.Interaction, host_note: str):
-    if not any(role.id in ALLOWED_ROLES for role in interaction.user.roles):
-    await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
-    return
+    member = interaction.guild.get_member(interaction.user.id)
+    if not any(role.id in ALLOWED_ROLES for role in member.roles):
+        await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
+        return
+
     global startup_active
 
     if not startup_active:
@@ -202,15 +205,15 @@ async def end(interaction: discord.Interaction, host_note: str):
 
     duration = datetime.datetime.utcnow() - startup_time
 
-    try: await startup_message.delete()
-    except: pass
-    try: await link_message.delete()
-    except: pass
+    if startup_message:
+        await startup_message.delete()
+    if link_message:
+        await link_message.delete()
 
     embed = discord.Embed(
         title="Convoy Conclusion",
         description=(
-            f"> This convoy has **concluded** by {interaction.user.mention}.\n"
+            f"> This convoy has **concluded** by {member.mention}.\n"
             f"> Thank you for attending.\n\n"
             f"> **Host Note:** {host_note}\n"
             f"> Click **feedback** below to submit feedback."
@@ -218,7 +221,7 @@ async def end(interaction: discord.Interaction, host_note: str):
         color=0x87CEFA
     )
 
-    embed.set_thumbnail(url=interaction.user.display_avatar.url)
+    embed.set_thumbnail(url=member.display_avatar.url)
     embed.set_image(url=END_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
@@ -230,7 +233,7 @@ async def end(interaction: discord.Interaction, host_note: str):
     log_channel = bot.get_channel(SESSION_LOG_CHANNEL)
     log_embed = discord.Embed(
         title="Session Logged",
-        description=f"Host: {interaction.user.mention}\nDuration: {str(duration).split('.')[0]}\nHost Note: {host_note}",
+        description=f"Host: {member.mention}\nDuration: {str(duration).split('.')[0]}\nHost Note: {host_note}",
         color=0x87CEFA
     )
     await log_channel.send(embed=log_embed)
@@ -258,16 +261,12 @@ async def info(interaction: discord.Interaction):
 # -------- MEMBERCOUNT COMMAND --------
 @bot.tree.command(name="membercount", description="Show total member count")
 async def members(interaction: discord.Interaction):
-    import datetime
-
     guild = interaction.guild
     count = guild.member_count
 
-    now = datetime.datetime.utcnow()  # always use UTC for Discord timestamps
-    timestamp = int(now.timestamp())   # convert to Discord timestamp integer
+    now = datetime.datetime.utcnow()
+    timestamp = int(now.timestamp())
 
-    # Discord inline timestamp formatting
-    # 'f' = Short Date/Time → "Today at 10:27 AM" style, auto adjusts to user's timezone
     discord_time = f"<t:{timestamp}:f>"
 
     embed = discord.Embed(
@@ -277,10 +276,12 @@ async def members(interaction: discord.Interaction):
     )
 
     await interaction.response.send_message(embed=embed)
+
 # -------- KILL COMMAND --------
 @bot.tree.command(name="kill", description="Shut down the bot")
 async def kill(interaction: discord.Interaction):
-    if KILL_ROLE not in [role.id for role in interaction.user.roles]:
+    member = interaction.guild.get_member(interaction.user.id)
+    if KILL_ROLE not in [role.id for role in member.roles]:
         await interaction.response.send_message("You are not authorized.", ephemeral=True)
         return
     await interaction.response.send_message("Shutting down...", ephemeral=True)
