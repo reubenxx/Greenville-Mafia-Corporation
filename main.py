@@ -185,7 +185,7 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
         await interaction.response.send_message("Feedback submitted.", ephemeral=True)
 
 class EndView(ui.View):
-    @ui.button(label="Provide Feedback <:IM_Messaging:1484126040073834497>", style=discord.ButtonStyle.secondary)
+    @ui.button(label="Provide Feedback", style=discord.ButtonStyle.secondary)
     async def feedback(self, interaction: discord.Interaction, button: ui.Button):
         await interaction.response.send_modal(FeedbackModal())
 
