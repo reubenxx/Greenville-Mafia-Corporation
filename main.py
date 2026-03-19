@@ -171,7 +171,6 @@ async def link(interaction: discord.Interaction, url: str):
     link_message = await interaction.channel.send(content=f"<@&{NOTIFY_ROLE}>", embed=embed, view=view, allowed_mentions=discord.AllowedMentions(roles=True))
 
 # -------- END COMMAND --------
-# -------- END COMMAND --------
 class FeedbackModal(ui.Modal, title="Convoy Feedback"):
     rating = ui.TextInput(label="Rating (1-5)")
     feedback = ui.TextInput(label="Feedback", style=discord.TextStyle.paragraph)
@@ -215,6 +214,7 @@ async def end(interaction: discord.Interaction, host_note: str):
         try: await link_message.delete()
         except: pass
 
+    # ---- THIS EMBED NEEDS TO BE PROPERLY INDENTED ----
     embed = discord.Embed(
         title=" <:Gvmc_crown:1480630263456464957> Greenville Mafia Corporation Conclusion <:Gvmc_crown:1480630263456464957>",
         description=(
