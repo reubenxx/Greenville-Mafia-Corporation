@@ -47,13 +47,25 @@ async def on_member_join(member):
     channel = bot.get_channel(WELCOME_CHANNEL)
 
     embed = discord.Embed(
-        title="<a:welcome:1483008041413509141> Welcome to __**Greenville Mafia Corporation**__ <a:welcome:1483008041413509141>",
-        color=0x87CEFA,
-        description=(
-            "> <a:gvmc_heart:1480637190685069472> Welcome to __**Greenville Mafia Corporation!**__! We are honored to have you here with us! Before you venture off into **GVMC**, please **[verify](https://discord.com/channels/1441901639739904125/1471452917163884738)** to gain full access to our server.\n\n"
-            "> <a:pulsatingheart:1480637910347940064> We host daily Convoys, Events, Occasional Giveaways and other fun surprises! We look forward to seeing you participate in the full life of __**Greenville Mafia Corporation**__. If you require any form of assistance, please do not hesitate to contact our lovely Staff Team **[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**. <a:pulsatingheart:1480637910347940064>"
-        )
-    )
+    title="<:GVMC_trophy:1480637860590911610> Greenville Mafia Corporation Event Startup <:GVMC_trophy:1480637860590911610>",
+    description=(
+        f"<a:Animated_Arrow_Bluelite:1484055930919190589> | An Event is currently being started by {member.mention}. "
+        "Before reacting, please ensure you have read all of our "
+        "**[guidelines](https://discord.com/channels/1441901639739904125/1481562585781239969)** "
+        "to ensure a smooth event for everyone. To confirm presence, please react with the <:Tick:1480637335237427221> below. "
+        "We also ask that you have your privacy settings set to __**everyone**__ to ensure a trouble free event.\n\n"
+
+        f"**Information**\n"
+        f"<:dot:1480643720687915058> | The host has requested __**{required_reactions}**__ reactions. "
+        "Once we reach the reaction count, the link will be released within this channel.\n"
+        "<:dot:1480643720687915058> | Affected by **Roblox Chat Restriction**? Feel free to comunicate with others or the host in our "
+        "**[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)**\n\n"
+
+        "<a:pulsating_heart:1478774678645637160> | Please wait for the **session release**. "
+        "You will be notified within this channel when it has been **released**."
+    ),
+    color=0x87CEFA
+)
 
     embed.set_thumbnail(url="https://media.discordapp.net/attachments/1451418684752134146/1483404347441156166/Untitled_design_1024x1024.png")
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
@@ -71,7 +83,7 @@ async def say(ctx, *, message):
 async def on_raw_reaction_add(payload):
     global startup_reactors
     if startup_active and startup_message and payload.message_id == startup_message.id:
-        if str(payload.emoji) == "<:blueheart:1483008124024524820>":
+        if str(payload.emoji) == "<:Tick:1480637335237427221>":
             startup_reactors.add(payload.user_id)
 
 @bot.event
