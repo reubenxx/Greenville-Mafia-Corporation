@@ -54,17 +54,16 @@ async def on_member_join(member):
             "**[verify](https://discord.com/channels/1441901639739904125/1471452917163884738)** "
             "to gain full access to our server.\n\n"
 
-            "<a:pulsating_heart:1478774678645637160> We host daily Convoys, Events, Occasional Giveaways "
+            "<a:pulsatingheart:1480637910347940064> We host daily Convoys, Events, Occasional Giveaways "
             "and other fun surprises! We look forward to seeing you participate in the full life of "
             "__**Greenville Mafia Corporation**__. If you require any form of assistance, please do not "
             "hesitate to contact our lovely Staff Team "
             "**[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**. "
-            "<a:pulsating_heart:1478774678645637160>"
+            "<a:pulsatingheart:1480637910347940064>"
         ),
         color=0x87CEFA
     )
 
-    embed.set_image(url=WELCOME_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     await channel.send(content=member.mention, embed=embed)
