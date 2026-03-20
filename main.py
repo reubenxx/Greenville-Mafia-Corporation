@@ -328,7 +328,8 @@ async def membercount(interaction: discord.Interaction):
     
     embed = discord.Embed(
         title="Members", 
-        description=f"{count:,} <t:{current_time}>", 
+        description=f"{count:,} 
+        <t:{current_time}>", 
         color=0x87CEFA
     )
     
