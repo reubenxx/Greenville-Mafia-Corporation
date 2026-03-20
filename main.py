@@ -298,8 +298,8 @@ async def info(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 # -------- MEMBERCOUNT COMMAND --------
-@bot.tree.command(name="membercount", description="Show the server member count")
-async def membercount(interaction: discord.Interaction):
+@bot.tree.command(name="membercount", description="Show total member count")
+async def members(interaction: discord.Interaction):
     guild = interaction.guild
 
     if guild is None:
@@ -309,22 +309,21 @@ async def membercount(interaction: discord.Interaction):
         )
         return
 
-    total = guild.member_count
+    count = guild.member_count
+
+    now = datetime.datetime.utcnow()
+    timestamp = int(now.timestamp())
+    discord_time = f"<t:{timestamp}:f>"
 
     embed = discord.Embed(
-        title=f"Members",
+        title=f"{guild.name} — Member Count",
+        description=f"**{count}** members\n\n{discord_time}",
         color=0x87CEFA
     )
 
-        value=f"{total:,}",
-        inline=True
-    )
+    embed.set_footer(text="Greenville Orbit")
 
-    embed.timestamp = datetime.datetime.utcnow()
-
-    await interaction.response.send_message(
-        embed=embed
-    )
+    await interaction.response.send_message(embed=embed)
 # -------- KILL COMMAND --------
 @bot.tree.command(name="kill", description="Shut down the bot")
 async def kill(interaction: discord.Interaction):
