@@ -302,29 +302,38 @@ import discord
 from discord.ext import commands
 import time
 
-# Ensure you have the members intent enabled for accurate counts
+# 1. FIXED: You MUST include message_content intent to use prefix commands
+# And keep members intent for the count
 intents = discord.Intents.default()
 intents.members = True 
+intents.message_content = True 
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-@bot.command()
-async def membercount(ctx):
-    # 1. Get the exact member count of the server
-    count = ctx.guild.member_count
-    
-    # 2. Get the current Unix timestamp for the viewer's local time
+# This syncs your commands to Discord so /membercount shows up
+@bot.event
+async def on_ready():
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} command(s)")
+    except Exception as e:
+        print(e)
+    print(f"Logged in as {bot.user}")
+
+# 2. CONVERTED TO SLASH COMMAND: This works with the / menu
+@bot.tree.command(name="membercount", description="Shows the server member count with a local timestamp")
+async def membercount(interaction: discord.Interaction):
+    count = interaction.guild.member_count
     current_time = int(time.time())
     
-    # 3. Create the Embed with your specific colour
-    # Color 0x87CEFA is Light Sky Blue
     embed = discord.Embed(
         title="Members", 
         description=f"{count:,} <t:{current_time}>", 
         color=0x87CEFA
     )
     
-    await ctx.send(embed=embed)
+    await interaction.response.send_message(embed=embed)
+
 
 # -------- KILL COMMAND --------
 @bot.tree.command(name="kill", description="Shut down the bot")
