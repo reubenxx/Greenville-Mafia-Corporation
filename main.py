@@ -298,41 +298,21 @@ async def info(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 # -------- MEMBERCOUNT COMMAND --------
-import discord
-from discord.ext import commands
-import time
+@bot.tree.command(name="membercount", description="Show total member count")
+async def members(interaction: discord.Interaction):
+    guild = interaction.guild
+    count = guild.member_count
 
-# 1. FIXED: You MUST include message_content intent to use prefix commands
-# And keep members intent for the count
-intents = discord.Intents.default()
-intents.members = True 
-intents.message_content = True 
+    now = datetime.datetime.utcnow()
+    timestamp = int(now.timestamp())
+    discord_time = f"<t:{timestamp}:f>"
 
-bot = commands.Bot(command_prefix="!", intents=intents)
-
-# This syncs your commands to Discord so /membercount shows up
-@bot.event
-async def on_ready():
-    try:
-        synced = await bot.tree.sync()
-        print(f"Synced {len(synced)} command(s)")
-    except Exception as e:
-        print(e)
-    print(f"Logged in as {bot.user}")
-
-# 2. CONVERTED TO SLASH COMMAND: This works with the / menu
-@bot.tree.command(name="membercount", description="Shows the server member count with a local timestamp")
-async def membercount(interaction: discord.Interaction):
-    count = interaction.guild.member_count
-    current_time = int(time.time())
-    
     embed = discord.Embed(
-        title="Members", 
-        description=f"{count:,} 
-        <t:{current_time}>", 
+        title="**<a:gvmc_heart:1480637190685069472> Member Count <a:gvmc_heart:1480637190685069472>**",
+        description=f"**{count}** members\n\n{discord_time}",
         color=0x87CEFA
     )
-    
+
     await interaction.response.send_message(embed=embed)
 
 
