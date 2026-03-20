@@ -299,7 +299,7 @@ async def info(interaction: discord.Interaction):
 
 # -------- MEMBERCOUNT COMMAND --------
 @bot.tree.command(name="membercount", description="Show total member count")
-async def members(interaction: discord.Interaction):
+async def membercount(interaction: discord.Interaction):
     guild = interaction.guild
 
     if guild is None:
@@ -311,18 +311,17 @@ async def members(interaction: discord.Interaction):
 
     count = guild.member_count
 
-    now = datetime.datetime.utcnow()
-    timestamp = int(now.timestamp())
-    discord_time = f"<t:{timestamp}:f>"
-
     embed = discord.Embed(
-        title=f"{guild.name} — Member Count",
-        description=f"**{count}** members\n\n{discord_time}",
+        title="**<a:gvmc_heart:1480637190685069472> Member Count <a:gvmc_heart:1480637190685069472>**",
+        description=f"**{count}** members",
         color=0x87CEFA
     )
 
-    embed.set_footer(text="Greenville Orbit")
+    # THIS is what gives you "Today at ..."
+    embed.timestamp = datetime.datetime.utcnow()
 
+
+    await interaction.response.send_message(embed=embed)
     await interaction.response.send_message(embed=embed)
 # -------- KILL COMMAND --------
 @bot.tree.command(name="kill", description="Shut down the bot")
