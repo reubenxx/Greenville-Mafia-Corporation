@@ -312,7 +312,7 @@ async def membercount(interaction: discord.Interaction):
     count = guild.member_count
 
     embed = discord.Embed(
-        title="Members",
+        title="**Members**",
         description=f"{count}",
         color=0x87CEFA
     )
