@@ -312,8 +312,8 @@ async def membercount(interaction: discord.Interaction):
     count = guild.member_count
 
     embed = discord.Embed(
-        title="**<a:gvmc_heart:1480637190685069472> Member Count <a:gvmc_heart:1480637190685069472>**",
-        description=f"**{count}** members",
+        title="Members",
+        description=f"{count}",
         color=0x87CEFA
     )
 
