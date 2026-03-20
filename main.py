@@ -309,7 +309,7 @@ async def members(interaction: discord.Interaction):
     discord_time = f"<t:{timestamp}:f>"
 
     embed = discord.Embed(
-        title="**<a:gvmc_heart:1480637190685069472> Member Count <a:gvmc_heart:1480637190685069472>**",
+        title="**Members**",
         description=f"**{count}** members\n\n{discord_time}",
         color=0x87CEFA
     )
