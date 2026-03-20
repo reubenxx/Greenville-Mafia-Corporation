@@ -312,17 +312,14 @@ async def membercount(interaction: discord.Interaction):
     total = guild.member_count
 
     embed = discord.Embed(
-        title=f"{guild.name} — Member Count",
-        color=0x292929
+        title=f"Members",
+        color=0x87CEFA
     )
 
-    embed.add_field(
-        name="👥 Total Members",
         value=f"{total:,}",
         inline=True
     )
 
-    embed.set_footer(text="Greenville Orbit")
     embed.timestamp = datetime.datetime.utcnow()
 
     await interaction.response.send_message(
