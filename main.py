@@ -298,23 +298,33 @@ async def info(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 # -------- MEMBERCOUNT COMMAND --------
-@bot.tree.command(name="membercount", description="Show total member count")
-async def members(interaction: discord.Interaction):
-    guild = interaction.guild
-    count = guild.member_count
+import discord
+from discord.ext import commands
+import time
 
-    now = datetime.datetime.utcnow()
-    timestamp = int(now.timestamp())
+# Ensure you have the members intent enabled for accurate counts
+intents = discord.Intents.default()
+intents.members = True 
 
-    discord_time = f"<t:{timestamp}:f>"
+bot = commands.Bot(command_prefix="!", intents=intents)
 
+@bot.command()
+async def membercount(ctx):
+    # 1. Get the exact member count of the server
+    count = ctx.guild.member_count
+    
+    # 2. Get the current Unix timestamp for the viewer's local time
+    current_time = int(time.time())
+    
+    # 3. Create the Embed with your specific colour
+    # Color 0x87CEFA is Light Sky Blue
     embed = discord.Embed(
-        title="**Members**",
-        description=f"**{count}** members\n\n{discord_time}",
+        title="Members", 
+        description=f"{count:,} <t:{current_time}>", 
         color=0x87CEFA
     )
-
-    await interaction.response.send_message(embed=embed)
+    
+    await ctx.send(embed=embed)
 
 # -------- KILL COMMAND --------
 @bot.tree.command(name="kill", description="Shut down the bot")
