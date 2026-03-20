@@ -326,10 +326,8 @@ async def membercount(interaction: discord.Interaction):
     embed.timestamp = datetime.datetime.utcnow()
 
     await interaction.response.send_message(
-        embed=embed,
-        ephemeral=True
+        embed=embed
     )
-
 # -------- KILL COMMAND --------
 @bot.tree.command(name="kill", description="Shut down the bot")
 async def kill(interaction: discord.Interaction):
