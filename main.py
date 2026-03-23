@@ -72,7 +72,21 @@ async def on_member_join(member):
 async def say(ctx, *, message):
     await ctx.message.delete()
     await ctx.send(message)
+# -------- SLASH SAY COMMAND --------
+@bot.tree.command(name="say", description="Make the bot say something")
+@app_commands.describe(message="The message you want the bot to send")
+async def slash_say(interaction: discord.Interaction, message: str):
+    member = interaction.guild.get_member(interaction.user.id)
 
+    # Role check (ONLY allowed role)
+    if 1474121009656500225 not in [role.id for role in member.roles]:
+        await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
+        return
+
+    # Send message WITHOUT showing command
+    await interaction.response.defer(ephemeral=True)
+    await interaction.channel.send(message)
+    
 # -------- REACTION TRACKING --------
 @bot.event
 async def on_raw_reaction_add(payload):
