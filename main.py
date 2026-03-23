@@ -42,7 +42,17 @@ bot_start_time = datetime.datetime.utcnow()
 @bot.event
 async def on_ready():
     await bot.tree.sync()
-    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Watching 'Greenville Mafia Corporation'"))
+
+    await bot.change_presence(
+        activity=discord.Activity(
+            type=discord.ActivityType.watching,
+            name="Watching 'Greenville Mafia Corporation'"
+        )
+    )
+
+    # 🔹 LOA persistent buttons (VERY IMPORTANT)
+    bot.add_view(LOAView(0, 0, 0))
+
     print(f"{bot.user} ready")
 
 @bot.event
@@ -207,6 +217,113 @@ async def link(interaction: discord.Interaction, url: str):
     await interaction.response.send_message("Link released!", ephemeral=True)
     link_message = await interaction.channel.send(content=f"<@&{NOTIFY_ROLE}>", embed=embed, view=view, allowed_mentions=discord.AllowedMentions(roles=True))
 
+# -------- LOA SYSTEM --------
+
+class DenyModal(ui.Modal, title="Deny LOA"):
+    def __init__(self, target_user: discord.User):
+        super().__init__()
+        self.target_user = target_user
+
+    reason = ui.TextInput(label="Reason for denial", style=discord.TextStyle.paragraph)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        embed = discord.Embed(
+            title="LOA Denied",
+            description=(
+                f"Dear {self.target_user.mention},\n\n"
+                f"Your LOA has been **Denied** for the following reason | {self.reason.value} |.\n\n"
+                "If this is a misunderstanding, please contact management. "
+                "Please do not submit another LOA until you have discussed with Management."
+            ),
+            color=0x87CEFA
+        )
+
+        try:
+            await self.target_user.send(embed=embed)
+        except:
+            pass
+
+        await interaction.response.send_message("LOA denied.", ephemeral=True)
+
+
+class LOAView(ui.View):
+    def __init__(self, user_id: int, start_ts: int, end_ts: int):
+        super().__init__(timeout=None)
+        self.user_id = user_id
+        self.start_ts = start_ts
+        self.end_ts = end_ts
+        self.handled = False  # prevents double approve/deny
+
+    def has_permission(self, member):
+        return any(role.id in LOA_APPROVE_ROLES for role in member.roles)
+
+    def disable_all(self):
+        for item in self.children:
+            item.disabled = True
+
+    @ui.button(label="Approve", style=discord.ButtonStyle.success)
+    async def approve(self, interaction: discord.Interaction, button: ui.Button):
+
+        if not self.has_permission(interaction.user):
+            await interaction.response.send_message("No permission.", ephemeral=True)
+            return
+
+        if self.handled:
+            await interaction.response.send_message("This LOA has already been handled.", ephemeral=True)
+            return
+
+        self.handled = True
+
+        user = await interaction.client.fetch_user(self.user_id)
+
+        embed = discord.Embed(
+            title="LOA Approved",
+            description=(
+                f"Dear {user.mention},\n\n"
+                f"Your LOA has been **approved** by {interaction.user.mention}.\n\n"
+
+                f"**LOA Information**\n"
+                f"<:dot:1480643720687915058> Start Date | <t:{self.start_ts}:f>\n"
+                f"<:dot:1480643720687915058> End Date | <t:{self.end_ts}:f>\n\n"
+
+                "You are exempt from **Staff Quota** during this period.\n\n"
+                "After your LOA ends, activity is expected. You may not submit another LOA for 28 days.\n\n"
+
+                "Kind Regards,\nGreenville Mafia Corporation,\nManagement."
+            ),
+            color=0x87CEFA
+        )
+
+        try:
+            await user.send(embed=embed)
+        except:
+            pass
+
+        self.disable_all()
+        await interaction.message.edit(view=self)
+
+        await interaction.response.send_message("LOA approved.", ephemeral=True)
+
+    @ui.button(label="Deny", style=discord.ButtonStyle.danger)
+    async def deny(self, interaction: discord.Interaction, button: ui.Button):
+
+        if not self.has_permission(interaction.user):
+            await interaction.response.send_message("No permission.", ephemeral=True)
+            return
+
+        if self.handled:
+            await interaction.response.send_message("This LOA has already been handled.", ephemeral=True)
+            return
+
+        user = await interaction.client.fetch_user(self.user_id)
+
+        self.handled = True
+
+        await interaction.response.send_modal(DenyModal(user))
+
+        self.disable_all()
+        await interaction.message.edit(view=self)
+        
 # -------- END COMMAND --------
 class FeedbackModal(ui.Modal, title="Convoy Feedback"):
     rating = ui.TextInput(label="Rating (1-5)")
@@ -295,6 +412,68 @@ async def end(interaction: discord.Interaction, host_note: str):
     link_message = None
     startup_reactors = set()
     startup_time = None
+    # -------- LOA COMMAND --------
+@bot.tree.command(name="loa", description="Submit a Leave of Absence")
+@app_commands.describe(
+    reason="Reason for LOA",
+    start_date="Start date (YYYY-MM-DD)",
+    end_date="End date (YYYY-MM-DD)",
+    rank="Your rank",
+    notes="Additional notes"
+)
+async def loa(interaction: discord.Interaction, reason: str, start_date: str, end_date: str, rank: str, notes: str):
+
+    member = interaction.guild.get_member(interaction.user.id)
+
+    if LOA_ROLE not in [role.id for role in member.roles]:
+        await interaction.response.send_message("You are not authorized.", ephemeral=True)
+        return
+
+    try:
+        start_dt = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = datetime.datetime.strptime(end_date, "%Y-%m-%d")
+    except:
+        await interaction.response.send_message("Invalid date format. Use YYYY-MM-DD.", ephemeral=True)
+        return
+
+    start_ts = int(start_dt.timestamp())
+    end_ts = int(end_dt.timestamp())
+
+    # confirmation embed
+    confirm_embed = discord.Embed(
+        title="LOA Submission",
+        description=(
+            "> Your LOA has been submitted. Our Management team will review it shortly.\n\n"
+            "> Please look out for a **Direct Message** confirming your submission and another when we have approved or denied your submission.\n\n"
+            "> If there are any issues, contact management."
+        ),
+        color=0x87CEFA
+    )
+
+    await interaction.response.send_message(embed=confirm_embed, ephemeral=True)
+
+    # send to staff channel
+    channel = bot.get_channel(LOA_CHANNEL)
+    if not channel:
+        return
+
+    embed = discord.Embed(
+        title="LOA Request",
+        description=(
+            f"User requesting | {member.mention}\n"
+            f"<:dot:1480643720687915058> Start Date | <t:{start_ts}:f>\n"
+            f"<:dot:1480643720687915058> End Date | <t:{end_ts}:f>\n"
+            f"<:dot:1480643720687915058> Reason | {reason}\n"
+            f"<:dot:1480643720687915058> Rank | {rank}\n"
+            f"<:dot:1480643720687915058> Additional Notes | {notes}\n\n"
+            "Please use the buttons below to approve/deny this LOA."
+        ),
+        color=0x87CEFA
+    )
+
+    view = LOAView(member.id, start_ts, end_ts)
+
+    await channel.send(embed=embed, view=view)
 # -------- INFO COMMAND --------
 @bot.tree.command(name="info", description="Show bot information")
 async def info(interaction: discord.Interaction):
@@ -338,7 +517,6 @@ async def membercount(interaction: discord.Interaction):
     embed.timestamp = datetime.datetime.utcnow()
 
 
-    await interaction.response.send_message(embed=embed)
     await interaction.response.send_message(embed=embed)
 # -------- KILL COMMAND --------
 @bot.tree.command(name="kill", description="Shut down the bot")
