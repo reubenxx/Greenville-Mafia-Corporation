@@ -364,6 +364,10 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
     start_ts = int(start_dt.timestamp())
     end_ts = int(end_dt.timestamp())
 
+    # Defer the response to avoid "did not respond"
+    await interaction.response.defer(ephemeral=True)
+
+    # confirmation embed
     confirm_embed = discord.Embed(
         title="LOA Submission",
         description=(
@@ -373,28 +377,32 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
         ),
         color=0x87CEFA
     )
-    await interaction.response.send_message(embed=confirm_embed, ephemeral=True)
 
+    # Send confirmation via followup
+    await interaction.followup.send(embed=confirm_embed, ephemeral=True)
+
+    # send to staff channel
     channel = bot.get_channel(LOA_CHANNEL)
-    if not channel:
-        return
+    if channel:
+        try:
+            embed = discord.Embed(
+                title="LOA Request",
+                description=(
+                    f"User requesting | {member.mention}\n"
+                    f"<:dot:1480643720687915058> Start Date | <t:{start_ts}:f>\n"
+                    f"<:dot:1480643720687915058> End Date | <t:{end_ts}:f>\n"
+                    f"<:dot:1480643720687915058> Reason | {reason}\n"
+                    f"<:dot:1480643720687915058> Rank | {rank}\n"
+                    f"<:dot:1480643720687915058> Additional Notes | {notes}\n\n"
+                    "Please use the buttons below to approve/deny this LOA."
+                ),
+                color=0x87CEFA
+            )
 
-    embed = discord.Embed(
-        title="LOA Request",
-        description=(
-            f"User requesting | {member.mention}\n"
-            f"<:dot:1480643720687915058> Start Date | <t:{start_ts}:f>\n"
-            f"<:dot:1480643720687915058> End Date | <t:{end_ts}:f>\n"
-            f"<:dot:1480643720687915058> Reason | {reason}\n"
-            f"<:dot:1480643720687915058> Rank | {rank}\n"
-            f"<:dot:1480643720687915058> Additional Notes | {notes}\n\n"
-            "Please use the buttons below to approve/deny this LOA."
-        ),
-        color=0x87CEFA
-    )
-
-    view = LOAView(member.id, start_ts, end_ts)
-    await channel.send(embed=embed, view=view)
+            view = LOAView(member.id, start_ts, end_ts)
+            await channel.send(embed=embed, view=view)
+        except Exception as e:
+            print("Failed to send LOA to staff channel:", e)
 
 # -------- INFO COMMAND --------
 @bot.tree.command(name="info", description="Show bot information")
