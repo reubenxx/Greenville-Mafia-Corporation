@@ -42,23 +42,19 @@ bot_start_time = datetime.datetime.utcnow()
 @bot.event
 async def on_ready():
     await bot.tree.sync()
-
     await bot.change_presence(
         activity=discord.Activity(
             type=discord.ActivityType.watching,
             name="Watching 'Greenville Mafia Corporation'"
         )
     )
-
-    # 🔹 LOA persistent buttons (VERY IMPORTANT)
+    # Persistent LOA buttons
     bot.add_view(LOAView(0, 0, 0))
-
     print(f"{bot.user} ready")
 
 @bot.event
 async def on_member_join(member):
     channel = bot.get_channel(WELCOME_CHANNEL)
-
     embed = discord.Embed(
         title="<a:welcome:1483008041413509141> Welcome to __**Greenville Mafia Corporation**__ <a:welcome:1483008041413509141>",
         description=(
@@ -66,7 +62,6 @@ async def on_member_join(member):
             "We are honored to have you here with us! Before you venture off into **GVMC**, please "
             "**[verify](https://discord.com/channels/1441901639739904125/1471452917163884738)** "
             "to gain full access to our server.\n\n"
-
             "<a:pulsatingheart:1480637910347940064> We host daily Convoys, Events, Occasional Giveaways "
             "and other fun surprises! We look forward to seeing you participate in the full life of "
             "__**Greenville Mafia Corporation**__. If you require any form of assistance, please do not "
@@ -76,30 +71,26 @@ async def on_member_join(member):
         ),
         color=0x87CEFA
     )
-
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
-
     await channel.send(content=member.mention, embed=embed)
+
 # -------- SAY COMMAND --------
 @bot.command()
 async def say(ctx, *, message):
     await ctx.message.delete()
     await ctx.send(message)
+
 # -------- SLASH SAY COMMAND --------
 @bot.tree.command(name="say", description="Make the bot say something")
 @app_commands.describe(message="The message you want the bot to send")
 async def slash_say(interaction: discord.Interaction, message: str):
     member = interaction.guild.get_member(interaction.user.id)
-
-    # Role check (ONLY allowed role)
     if 1474121009656500225 not in [role.id for role in member.roles]:
         await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
         return
-
-    # Send message WITHOUT showing command
     await interaction.response.defer(ephemeral=True)
     await interaction.channel.send(message)
-    
+
 # -------- REACTION TRACKING --------
 @bot.event
 async def on_raw_reaction_add(payload):
@@ -115,7 +106,7 @@ async def on_raw_reaction_remove(payload):
         if str(payload.emoji) == "<:blueheart:1483008124024524820>":
             startup_reactors.discard(payload.user_id)
 
-# ----# -------- STARTUP COMMAND --------
+# -------- STARTUP COMMAND --------
 @bot.tree.command(name="startup", description="Start a convoy session.")
 @app_commands.describe(reactions="Number of reactions required to release link")
 async def startup(interaction: discord.Interaction, reactions: int):
@@ -125,7 +116,6 @@ async def startup(interaction: discord.Interaction, reactions: int):
         return
 
     global startup_active, startup_host, startup_message, startup_reactors, startup_time, required_reactions
-
     if startup_active:
         await interaction.response.send_message("A convoy session is already active.", ephemeral=True)
         return
@@ -144,26 +134,21 @@ async def startup(interaction: discord.Interaction, reactions: int):
             "**[guidelines](https://discord.com/channels/1441901639739904125/1481562585781239969)** "
             "to ensure a smooth event for everyone. To confirm presence, please react with the <:Tick:1480637335237427221> below. "
             "We also ask that you have your privacy settings set to __**everyone**__ to ensure a trouble free event.\n\n"
-
             f"**Information**\n"
             f"<:dot:1480643720687915058> | The host has requested __**{required_reactions}**__ reactions. "
             "Once we reach the reaction count, the link will be released within this channel.\n"
             "<:dot:1480643720687915058> | Affected by **Roblox Chat Restriction**? Feel free to communicate with others or the host in our "
             "**[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)**\n\n"
-
             "<a:pulsatingheart:1480637910347940064> | Please wait for the **session release**. "
             "You will be notified within this channel when it has been **released**."
         ),
         color=0x87CEFA
     )
-
     embed.set_image(url=STARTUP_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     await interaction.response.send_message("Convoy started!", ephemeral=True)
-    startup_message = await interaction.channel.send(
-        content=f"<@&{NOTIFY_ROLE}>", embed=embed, allowed_mentions=discord.AllowedMentions(roles=True)
-    )
+    startup_message = await interaction.channel.send(content=f"<@&{NOTIFY_ROLE}>", embed=embed, allowed_mentions=discord.AllowedMentions(roles=True))
     await startup_message.add_reaction("<:Tick:1480637335237427221>")
 
 # -------- LINK COMMAND --------
@@ -191,7 +176,6 @@ async def link(interaction: discord.Interaction, url: str):
         return
 
     global link_message
-
     if not startup_active:
         await interaction.response.send_message("No active convoy.", ephemeral=True)
         return
@@ -213,12 +197,10 @@ async def link(interaction: discord.Interaction, url: str):
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     view = LinkView(url)
-
     await interaction.response.send_message("Link released!", ephemeral=True)
     link_message = await interaction.channel.send(content=f"<@&{NOTIFY_ROLE}>", embed=embed, view=view, allowed_mentions=discord.AllowedMentions(roles=True))
 
-# -------- LOA SYSTEM --------
-
+# -------- LOA SYSTEM (FIXED) --------
 class DenyModal(ui.Modal, title="Deny LOA"):
     def __init__(self, target_user: discord.User):
         super().__init__()
@@ -237,14 +219,11 @@ class DenyModal(ui.Modal, title="Deny LOA"):
             ),
             color=0x87CEFA
         )
-
         try:
             await self.target_user.send(embed=embed)
         except:
             pass
-
         await interaction.response.send_message("LOA denied.", ephemeral=True)
-
 
 class LOAView(ui.View):
     def __init__(self, user_id: int, start_ts: int, end_ts: int):
@@ -252,7 +231,7 @@ class LOAView(ui.View):
         self.user_id = user_id
         self.start_ts = start_ts
         self.end_ts = end_ts
-        self.handled = False  # prevents double approve/deny
+        self.handled = False
 
     def has_permission(self, member):
         return any(role.id in LOA_APPROVE_ROLES for role in member.roles)
@@ -263,68 +242,51 @@ class LOAView(ui.View):
 
     @ui.button(label="Approve", style=discord.ButtonStyle.success)
     async def approve(self, interaction: discord.Interaction, button: ui.Button):
-
         if not self.has_permission(interaction.user):
             await interaction.response.send_message("No permission.", ephemeral=True)
             return
-
         if self.handled:
             await interaction.response.send_message("This LOA has already been handled.", ephemeral=True)
             return
-
         self.handled = True
-
-        user = await interaction.client.fetch_user(self.user_id)
-
+        user = await bot.fetch_user(self.user_id)
         embed = discord.Embed(
             title="LOA Approved",
             description=(
                 f"Dear {user.mention},\n\n"
                 f"Your LOA has been **approved** by {interaction.user.mention}.\n\n"
-
                 f"**LOA Information**\n"
                 f"<:dot:1480643720687915058> Start Date | <t:{self.start_ts}:f>\n"
                 f"<:dot:1480643720687915058> End Date | <t:{self.end_ts}:f>\n\n"
-
                 "You are exempt from **Staff Quota** during this period.\n\n"
                 "After your LOA ends, activity is expected. You may not submit another LOA for 28 days.\n\n"
-
                 "Kind Regards,\nGreenville Mafia Corporation,\nManagement."
             ),
             color=0x87CEFA
         )
-
         try:
             await user.send(embed=embed)
         except:
             pass
-
         self.disable_all()
         await interaction.message.edit(view=self)
-
         await interaction.response.send_message("LOA approved.", ephemeral=True)
 
     @ui.button(label="Deny", style=discord.ButtonStyle.danger)
     async def deny(self, interaction: discord.Interaction, button: ui.Button):
-
         if not self.has_permission(interaction.user):
             await interaction.response.send_message("No permission.", ephemeral=True)
             return
-
         if self.handled:
             await interaction.response.send_message("This LOA has already been handled.", ephemeral=True)
             return
-
-        user = await interaction.client.fetch_user(self.user_id)
-
         self.handled = True
-
+        user = await bot.fetch_user(self.user_id)
         await interaction.response.send_modal(DenyModal(user))
-
         self.disable_all()
         await interaction.message.edit(view=self)
-        
-# -------- END COMMAND --------
+
+# -------- END COMMAND / FEEDBACK --------
 class FeedbackModal(ui.Modal, title="Convoy Feedback"):
     rating = ui.TextInput(label="Rating (1-5)")
     feedback = ui.TextInput(label="Feedback", style=discord.TextStyle.paragraph)
@@ -343,6 +305,7 @@ class EndView(ui.View):
     async def feedback(self, interaction: discord.Interaction, button: ui.Button):
         await interaction.response.send_modal(FeedbackModal())
 
+# -------- END COMMAND --------
 @bot.tree.command(name="end", description="End the current convoy")
 @app_commands.describe(host_note="Host note for the convoy")
 async def end(interaction: discord.Interaction, host_note: str):
@@ -350,17 +313,13 @@ async def end(interaction: discord.Interaction, host_note: str):
     if not any(role.id in ALLOWED_ROLES for role in member.roles):
         await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
         return
-
     global startup_active, startup_message, link_message, startup_time, startup_host, startup_reactors
-
     if not startup_active:
         await interaction.response.send_message("No active convoy.", ephemeral=True)
         return
 
     end_time = datetime.datetime.utcnow()
     duration = end_time - startup_time
-
-    # Delete startup & link messages safely
     if startup_message:
         try: await startup_message.delete()
         except: pass
@@ -368,37 +327,31 @@ async def end(interaction: discord.Interaction, host_note: str):
         try: await link_message.delete()
         except: pass
 
-    # ---- THIS EMBED NEEDS TO BE PROPERLY INDENTED ----
     embed = discord.Embed(
         title=" <:Gvmc_crown:1480630263456464957> Greenville Mafia Corporation Conclusion <:Gvmc_crown:1480630263456464957>",
         description=(
             f"<a:Animated_Arrow_Bluelite:1484055930919190589> | The Event that was hosted by {member.mention} has concluded. "
             "We appreciate those who were actively involved & participating in this event. "
             "We hope to see you in more of our events in the future as there are **many** more to come!\n\n"
-
             f"**Event Information**\n"
             f"<:dot:1480643720687915058> Event Start Time | <t:{int(startup_time.timestamp())}:f>\n"
             f"<:dot:1480643720687915058> Event End Time | <t:{int(end_time.timestamp())}:f>\n"
             f"<:dot:1480643720687915058> Event Duration | {str(duration).split('.')[0]}\n\n"
-
             f"<:announcement:1480640464737800253> Additional Notes | {host_note}\n\n"
-
             "<a:gvmc_heart:1480637190685069472> | Want to help improve our Events? Give us feedback by clicking the feedback button below!"
         ),
         color=0x87CEFA
     )
-
     embed.set_image(url=END_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     view = EndView()
-
     await interaction.response.send_message("Convoy ended!", ephemeral=True)
     await interaction.channel.send(embed=embed, view=view)
 
-    # Log the session
     log_channel = bot.get_channel(SESSION_LOG_CHANNEL)
-    log_embed = discord.Embed(
+    log_embed
+        log_embed = discord.Embed(
         title="Session Logged",
         description=f"Host: {member.mention}\nDuration: {str(duration).split('.')[0]}\nHost Note: {host_note}",
         color=0x87CEFA
@@ -412,7 +365,8 @@ async def end(interaction: discord.Interaction, host_note: str):
     link_message = None
     startup_reactors = set()
     startup_time = None
-    # -------- LOA COMMAND --------
+
+# -------- LOA SUBMISSION COMMAND --------
 @bot.tree.command(name="loa", description="Submit a Leave of Absence")
 @app_commands.describe(
     reason="Reason for LOA",
@@ -422,13 +376,10 @@ async def end(interaction: discord.Interaction, host_note: str):
     notes="Additional notes"
 )
 async def loa(interaction: discord.Interaction, reason: str, start_date: str, end_date: str, rank: str, notes: str):
-
     member = interaction.guild.get_member(interaction.user.id)
-
     if LOA_ROLE not in [role.id for role in member.roles]:
         await interaction.response.send_message("You are not authorized.", ephemeral=True)
         return
-
     try:
         start_dt = datetime.datetime.strptime(start_date, "%Y-%m-%d")
         end_dt = datetime.datetime.strptime(end_date, "%Y-%m-%d")
@@ -439,7 +390,6 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
     start_ts = int(start_dt.timestamp())
     end_ts = int(end_dt.timestamp())
 
-    # confirmation embed
     confirm_embed = discord.Embed(
         title="LOA Submission",
         description=(
@@ -449,10 +399,8 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
         ),
         color=0x87CEFA
     )
-
     await interaction.response.send_message(embed=confirm_embed, ephemeral=True)
 
-    # send to staff channel
     channel = bot.get_channel(LOA_CHANNEL)
     if not channel:
         return
@@ -470,10 +418,9 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
         ),
         color=0x87CEFA
     )
-
     view = LOAView(member.id, start_ts, end_ts)
-
     await channel.send(embed=embed, view=view)
+
 # -------- INFO COMMAND --------
 @bot.tree.command(name="info", description="Show bot information")
 async def info(interaction: discord.Interaction):
@@ -497,27 +444,21 @@ async def info(interaction: discord.Interaction):
 @bot.tree.command(name="membercount", description="Show total member count")
 async def membercount(interaction: discord.Interaction):
     guild = interaction.guild
-
     if guild is None:
         await interaction.response.send_message(
             "This command can only be used in a server.",
             ephemeral=True
         )
         return
-
     count = guild.member_count
-
     embed = discord.Embed(
         title="**Members**",
         description=f"{count}",
         color=0x87CEFA
     )
-
-    # THIS is what gives you "Today at ..."
     embed.timestamp = datetime.datetime.utcnow()
-
-
     await interaction.response.send_message(embed=embed)
+
 # -------- KILL COMMAND --------
 @bot.tree.command(name="kill", description="Shut down the bot")
 async def kill(interaction: discord.Interaction):
