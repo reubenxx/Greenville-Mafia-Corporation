@@ -48,7 +48,6 @@ async def on_ready():
             name="Watching 'Greenville Mafia Corporation'"
         )
     )
-    # Persistent LOA buttons
     bot.add_view(LOAView(0, 0, 0))
     print(f"{bot.user} ready")
 
@@ -80,7 +79,6 @@ async def say(ctx, *, message):
     await ctx.message.delete()
     await ctx.send(message)
 
-# -------- SLASH SAY COMMAND --------
 @bot.tree.command(name="say", description="Make the bot say something")
 @app_commands.describe(message="The message you want the bot to send")
 async def slash_say(interaction: discord.Interaction, message: str):
@@ -114,18 +112,15 @@ async def startup(interaction: discord.Interaction, reactions: int):
     if not any(role.id in ALLOWED_ROLES for role in member.roles):
         await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
         return
-
     global startup_active, startup_host, startup_message, startup_reactors, startup_time, required_reactions
     if startup_active:
         await interaction.response.send_message("A convoy session is already active.", ephemeral=True)
         return
-
     required_reactions = reactions
     startup_active = True
     startup_host = member
     startup_reactors = set()
     startup_time = datetime.datetime.utcnow()
-
     embed = discord.Embed(
         title="<:GVMC_trophy:1480637860590911610> Greenville Mafia Corporation Event Startup <:GVMC_trophy:1480637860590911610>",
         description=(
@@ -146,9 +141,10 @@ async def startup(interaction: discord.Interaction, reactions: int):
     )
     embed.set_image(url=STARTUP_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
-
     await interaction.response.send_message("Convoy started!", ephemeral=True)
-    startup_message = await interaction.channel.send(content=f"<@&{NOTIFY_ROLE}>", embed=embed, allowed_mentions=discord.AllowedMentions(roles=True))
+    startup_message = await interaction.channel.send(
+        content=f"<@&{NOTIFY_ROLE}>", embed=embed, allowed_mentions=discord.AllowedMentions(roles=True)
+    )
     await startup_message.add_reaction("<:Tick:1480637335237427221>")
 
 # -------- LINK COMMAND --------
@@ -156,7 +152,6 @@ class LinkView(ui.View):
     def __init__(self, url):
         super().__init__(timeout=None)
         self.url = url
-
     @ui.button(label="Join Private Server", style=discord.ButtonStyle.primary)
     async def join(self, interaction: discord.Interaction, button: ui.Button):
         if not startup_active:
@@ -172,9 +167,8 @@ class LinkView(ui.View):
 async def link(interaction: discord.Interaction, url: str):
     member = interaction.guild.get_member(interaction.user.id)
     if not any(role.id in ALLOWED_ROLES for role in member.roles):
-        await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
+        await interaction.response.send_message("You are not authorized.", ephemeral=True)
         return
-
     global link_message
     if not startup_active:
         await interaction.response.send_message("No active convoy.", ephemeral=True)
@@ -182,7 +176,6 @@ async def link(interaction: discord.Interaction, url: str):
     if member != startup_host:
         await interaction.response.send_message("Only the host can release the link.", ephemeral=True)
         return
-
     embed = discord.Embed(
         title="SESSION RELEASE",
         description=(
@@ -195,19 +188,16 @@ async def link(interaction: discord.Interaction, url: str):
     embed.set_thumbnail(url=member.display_avatar.url)
     embed.set_image(url=LINK_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
-
     view = LinkView(url)
     await interaction.response.send_message("Link released!", ephemeral=True)
     link_message = await interaction.channel.send(content=f"<@&{NOTIFY_ROLE}>", embed=embed, view=view, allowed_mentions=discord.AllowedMentions(roles=True))
 
-# -------- LOA SYSTEM (FIXED) --------
+# -------- LOA SYSTEM AND MODALS --------
 class DenyModal(ui.Modal, title="Deny LOA"):
+    reason = ui.TextInput(label="Reason for denial", style=discord.TextStyle.paragraph)
     def __init__(self, target_user: discord.User):
         super().__init__()
         self.target_user = target_user
-
-    reason = ui.TextInput(label="Reason for denial", style=discord.TextStyle.paragraph)
-
     async def on_submit(self, interaction: discord.Interaction):
         embed = discord.Embed(
             title="LOA Denied",
@@ -219,10 +209,8 @@ class DenyModal(ui.Modal, title="Deny LOA"):
             ),
             color=0x87CEFA
         )
-        try:
-            await self.target_user.send(embed=embed)
-        except:
-            pass
+        try: await self.target_user.send(embed=embed)
+        except: pass
         await interaction.response.send_message("LOA denied.", ephemeral=True)
 
 class LOAView(ui.View):
@@ -232,14 +220,10 @@ class LOAView(ui.View):
         self.start_ts = start_ts
         self.end_ts = end_ts
         self.handled = False
-
     def has_permission(self, member):
         return any(role.id in LOA_APPROVE_ROLES for role in member.roles)
-
     def disable_all(self):
-        for item in self.children:
-            item.disabled = True
-
+        for item in self.children: item.disabled = True
     @ui.button(label="Approve", style=discord.ButtonStyle.success)
     async def approve(self, interaction: discord.Interaction, button: ui.Button):
         if not self.has_permission(interaction.user):
@@ -249,7 +233,7 @@ class LOAView(ui.View):
             await interaction.response.send_message("This LOA has already been handled.", ephemeral=True)
             return
         self.handled = True
-        user = await bot.fetch_user(self.user_id)
+        user = await interaction.client.fetch_user(self.user_id)
         embed = discord.Embed(
             title="LOA Approved",
             description=(
@@ -264,14 +248,11 @@ class LOAView(ui.View):
             ),
             color=0x87CEFA
         )
-        try:
-            await user.send(embed=embed)
-        except:
-            pass
+        try: await user.send(embed=embed)
+        except: pass
         self.disable_all()
         await interaction.message.edit(view=self)
         await interaction.response.send_message("LOA approved.", ephemeral=True)
-
     @ui.button(label="Deny", style=discord.ButtonStyle.danger)
     async def deny(self, interaction: discord.Interaction, button: ui.Button):
         if not self.has_permission(interaction.user):
@@ -281,16 +262,15 @@ class LOAView(ui.View):
             await interaction.response.send_message("This LOA has already been handled.", ephemeral=True)
             return
         self.handled = True
-        user = await bot.fetch_user(self.user_id)
+        user = await interaction.client.fetch_user(self.user_id)
         await interaction.response.send_modal(DenyModal(user))
         self.disable_all()
         await interaction.message.edit(view=self)
 
-# -------- END COMMAND / FEEDBACK --------
+# -------- END COMMANDS --------
 class FeedbackModal(ui.Modal, title="Convoy Feedback"):
     rating = ui.TextInput(label="Rating (1-5)")
     feedback = ui.TextInput(label="Feedback", style=discord.TextStyle.paragraph)
-
     async def on_submit(self, interaction: discord.Interaction):
         channel = bot.get_channel(FEEDBACK_CHANNEL)
         embed = discord.Embed(title="NEW CONVOY FEEDBACK", color=0x87CEFA)
@@ -305,7 +285,6 @@ class EndView(ui.View):
     async def feedback(self, interaction: discord.Interaction, button: ui.Button):
         await interaction.response.send_modal(FeedbackModal())
 
-# -------- END COMMAND --------
 @bot.tree.command(name="end", description="End the current convoy")
 @app_commands.describe(host_note="Host note for the convoy")
 async def end(interaction: discord.Interaction, host_note: str):
@@ -317,7 +296,6 @@ async def end(interaction: discord.Interaction, host_note: str):
     if not startup_active:
         await interaction.response.send_message("No active convoy.", ephemeral=True)
         return
-
     end_time = datetime.datetime.utcnow()
     duration = end_time - startup_time
     if startup_message:
@@ -326,7 +304,6 @@ async def end(interaction: discord.Interaction, host_note: str):
     if link_message:
         try: await link_message.delete()
         except: pass
-
     embed = discord.Embed(
         title=" <:Gvmc_crown:1480630263456464957> Greenville Mafia Corporation Conclusion <:Gvmc_crown:1480630263456464957>",
         description=(
@@ -344,21 +321,16 @@ async def end(interaction: discord.Interaction, host_note: str):
     )
     embed.set_image(url=END_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
-
     view = EndView()
     await interaction.response.send_message("Convoy ended!", ephemeral=True)
     await interaction.channel.send(embed=embed, view=view)
-
     log_channel = bot.get_channel(SESSION_LOG_CHANNEL)
-    log_embed
-        log_embed = discord.Embed(
+    log_embed = discord.Embed(
         title="Session Logged",
         description=f"Host: {member.mention}\nDuration: {str(duration).split('.')[0]}\nHost Note: {host_note}",
         color=0x87CEFA
     )
     await log_channel.send(embed=log_embed)
-
-    # Reset convoy state
     startup_active = False
     startup_host = None
     startup_message = None
@@ -366,7 +338,7 @@ async def end(interaction: discord.Interaction, host_note: str):
     startup_reactors = set()
     startup_time = None
 
-# -------- LOA SUBMISSION COMMAND --------
+# -------- LOA COMMAND CONTINUED --------
 @bot.tree.command(name="loa", description="Submit a Leave of Absence")
 @app_commands.describe(
     reason="Reason for LOA",
@@ -377,9 +349,11 @@ async def end(interaction: discord.Interaction, host_note: str):
 )
 async def loa(interaction: discord.Interaction, reason: str, start_date: str, end_date: str, rank: str, notes: str):
     member = interaction.guild.get_member(interaction.user.id)
+
     if LOA_ROLE not in [role.id for role in member.roles]:
         await interaction.response.send_message("You are not authorized.", ephemeral=True)
         return
+
     try:
         start_dt = datetime.datetime.strptime(start_date, "%Y-%m-%d")
         end_dt = datetime.datetime.strptime(end_date, "%Y-%m-%d")
@@ -418,6 +392,7 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
         ),
         color=0x87CEFA
     )
+
     view = LOAView(member.id, start_ts, end_ts)
     await channel.send(embed=embed, view=view)
 
