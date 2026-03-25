@@ -114,13 +114,21 @@ async def on_raw_reaction_remove(payload):
 # -------- BLACKLIST STORAGE --------
 def load_blacklist():
     if not os.path.exists(BLACKLIST_FILE):
+        print("blacklist.json not found, creating new file")
+        with open(BLACKLIST_FILE, "w") as f:
+            json.dump([], f)
         return []
+
     with open(BLACKLIST_FILE, "r") as f:
-        return json.load(f)
+        data = json.load(f)
+        print(f"Loaded blacklist with {len(data)} entries")
+        return data
+
 
 def save_blacklist(data):
     with open(BLACKLIST_FILE, "w") as f:
-       json.dump(data, f, indent=4)
+        json.dump(data, f, indent=4)
+    print(f"Saved blacklist with {len(data)} entries")
 
 # -------- UPDATE BLACKLIST MESSAGE --------
 async def update_blacklist_message(bot):
