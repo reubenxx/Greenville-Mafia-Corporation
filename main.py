@@ -209,8 +209,7 @@ async def startup(interaction: discord.Interaction, reactions: int):
 async def blacklist(interaction: discord.Interaction, server_name: str, server_id: str, reason: str, notes: str):
     member = interaction.guild.get_member(interaction.user.id)
 
-    member = interaction.guild.get_member(interaction.user.id)
-if BLACKLIST_ROLE not in [role.id for role in member.roles]:
+    if BLACKLIST_ROLE not in [role.id for role in member.roles]:
         await interaction.response.send_message("You are not authorized.", ephemeral=True)
         return
 
@@ -224,10 +223,9 @@ if BLACKLIST_ROLE not in [role.id for role in member.roles]:
     })
 
     save_blacklist(data)
-
     await update_blacklist_message(bot)
 
-   await interaction.response.send_message("Blacklist added.", ephemeral=True)
+    await interaction.response.send_message("Blacklist added.", ephemeral=True)
 
 # -------- DELETE BLACKLIST --------
 @bot.tree.command(name="delblacklist", description="Delete a blacklist entry")
@@ -235,8 +233,7 @@ if BLACKLIST_ROLE not in [role.id for role in member.roles]:
 async def delblacklist(interaction: discord.Interaction, number: int):
     member = interaction.guild.get_member(interaction.user.id)
 
-  member = interaction.guild.get_member(interaction.user.id)
-if BLACKLIST_ROLE not in [role.id for role in member.roles]:
+    if BLACKLIST_ROLE not in [role.id for role in member.roles]:
         await interaction.response.send_message("You are not authorized.", ephemeral=True)
         return
 
@@ -267,7 +264,6 @@ if BLACKLIST_ROLE not in [role.id for role in member.roles]:
     )
 
     await log_channel.send(f"<@&{BLACKLIST_PING_ROLE}>", embed=embed)
-
     await interaction.response.send_message("Blacklist removed.", ephemeral=True)
 
 # -------- BLACKLIST START COMMAND --------
@@ -275,8 +271,7 @@ if BLACKLIST_ROLE not in [role.id for role in member.roles]:
 async def setupblacklist(interaction: discord.Interaction):
     member = interaction.guild.get_member(interaction.user.id)
 
-  member = interaction.guild.get_member(interaction.user.id)
-if BLACKLIST_ROLE not in [role.id for role in member.roles]:
+    if BLACKLIST_ROLE not in [role.id for role in member.roles]:
         await interaction.response.send_message("No permission.", ephemeral=True)
         return
 
@@ -286,9 +281,7 @@ if BLACKLIST_ROLE not in [role.id for role in member.roles]:
         title="Blacklisted Servers",
         description=(
             "All servers below are blacklisted from all **GVMC** fast-passing, partnerships and any other affiliations. "
-            "For proof of a specific blacklist or appeal a blacklist, please open a "
-            "**[support ticket](https://discord.com/channels/1441901639739904125/1443980437184577556)** today "
-            "and a member of the **High Ranking** Team will provide assistance.\n\n"
+            "For proof of a specific blacklist or appeal a blacklist, please open a support ticket.\n\n"
             "No blacklisted servers."
         ),
         color=0x87CEFA
