@@ -371,11 +371,11 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
     confirm_embed = discord.Embed(
         title="LOA Submission",
         description=(
-            "> Your LOA has been submitted. Our Management team will review it shortly.\n\n"
+            "> <a:Animated_Arrow_Bluelite:1484055930919190589> Your LOA has been submitted. Our Management team will review it shortly.\n\n"
             "> Please look out for a **Direct Message** confirming your submission and another when we have approved or denied your submission.\n\n"
             "> If there are any issues, contact management."
 
-            "> If you do not get a DM response within 1 day, please create a ticket."
+            "> <:dot:1480643720687915058> **If you do not get a DM response within 1 day, please create a ticket.**"
         ),
         color=0x87CEFA
     )
