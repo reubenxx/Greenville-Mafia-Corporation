@@ -209,7 +209,8 @@ async def startup(interaction: discord.Interaction, reactions: int):
 async def blacklist(interaction: discord.Interaction, server_name: str, server_id: str, reason: str, notes: str):
     member = interaction.guild.get_member(interaction.user.id)
 
-    if BLACKLIST_ROLE not in [role.id for role in member.roles]:
+    member = interaction.guild.get_member(interaction.user.id)
+if BLACKLIST_ROLE not in [role.id for role in member.roles]:
         await interaction.response.send_message("You are not authorized.", ephemeral=True)
         return
 
@@ -234,7 +235,8 @@ async def blacklist(interaction: discord.Interaction, server_name: str, server_i
 async def delblacklist(interaction: discord.Interaction, number: int):
     member = interaction.guild.get_member(interaction.user.id)
 
-    if BLACKLIST_ROLE not in [role.id for role in member.roles]:
+  member = interaction.guild.get_member(interaction.user.id)
+if BLACKLIST_ROLE not in [role.id for role in member.roles]:
         await interaction.response.send_message("You are not authorized.", ephemeral=True)
         return
 
@@ -271,7 +273,10 @@ async def delblacklist(interaction: discord.Interaction, number: int):
 # -------- BLACKLIST START COMMAND --------
 @bot.tree.command(name="setupblacklist", description="Setup blacklist message")
 async def setupblacklist(interaction: discord.Interaction):
-    if BLACKLIST_ROLE not in [role.id for role in interaction.user.roles]:
+    member = interaction.guild.get_member(interaction.user.id)
+
+  member = interaction.guild.get_member(interaction.user.id)
+if BLACKLIST_ROLE not in [role.id for role in member.roles]:
         await interaction.response.send_message("No permission.", ephemeral=True)
         return
 
