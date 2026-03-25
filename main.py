@@ -212,10 +212,10 @@ async def startup(interaction: discord.Interaction, reactions: int):
 # -------- BLACKLIST COMMAND --------
 @bot.tree.command(name="blacklist", description="Blacklist a server")
 @app_commands.describe(
-    server_name="Server Name",
-    server_id="Server ID",
-    reason="Reason",
-    notes="Additional Notes"
+    server_name="<a:Animated_Arrow_Bluelite:1484055930919190589> Server Name",
+    server_id="<:dot:1480643720687915058> Server ID",
+    reason="<:dot:1480643720687915058> Reason",
+    notes="<:dot:1480643720687915058> Additional Notes"
 )
 async def blacklist(interaction: discord.Interaction, server_name: str, server_id: str, reason: str, notes: str):
     member = interaction.guild.get_member(interaction.user.id)
