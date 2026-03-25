@@ -34,8 +34,11 @@ BLACKLIST_CHANNEL = 1485708172965580851
 BLACKLIST_LOG_CHANNEL = 1444015197508468777
 BLACKLIST_ROLE = 1474121009656500225
 BLACKLIST_PING_ROLE = 1486271938631434363
-BLACKLIST_FILE = "/mnt/disk/blacklist.json"
+BLACKLIST_FILE = "/mnt/disk/blacklist.json"  # <-- point it to your Render disk mount
 BLACKLIST_MESSAGE_ID = 1486281089956974602  
+
+# Make sure the folder exists
+os.makedirs(os.path.dirname(BLACKLIST_FILE), exist_ok=True)
 
 FOOTER_ICON = "https://media.discordapp.net/attachments/1467783372469178442/1480467031571693710/image.png"
 STARTUP_BANNER = "https://media.discordapp.net/attachments/1455902346440740894/1484092580613591140/Your_paragraph_text.png"
