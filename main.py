@@ -365,7 +365,7 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
     end_ts = int(end_dt.timestamp())
 
     # Defer the response to avoid "did not respond"
-    await interaction.response.defer(ephemeral=True)
+    await interaction.response.defer()
 
     # confirmation embed
     confirm_embed = discord.Embed(
@@ -379,7 +379,7 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
     )
 
     # Send confirmation via followup
-    await interaction.followup.send(embed=confirm_embed, ephemeral=True)
+    await interaction.followup.send(embed=confirm_embed)
 
     # send to staff channel
     channel = bot.get_channel(LOA_CHANNEL)
