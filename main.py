@@ -4,6 +4,7 @@ from discord import app_commands, ui
 import datetime
 import os
 import sys
+import json
 
 TOKEN = os.getenv("TOKEN")
 
@@ -29,6 +30,12 @@ ALLOWED_ROLES = [1474121009656500225, 1479832999435440178]
 LOA_ROLE = 1474123995375992873
 LOA_CHANNEL = 1485717423448653874
 LOA_APPROVE_ROLES = [1474120141380911104, 1474116769458421973]
+BLACKLIST_CHANNEL = 1485708172965580851
+BLACKLIST_LOG_CHANNEL = 1444015197508468777
+BLACKLIST_ROLE = 1474121009656500225
+BLACKLIST_PING_ROLE = 1486271938631434363
+BLACKLIST_FILE = "blacklist.json"
+BLACKLIST_MESSAGE_ID = None  # You will paste the message ID later
 
 FOOTER_ICON = "https://media.discordapp.net/attachments/1467783372469178442/1480467031571693710/image.png"
 STARTUP_BANNER = "https://media.discordapp.net/attachments/1455902346440740894/1484092580613591140/Your_paragraph_text.png"
@@ -104,6 +111,50 @@ async def on_raw_reaction_remove(payload):
         if str(payload.emoji) == "<:blueheart:1483008124024524820>":
             startup_reactors.discard(payload.user_id)
 
+# -------- BLACKLIST STORAGE --------
+def load_blacklist():
+    if not os.path.exists(BLACKLIST_FILE):
+        return []
+    with open(BLACKLIST_FILE, "r") as f:
+        return json.load(f)
+
+def save_blacklist(data):
+    with open(BLACKLIST_FILE, "w") as f:
+       json.dump(data, f, indent=4)
+
+# -------- UPDATE BLACKLIST MESSAGE --------
+async def update_blacklist_message(bot):
+    channel = bot.get_channel(BLACKLIST_CHANNEL)
+    if channel is None:
+        return
+
+    data = load_blacklist()
+
+    description = (
+        "All servers below are blacklisted from all **GVMC** fast-passing, partnerships and any other affiliations. "
+        "For proof of a specific blacklist or appeal a blacklist, please open a "
+        "**[support ticket](https://discord.com/channels/1441901639739904125/1443980437184577556)** today "
+        "and a member of the **High Ranking** Team will provide assistance.\n\n"
+    )
+
+    for i, entry in enumerate(data, start=1):
+        description += (
+            f"**{entry['server_name']}**\n"
+            f"**Server ID** | {entry['server_id']}\n"
+            f"**Reason for Blacklist** | {entry['reason']}\n"
+            f"**Additional Notes** | {entry['notes']}\n"
+            f"**Blacklist Number** | {i}\n\n"
+        )
+
+    embed = discord.Embed(
+        title="Blacklisted Servers",
+        description=description,
+        color=0x87CEFA
+    )
+
+    message = await channel.fetch_message(BLACKLIST_MESSAGE_ID)
+    await message.edit(embed=embed)
+        
 # -------- STARTUP COMMAND --------
 @bot.tree.command(name="startup", description="Start a convoy session.")
 @app_commands.describe(reactions="Number of reactions required to release link")
@@ -147,6 +198,103 @@ async def startup(interaction: discord.Interaction, reactions: int):
     )
     await startup_message.add_reaction("<:Tick:1480637335237427221>")
 
+# -------- BLACKLIST COMMAND --------
+@bot.tree.command(name="blacklist", description="Blacklist a server")
+@app_commands.describe(
+    server_name="Server Name",
+    server_id="Server ID",
+    reason="Reason",
+    notes="Additional Notes"
+)
+async def blacklist(interaction: discord.Interaction, server_name: str, server_id: str, reason: str, notes: str):
+    member = interaction.guild.get_member(interaction.user.id)
+
+    if BLACKLIST_ROLE not in [role.id for role in member.roles]:
+        await interaction.response.send_message("You are not authorized.", ephemeral=True)
+        return
+
+    data = load_blacklist()
+
+    data.append({
+        "server_name": server_name,
+        "server_id": server_id,
+        "reason": reason,
+        "notes": notes
+    })
+
+    save_blacklist(data)
+
+    await update_blacklist_message(bot)
+
+   await interaction.response.send_message("Blacklist added.", ephemeral=True)
+
+# -------- DELETE BLACKLIST --------
+@bot.tree.command(name="delblacklist", description="Delete a blacklist entry")
+@app_commands.describe(number="Blacklist Number")
+async def delblacklist(interaction: discord.Interaction, number: int):
+    member = interaction.guild.get_member(interaction.user.id)
+
+    if BLACKLIST_ROLE not in [role.id for role in member.roles]:
+        await interaction.response.send_message("You are not authorized.", ephemeral=True)
+        return
+
+    data = load_blacklist()
+
+    if number < 1 or number > len(data):
+        await interaction.response.send_message("Invalid blacklist number.", ephemeral=True)
+        return
+
+    removed = data.pop(number - 1)
+    save_blacklist(data)
+
+    await update_blacklist_message(bot)
+
+    log_channel = bot.get_channel(BLACKLIST_LOG_CHANNEL)
+
+    embed = discord.Embed(
+        title="Blacklist Removed",
+        description=(
+            f"Deleted by: {interaction.user.mention}\n"
+            f"Blacklist Number: {number}\n\n"
+            f"**{removed['server_name']}**\n"
+            f"Server ID: {removed['server_id']}\n"
+            f"Reason: {removed['reason']}\n"
+            f"Notes: {removed['notes']}"
+        ),
+        color=0xFF0000
+    )
+
+    await log_channel.send(f"<@&{BLACKLIST_PING_ROLE}>", embed=embed)
+
+    await interaction.response.send_message("Blacklist removed.", ephemeral=True)
+
+# -------- BLACKLIST START COMMAND --------
+@bot.tree.command(name="setupblacklist", description="Setup blacklist message")
+async def setupblacklist(interaction: discord.Interaction):
+    if BLACKLIST_ROLE not in [role.id for role in interaction.user.roles]:
+        await interaction.response.send_message("No permission.", ephemeral=True)
+        return
+
+    channel = bot.get_channel(BLACKLIST_CHANNEL)
+
+    embed = discord.Embed(
+        title="Blacklisted Servers",
+        description=(
+            "All servers below are blacklisted from all **GVMC** fast-passing, partnerships and any other affiliations. "
+            "For proof of a specific blacklist or appeal a blacklist, please open a "
+            "**[support ticket](https://discord.com/channels/1441901639739904125/1443980437184577556)** today "
+            "and a member of the **High Ranking** Team will provide assistance.\n\n"
+            "No blacklisted servers."
+        ),
+        color=0x87CEFA
+    )
+
+    msg = await channel.send(embed=embed)
+
+    await interaction.response.send_message(
+        f"Blacklist message created. Message ID: {msg.id}",
+        ephemeral=True
+    )
 # -------- LINK COMMAND --------
 class LinkView(ui.View):
     def __init__(self, url):
