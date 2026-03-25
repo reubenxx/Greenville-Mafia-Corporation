@@ -375,7 +375,7 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
             "> Please look out for a **Direct Message** confirming your submission and another when we have approved or denied your submission.\n\n"
             "> If there are any issues, contact management."
 
-            "> <:dot:1480643720687915058> **If you do not get a DM response within 1 day, please create a ticket.**"
+            "**If you do not get a DM response within 1 day, please create a ticket.**"
         ),
         color=0x87CEFA
     )
