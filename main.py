@@ -564,7 +564,7 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
             print("Failed to send LOA to staff channel:", e)
 
 # -------- INFO COMMAND --------
-@bot.tree.command(name="info", description="Show bot information")
+@bot.tree.command(name="botinfo", description="View the Bot's information")
 async def info(interaction: discord.Interaction):
     uptime = datetime.datetime.utcnow() - bot_start_time
     api_ping = round(bot.latency * 1000)
@@ -602,13 +602,13 @@ async def membercount(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 # -------- KILL COMMAND --------
-@bot.tree.command(name="kill", description="Shut down the bot")
+@bot.tree.command(name="botreset", description="Restart the Bot")
 async def kill(interaction: discord.Interaction):
     member = interaction.guild.get_member(interaction.user.id)
     if KILL_ROLE not in [role.id for role in member.roles]:
-        await interaction.response.send_message("You are not authorized.", ephemeral=True)
+        await interaction.response.send_message("Only the Bot Developer is authorized to use this command.", ephemeral=True)
         return
-    await interaction.response.send_message("Shutting down...", ephemeral=True)
+    await interaction.response.send_message("The bot has been restarted successfully", ephemeral=True)
     sys.exit()
 
 # -------- RUN BOT --------
