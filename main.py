@@ -608,7 +608,7 @@ async def kill(interaction: discord.Interaction):
     if KILL_ROLE not in [role.id for role in member.roles]:
         await interaction.response.send_message("Only the Bot Developer is authorized to use this command.", ephemeral=True)
         return
-    await interaction.response.send_message("The bot has been restarted successfully", ephemeral=True)
+    await interaction.response.send_message("The bot has restarted.", ephemeral=True)
     sys.exit()
 
 # -------- RUN BOT --------
