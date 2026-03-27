@@ -209,7 +209,6 @@ async def startup(interaction: discord.Interaction, reactions: int):
     )
     await startup_message.add_reaction("<:Tick:1480637335237427221>")
 
-# -------- BLACKLIST COMMAND --------
 @bot.tree.command(name="blacklist", description="Blacklist a server")
 @app_commands.describe(
     server_name="<a:Animated_Arrow_Bluelite:1484055930919190589> Server Name",
@@ -235,6 +234,23 @@ async def blacklist(interaction: discord.Interaction, server_name: str, server_i
 
     save_blacklist(data)
     await update_blacklist_message(bot)
+
+    # LOG EMBED
+    log_channel = bot.get_channel(BLACKLIST_LOG_CHANNEL)
+
+    embed = discord.Embed(
+        title="Blacklist Added",
+        description=(
+            f"Added by: {interaction.user.mention}\n\n"
+            f"**{server_name}**\n"
+            f"Server ID: {server_id}\n"
+            f"Reason: {reason}\n"
+            f"Notes: {notes}"
+        ),
+        color=0x87CEFA
+    )
+
+    await log_channel.send(embed=embed)
 
     await interaction.response.send_message("Blacklist added.", ephemeral=True)
 
