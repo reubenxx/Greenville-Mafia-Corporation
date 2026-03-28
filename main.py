@@ -321,57 +321,64 @@ async def setupblacklist(interaction: discord.Interaction):
         ephemeral=True
     )
 # -------- LINK COMMAND --------
-class LinkView(ui.View):
-    def __init__(self, url):
-        super().__init__(timeout=None)
-        self.url = url
-    @ui.button(label="Join Private Server", style=discord.ButtonStyle.primary)
-    async def join(self, interaction: discord.Interaction, button: ui.Button):
-        if not startup_active:
-            await interaction.response.send_message("No active convoy.", ephemeral=True)
-            return
-        if interaction.user.id not in startup_reactors:
-            await interaction.response.send_message("You must react to the startup message first.", ephemeral=True)
-            return
-        embed = discord.Embed(title="Private Server Link", description=f"> Click **[here]({self.url})** to join the private server.", color=0x87CEFA)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
 @bot.tree.command(name="link", description="Release the private server link")
 async def link(interaction: discord.Interaction, url: str):
     member = interaction.guild.get_member(interaction.user.id)
+
     if not any(role.id in ALLOWED_ROLES for role in member.roles):
         await interaction.response.send_message("You are not authorized.", ephemeral=True)
         return
+
     global link_message
+
     if not startup_active:
         await interaction.response.send_message("No active convoy.", ephemeral=True)
         return
+
     if member != startup_host:
         await interaction.response.send_message("Only the host can release the link.", ephemeral=True)
         return
-  embed = discord.Embed(
-    title="Event Release",
-    description=(
-        f"<a:Animated_Arrow_Bluelite:1484055930919190589> | {member.mention} has released the **Event Link**. "
-        "Please click the button below to gain access to the server. If there are any issues with joining, "
-        "please ping the host in **[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)**.\n\n"
 
-        "**Event Notices**\n"
-        "<:dot:1480643720687915058> | Please ensure you have read through the "
-        "**[guidelines](https://discord.com/channels/1441901639739904125/1481562585781239969)**.\n"
-        "<:dot:1480643720687915058> | Ensure you have set your privacy settings set to __**everyone**__.\n"
-        "<:dot:1480643720687915058> | Additionally, you must follow all host orders at all times to avoid moderation.\n\n"
+    # Reaction requirement check
+    if len(startup_reactors) < required_reactions:
+        await interaction.response.send_message(
+            f"You need {required_reactions} reactions before releasing the link.",
+            ephemeral=True
+        )
+        return
 
-        "<:Warning:1487346151538819072> | You must react to the startup message or you will be unable to join!"
-    ),
-    color=0x87CEFA
-)
+    embed = discord.Embed(
+        title="Event Release",
+        description=(
+            f"<a:Animated_Arrow_Bluelite:1484055930919190589> | {member.mention} has released the **Event Link**. "
+            "Please click the button below to gain access to the server. If there are any issues with joining, "
+            "please ping the host in **[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)**.\n\n"
+
+            "**Event Notices**\n"
+            "<:dot:1480643720687915058> | Please ensure you have read through the "
+            "**[guidelines](https://discord.com/channels/1441901639739904125/1481562585781239969)**.\n"
+            "<:dot:1480643720687915058> | Ensure you have set your privacy settings set to __**everyone**__.\n"
+            "<:dot:1480643720687915058> | Additionally, you must follow all host orders at all times to avoid moderation.\n\n"
+
+            "<:Warning:1487346151538819072> | You must react to the startup message or you will be unable to join!"
+        ),
+        color=0x87CEFA
+    )
+
     embed.set_thumbnail(url=member.display_avatar.url)
     embed.set_image(url=LINK_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
+
     view = LinkView(url)
+
     await interaction.response.send_message("Link released!", ephemeral=True)
-    link_message = await interaction.channel.send(content=f"<@&{NOTIFY_ROLE}>", embed=embed, view=view, allowed_mentions=discord.AllowedMentions(roles=True))
+
+    link_message = await interaction.channel.send(
+        content=f"<@&{NOTIFY_ROLE}>",
+        embed=embed,
+        view=view,
+        allowed_mentions=discord.AllowedMentions(roles=True)
+    )
 
 # -------- LOA SYSTEM AND MODALS --------
 class DenyModal(ui.Modal, title="Deny LOA"):
