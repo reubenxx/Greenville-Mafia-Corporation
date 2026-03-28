@@ -80,6 +80,10 @@ def load_ticket_data():
             return {"open_by_user": open_by_user, "tickets": tickets}
     except (json.JSONDecodeError, OSError):
         return default
+    if not os.path.exists(TICKET_STORAGE_FILE):
+        return {"open_by_user": {}, "tickets": {}}
+    with open(TICKET_STORAGE_FILE, "r") as f:
+        return json.load(f)
 
 
 def save_ticket_data(data):
@@ -96,6 +100,8 @@ def load_ticket_panel():
             return data if isinstance(data, dict) else {}
     except (json.JSONDecodeError, OSError):
         return {}
+    with open(TICKET_PANEL_FILE, "r") as f:
+        return json.load(f)
 
 
 def save_ticket_panel(data):
@@ -475,6 +481,7 @@ class TicketTypeSelect(ui.Select):
                 existing_channel = interaction.guild.get_channel(int(existing_channel_id))
             except (TypeError, ValueError):
                 existing_channel = None
+            existing_channel = interaction.guild.get_channel(existing_channel_id)
             if existing_channel is not None:
                 await interaction.response.send_message(
                     f"You already have an open **{ticket_type_label(ticket_type)}** ticket: {existing_channel.mention}",
@@ -509,6 +516,7 @@ class TicketTypeSelect(ui.Select):
             overwrites=overwrites,
             reason=f"{ticket_type_label(ticket_type)} ticket created by {interaction.user} ({interaction.user.id})"
         )
+        ticket_channel = await interaction.guild.create_text_channel(channel_name, overwrites=overwrites)
 
         now_ts = int(datetime.datetime.utcnow().timestamp())
         data["tickets"][str(ticket_channel.id)] = {
@@ -546,7 +554,7 @@ class TranscriptLinkView(ui.View):
         self.add_item(ui.Button(label="View Full Ticket History", style=discord.ButtonStyle.link, url=transcript_url))
 
 
-def build_transcript_html(channel: discord.TextChannel, messages: List[discord.Message]):
+def build_transcript_html(channel: discord.TextChannel, messages: list[discord.Message]):
     rows = []
     for message in reversed(messages):
         created = message.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -605,13 +613,6 @@ class TicketCloseView(ui.View):
 
         transcript_channel = bot.get_channel(TICKET_TRANSCRIPT_CHANNEL)
         if transcript_channel is None:
-            try:
-                fetched = await bot.fetch_channel(TICKET_TRANSCRIPT_CHANNEL)
-                if isinstance(fetched, discord.TextChannel):
-                    transcript_channel = fetched
-            except Exception:
-                transcript_channel = None
-        if transcript_channel is None:
             await interaction.followup.send("Transcript channel not found. Ticket was not closed.", ephemeral=True)
             return
 
@@ -633,7 +634,14 @@ class TicketCloseView(ui.View):
         transcript_message = await transcript_channel.send(embed=info_embed, file=transcript_file)
         transcript_url = transcript_message.attachments[0].url if transcript_message.attachments else None
         if transcript_url:
-            await transcript_message.edit(view=TranscriptLinkView(transcript_url))
+            await transcript_channel.send(
+                embed=discord.Embed(
+                    title="Transcript Link",
+                    description="Use the button below to view the full HTML ticket history.",
+                    color=0x87CEFA
+                ),
+                view=TranscriptLinkView(transcript_url)
+            )
 
         user_map = data["open_by_user"].get(str(creator_id), {})
         ticket_type = ticket_info.get("ticket_type")
@@ -648,23 +656,9 @@ class TicketCloseView(ui.View):
         await channel.delete(reason=f"Ticket closed by {interaction.user} ({interaction.user.id})")
 
 
-async def resolve_ticket_panel_channel():
-    cached = bot.get_channel(TICKET_PANEL_CHANNEL)
-    if isinstance(cached, discord.TextChannel):
-        return cached
-    try:
-        fetched = await bot.fetch_channel(TICKET_PANEL_CHANNEL)
-        if isinstance(fetched, discord.TextChannel):
-            return fetched
-    except Exception as e:
-        print(f"Failed to fetch ticket panel channel {TICKET_PANEL_CHANNEL}: {e}")
-    return None
-
-
 async def ensure_ticket_panel_message():
-    channel = await resolve_ticket_panel_channel()
+    channel = bot.get_channel(TICKET_PANEL_CHANNEL)
     if channel is None:
-        print(f"Ticket panel channel {TICKET_PANEL_CHANNEL} is not available.")
         return
 
     panel_data = load_ticket_panel()
@@ -672,7 +666,6 @@ async def ensure_ticket_panel_message():
     if existing_id:
         try:
             await channel.fetch_message(existing_id)
-            print(f"Ticket panel already exists in #{channel.name} ({channel.id})")
             return
         except Exception:
             pass
@@ -688,23 +681,6 @@ async def ensure_ticket_panel_message():
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
     panel_message = await channel.send(embed=embed, view=TicketPanelView())
     save_ticket_panel({"message_id": panel_message.id, "channel_id": channel.id})
-    print(f"Ticket panel sent to #{channel.name} ({channel.id}) as message {panel_message.id}")
-
-
-@bot.tree.command(name="setuptickets", description="Force-send the ticket panel in the configured channel")
-async def setuptickets(interaction: discord.Interaction):
-    if interaction.guild is None:
-        await interaction.response.send_message("This command can only be used inside the server.", ephemeral=True)
-        return
-    member = interaction.guild.get_member(interaction.user.id)
-    if member is None:
-        await interaction.response.send_message("Could not verify your permissions.", ephemeral=True)
-        return
-    if TICKET_STAFF_VIEW_ROLE not in [role.id for role in member.roles]:
-        await interaction.response.send_message("You are not authorized.", ephemeral=True)
-        return
-    await ensure_ticket_panel_message()
-    await interaction.response.send_message("Ticket panel setup check completed.", ephemeral=True)
 
 # -------- LOA SYSTEM AND MODALS --------
 class DenyModal(ui.Modal, title="Deny LOA"):
