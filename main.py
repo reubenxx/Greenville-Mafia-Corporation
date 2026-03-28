@@ -321,20 +321,58 @@ async def setupblacklist(interaction: discord.Interaction):
         ephemeral=True
     )
 # -------- LINK COMMAND --------
+from discord import ui
+import discord
+from discord import app_commands
+
+# Button View
+class LinkView(ui.View):
+    def __init__(self, url):
+        super().__init__(timeout=None)
+        self.url = url
+
+    @ui.button(label="Join Event Server", style=discord.ButtonStyle.primary)
+    async def join_button(self, interaction: discord.Interaction, button: ui.Button):
+        if not startup_active:
+            await interaction.response.send_message("No active convoy.", ephemeral=True)
+            return
+
+        if interaction.user.id not in startup_reactors:
+            await interaction.response.send_message(
+                "You must react to the startup message first.",
+                ephemeral=True
+            )
+            return
+
+        embed = discord.Embed(
+            title="Event Link",
+            description=f"Click **[here]({self.url})** to join the private server.",
+            color=0x87CEFA
+        )
+        embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+# Slash Command
 @bot.tree.command(name="link", description="Release the private server link")
+@app_commands.describe(url="Private server link")
 async def link(interaction: discord.Interaction, url: str):
+    global link_message
+
     member = interaction.guild.get_member(interaction.user.id)
 
+    # Permission check
     if not any(role.id in ALLOWED_ROLES for role in member.roles):
         await interaction.response.send_message("You are not authorized.", ephemeral=True)
         return
 
-    global link_message
-
+    # Convoy active check
     if not startup_active:
         await interaction.response.send_message("No active convoy.", ephemeral=True)
         return
 
+    # Host check
     if member != startup_host:
         await interaction.response.send_message("Only the host can release the link.", ephemeral=True)
         return
@@ -357,13 +395,16 @@ async def link(interaction: discord.Interaction, url: str):
         color=0x87CEFA
     )
 
+    embed.set_thumbnail(url=member.display_avatar.url)
     embed.set_image(url=LINK_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
     view = LinkView(url)
 
-    await interaction.response.send_message("Link released!", ephemeral=True)
+    # Respond first so interaction doesn't fail
+    await interaction.response.send_message("Event link released.", ephemeral=True)
 
+    # Send the public embed with button
     link_message = await interaction.channel.send(
         content=f"<@&{NOTIFY_ROLE}>",
         embed=embed,
