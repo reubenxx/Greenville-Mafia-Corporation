@@ -339,14 +339,6 @@ async def link(interaction: discord.Interaction, url: str):
         await interaction.response.send_message("Only the host can release the link.", ephemeral=True)
         return
 
-    # Reaction requirement check
-    if len(startup_reactors) < required_reactions:
-        await interaction.response.send_message(
-            f"You need {required_reactions} reactions before releasing the link.",
-            ephemeral=True
-        )
-        return
-
     embed = discord.Embed(
         title="Event Release",
         description=(
@@ -365,7 +357,6 @@ async def link(interaction: discord.Interaction, url: str):
         color=0x87CEFA
     )
 
-    embed.set_thumbnail(url=member.display_avatar.url)
     embed.set_image(url=LINK_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
@@ -379,7 +370,6 @@ async def link(interaction: discord.Interaction, url: str):
         view=view,
         allowed_mentions=discord.AllowedMentions(roles=True)
     )
-
 # -------- LOA SYSTEM AND MODALS --------
 class DenyModal(ui.Modal, title="Deny LOA"):
     reason = ui.TextInput(label="Reason for denial", style=discord.TextStyle.paragraph)
