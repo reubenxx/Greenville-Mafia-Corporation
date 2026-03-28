@@ -349,15 +349,23 @@ async def link(interaction: discord.Interaction, url: str):
     if member != startup_host:
         await interaction.response.send_message("Only the host can release the link.", ephemeral=True)
         return
-    embed = discord.Embed(
-        title="SESSION RELEASE",
-        description=(
-            f"> {member.mention} has released the session link.\n"
-            "Please read all **[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)**.\n"
-            "Respect hosts, members & staff. Ping host in **[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** if needed."
-        ),
-        color=0x87CEFA
-    )
+  embed = discord.Embed(
+    title="Event Release",
+    description=(
+        f"<a:Animated_Arrow_Bluelite:1484055930919190589> | {member.mention} has released the **Event Link**. "
+        "Please click the button below to gain access to the server. If there are any issues with joining, "
+        "please ping the host in **[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)**.\n\n"
+
+        "**Event Notices**\n"
+        "<:dot:1480643720687915058> | Please ensure you have read through the "
+        "**[guidelines](https://discord.com/channels/1441901639739904125/1481562585781239969)**.\n"
+        "<:dot:1480643720687915058> | Ensure you have set your privacy settings set to __**everyone**__.\n"
+        "<:dot:1480643720687915058> | Additionally, you must follow all host orders at all times to avoid moderation.\n\n"
+
+        "<:Warning:1487346151538819072> | You must react to the startup message or you will be unable to join!"
+    ),
+    color=0x87CEFA
+)
     embed.set_thumbnail(url=member.display_avatar.url)
     embed.set_image(url=LINK_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
