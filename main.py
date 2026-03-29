@@ -36,6 +36,21 @@ BLACKLIST_ROLE = 1474121009656500225
 BLACKLIST_PING_ROLE = 1486271938631434363
 BLACKLIST_FILE = "/mnt/disk/blacklist.json"  # <-- point it to your Render disk mount
 BLACKLIST_MESSAGE_ID = 1486281089956974602  
+# -------- TICKET SYSTEM CONSTANTS --------
+
+TICKET_CATEGORY_ID = 1443979964482584688  # <-- CHANGE THIS
+TICKET_PANEL_CHANNEL = 1443980437184577556
+TRANSCRIPT_LOG_CHANNEL = 1471451529838858414
+
+TICKET_BLACKLIST_ROLE = 1487691398755909712
+
+GENERAL_SUPPORT_ROLE = 1474123995375992873
+MEMBER_REPORT_ROLE = 1474123995375992873
+STAFF_REPORT_ROLE = 1474121009656500225
+
+TICKET_COUNT_FILE = "/mnt/disk/ticket_count.json"
+
+ticket_data = {}
 
 # Make sure the folder exists
 os.makedirs(os.path.dirname(BLACKLIST_FILE), exist_ok=True)
@@ -48,7 +63,6 @@ WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/148
 
 bot_start_time = datetime.datetime.utcnow()
 
-# -------- EVENTS --------
 @bot.event
 async def on_ready():
     await bot.tree.sync()
@@ -58,7 +72,13 @@ async def on_ready():
             name="Watching over 'Greenville Mafia Corporation'"
         )
     )
-    bot.add_view(LOAView(0, 0, 0))
+
+    # Load existing persistent views for tickets
+    bot.add_view(LOAView(0, 0, 0))  # existing one
+    bot.add_view(TicketDropdownView())  # <-- your dropdown ticket panel
+    bot.add_view(TicketCloseButtonView())  # <-- your close buttons for all tickets
+    bot.add_view(AddRemoveUserView())  # <-- optional if you made a view for /adduser & /removeuser buttons
+
     print(f"{bot.user} ready")
 
 @bot.event
@@ -133,6 +153,189 @@ def save_blacklist(data):
         json.dump(data, f, indent=4)
     print(f"Saved blacklist with {len(data)} entries")
 
+def save_blacklist(data):
+    with open(BLACKLIST_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+        print(f"Saved blacklist with {len(data)} entries")
+
+
+# -------- TICKET COUNTER --------
+
+def load_ticket_count():
+    if not os.path.exists(TICKET_COUNT_FILE):
+        with open(TICKET_COUNT_FILE, "w") as f:
+            json.dump({"count": 0}, f)
+        return 0
+
+    with open(TICKET_COUNT_FILE, "r") as f:
+        return json.load(f)["count"]
+
+
+def save_ticket_count(count):
+    with open(TICKET_COUNT_FILE, "w") as f:
+        json.dump({"count": count}, f)
+
+
+def get_next_ticket_number():
+    count = load_ticket_count() + 1
+    save_ticket_count(count)
+    return f"{count:03d}"  # 001, 002, 003
+
+# -------- CLOSE BUTTON --------
+class CloseTicketButton(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Close Ticket", style=discord.ButtonStyle.danger, custom_id="close_ticket")
+    async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("Are you sure you want to close this ticket?", ephemeral=True, view=ConfirmCloseView())
+
+
+class ConfirmCloseView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=60)
+
+    @discord.ui.button(label="Confirm Close", style=discord.ButtonStyle.danger)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        channel = interaction.channel
+        guild = interaction.guild
+
+        messages = []
+        users = set()
+
+        async for msg in channel.history(limit=None, oldest_first=True):
+            timestamp = msg.created_at.strftime("%Y-%m-%d %H:%M")
+            messages.append(f"[{timestamp}] {msg.author}: {msg.content}")
+            users.add(str(msg.author))
+
+        transcript_text = "\n".join(messages)
+
+        transcript_file = discord.File(
+            fp=bytes(transcript_text, "utf-8"),
+            filename=f"{channel.name}-transcript.txt"
+        )
+
+        embed = discord.Embed(
+            title="Ticket Closed",
+            description=f"Transcript for {channel.name}",
+            color=discord.Color.red()
+        )
+
+        embed.add_field(name="Opened By", value=channel.topic or "Unknown", inline=False)
+        embed.add_field(name="Closed By", value=interaction.user.mention, inline=False)
+        embed.add_field(name="Users Involved", value="\n".join(users), inline=False)
+
+        transcript_channel = guild.get_channel(TRANSCRIPT_CHANNEL_ID)
+        await transcript_channel.send(embed=embed, file=transcript_file)
+
+        await channel.delete()
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.gray)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("Close cancelled.", ephemeral=True)
+
+# -------- TICKET DROPDOWN --------
+class TicketDropdown(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(
+                label="General Support",
+                description="Questions & partnerships",
+                value="general"
+            ),
+            discord.SelectOption(
+                label="Member Report",
+                description="Report a member",
+                value="member"
+            ),
+            discord.SelectOption(
+                label="Staff Report",
+                description="Report a staff member",
+                value="staff"
+            ),
+        ]
+
+        super().__init__(
+            placeholder="Choose ticket type...",
+            min_values=1,
+            max_values=1,
+            options=options,
+            custom_id="ticket_dropdown"
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        role_ids = [role.id for role in interaction.user.roles]
+        if BLACKLIST_ROLE_ID in role_ids:
+            await interaction.response.send_message("You are blacklisted from tickets.", ephemeral=True)
+            return
+
+        ticket_number = get_next_ticket_number()
+
+        category = interaction.guild.get_channel(TICKET_CATEGORY_ID)
+
+        overwrites = {
+            interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+        }
+
+        if self.values[0] == "general":
+            role = interaction.guild.get_role(GENERAL_SUPPORT_ROLE)
+            overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+            name = f"ticket-{ticket_number}"
+
+        elif self.values[0] == "member":
+            role = interaction.guild.get_role(GENERAL_SUPPORT_ROLE)
+            overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+            name = f"member-report-{ticket_number}"
+
+        else:
+            role = interaction.guild.get_role(STAFF_REPORT_ROLE)
+            overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+            name = f"staff-report-{ticket_number}"
+
+        channel = await interaction.guild.create_text_channel(
+            name=name,
+            category=category,
+            overwrites=overwrites,
+            topic=str(interaction.user)
+        )
+
+        view = CloseTicketButton()
+
+        if self.values[0] == "general":
+            await channel.send(f"<@&{GENERAL_SUPPORT_ROLE}>")
+            embed = discord.Embed(
+                title="General Support",
+                description=f"Dear {interaction.user.mention}, thank you for opening a **General Support** ticket.\nPlease state your reason for opening this ticket.",
+                color=discord.Color.blue()
+            )
+            await channel.send(embed=embed, view=view)
+
+        elif self.values[0] == "member":
+            await channel.send(f"<@&{GENERAL_SUPPORT_ROLE}>")
+            embed = discord.Embed(
+                title="Member Report",
+                description=f"Dear {interaction.user.mention}, thank you for creating a **Member Report** ticket.\nPlease provide all valid evidence.",
+                color=discord.Color.orange()
+            )
+            await channel.send(embed=embed, view=view)
+
+        else:
+            await channel.send(f"<@&{STAFF_REPORT_ROLE}>")
+            embed = discord.Embed(
+                title="Staff Report",
+                description=f"Dear {interaction.user.mention}, thank you for creating a **Staff Report** ticket.\nPlease provide all valid proof.",
+                color=discord.Color.red()
+            )
+            await channel.send(embed=embed, view=view)
+
+        await interaction.response.send_message(f"Ticket created: {channel.mention}", ephemeral=True)
+
+
+class TicketPanelView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(TicketDropdown())
 # -------- UPDATE BLACKLIST MESSAGE --------
 async def update_blacklist_message(bot):
     channel = bot.get_channel(BLACKLIST_CHANNEL)
@@ -253,6 +456,28 @@ async def blacklist(interaction: discord.Interaction, server_name: str, server_i
     await log_channel.send(embed=embed)
 
     await interaction.response.send_message("Blacklist added.", ephemeral=True)
+
+@bot.tree.command(name="sendticketpanel", description="Send the ticket panel")
+async def send_ticket_panel(interaction: discord.Interaction):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("No permission.", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="Greenville Mafia Corporation Assistance",
+        description="""
+<:dmsarrow:1487692768623984780> | Welcome to the Greenville Mafia Corporation Support Panel. Choose which ticket type to open based on the type of support you require.
+
+<:dasharrow:1480637266815619286> **General Support** | General questions & partnerships
+<:dasharrow:1480637266815619286> **Member Report** | Report a member
+<:dasharrow:1480637266815619286> **Staff Report** | Report a staff member
+""",
+        color=discord.Color.blue()
+    )
+
+    channel = bot.get_channel(TICKET_PANEL_CHANNEL_ID)
+    await channel.send(embed=embed, view=TicketPanelView())
+    await interaction.response.send_message("Panel sent.", ephemeral=True)
 
 # -------- DELETE BLACKLIST --------
 @bot.tree.command(name="delblacklist", description="Delete a blacklist entry")
