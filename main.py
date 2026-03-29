@@ -345,6 +345,101 @@ class TicketPanelView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
         self.add_item(TicketDropdown())
+
+# -------- CLOSE + MANAGE TICKET BUTTONS --------
+class CloseTicketButton(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    # Close Ticket Button
+    @discord.ui.button(label="Close Ticket", style=discord.ButtonStyle.red, emoji="🛑")
+    async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Only allow ticket creator or staff to close
+        if interaction.user != interaction.channel.topic and 1474123995375992873 not in [r.id for r in interaction.user.roles]:
+            await interaction.response.send_message("You can't close this ticket.", ephemeral=True)
+            return
+
+        # Ask for confirmation
+        view = ConfirmCloseView()
+        await interaction.response.send_message("Are you sure you want to close this ticket?", view=view, ephemeral=True)
+
+    # Add User Button
+    @discord.ui.button(label="Add User", style=discord.ButtonStyle.green, emoji="➕")
+    async def add_user(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Only allow role 1474123995375992873
+        if 1474123995375992873 not in [r.id for r in interaction.user.roles]:
+            await interaction.response.send_message("You don't have permission to add users.", ephemeral=True)
+            return
+
+        await interaction.response.send_modal(AddRemoveUserModal(action="add"))
+
+    # Remove User Button
+    @discord.ui.button(label="Remove User", style=discord.ButtonStyle.grey, emoji="➖")
+    async def remove_user(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Only allow role 1474123995375992873
+        if 1474123995375992873 not in [r.id for r in interaction.user.roles]:
+            await interaction.response.send_message("You don't have permission to remove users.", ephemeral=True)
+            return
+
+        await interaction.response.send_modal(AddRemoveUserModal(action="remove"))
+
+
+# -------- CONFIRM CLOSE VIEW --------
+class ConfirmCloseView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=60)  # 1 min to confirm
+
+    @discord.ui.button(label="Confirm Close", style=discord.ButtonStyle.red, emoji="✅")
+    async def confirm_close(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            # Only allow ticket creator or staff role to confirm
+            if interaction.user != interaction.channel.topic and 1474123995375992873 not in [r.id for r in interaction.user.roles]:
+                await interaction.response.send_message("You can't confirm closing this ticket.", ephemeral=True)
+                return
+
+            await interaction.channel.delete()
+        except Exception as e:
+            print(f"Error closing ticket: {e}")
+            await interaction.response.send_message("Failed to close the ticket.", ephemeral=True)
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.grey, emoji="❌")
+    async def cancel_close(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("Ticket close cancelled.", ephemeral=True)
+        self.stop()
+
+
+# -------- ADD/REMOVE USER MODAL --------
+class AddRemoveUserModal(discord.ui.Modal, title="Add/Remove User"):
+    def __init__(self, action: str):
+        super().__init__()
+        self.action = action
+        self.add_item(discord.ui.InputText(label="User ID to add/remove"))
+
+    async def callback(self, interaction: discord.Interaction):
+        user_id_str = self.children[0].value.strip()
+        try:
+            user_id = int(user_id_str)
+            member = interaction.guild.get_member(user_id)
+            if not member:
+                await interaction.response.send_message("User not found in this server.", ephemeral=True)
+                return
+
+            overwrites = interaction.channel.overwrites
+            if self.action == "add":
+                overwrites[member] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+                await interaction.channel.edit(overwrites=overwrites)
+                await interaction.response.send_message(f"{member.mention} has been added to this ticket.", ephemeral=True)
+            else:  # remove
+                if member in overwrites:
+                    overwrites.pop(member)
+                    await interaction.channel.edit(overwrites=overwrites)
+                    await interaction.response.send_message(f"{member.mention} has been removed from this ticket.", ephemeral=True)
+                else:
+                    await interaction.response.send_message(f"{member.mention} is not in this ticket.", ephemeral=True)
+
+        except Exception as e:
+            print(f"Add/Remove user error: {e}")
+            await interaction.response.send_message("Failed to modify user.", ephemeral=True)
 # -------- UPDATE BLACKLIST MESSAGE --------
 async def update_blacklist_message(bot):
     channel = bot.get_channel(BLACKLIST_CHANNEL)
