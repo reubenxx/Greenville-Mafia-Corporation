@@ -314,6 +314,12 @@ class TicketDropdown(discord.ui.Select):
 
         # Respond **once** at the end, ephemeral, confirming channel creation
         await interaction.response.send_message(f"Ticket created: {channel.mention}", ephemeral=True)
+
+# -------- TICKET PANEL VIEW --------
+class TicketPanelView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(TicketDropdown())
 # -------- UPDATE BLACKLIST MESSAGE --------
 async def update_blacklist_message(bot):
     channel = bot.get_channel(BLACKLIST_CHANNEL)
