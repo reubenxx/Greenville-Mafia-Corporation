@@ -253,74 +253,92 @@ class TicketDropdown(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         try:
-            # Defer response to avoid "interaction failed"
+            # Defer the response to avoid "interaction failed"
             await interaction.response.defer(ephemeral=True)
 
             # Check blacklist
             role_ids = [role.id for role in interaction.user.roles]
-            if BLACKLIST_ROLE_ID in role_ids:
+            if 'BLACKLIST_ROLE_ID' in globals() and BLACKLIST_ROLE_ID in role_ids:
                 await interaction.followup.send("You are blacklisted from tickets.", ephemeral=True)
                 return
 
-            ticket_number = get_next_ticket_number()
-            category = interaction.guild.get_channel(TICKET_CATEGORY_ID)
+            # Get ticket number
+            try:
+                ticket_number = get_next_ticket_number()
+            except Exception:
+                ticket_number = "unknown"
 
+            # Get category
+            category = None
+            if 'TICKET_CATEGORY_ID' in globals():
+                category = interaction.guild.get_channel(TICKET_CATEGORY_ID)
+            if category is None:
+                await interaction.followup.send("Ticket category not found. Contact staff.", ephemeral=True)
+                return
+
+            # Base overwrites
             overwrites = {
                 interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
                 interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
             }
 
-            if self.values[0] == "general":
-                role = interaction.guild.get_role(GENERAL_SUPPORT_ROLE)
-                overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+            # Determine type
+            value = self.values[0]
+            if value == "general":
+                role_id = globals().get("GENERAL_SUPPORT_ROLE")
                 name = f"ticket-{ticket_number}"
-                mention_role = GENERAL_SUPPORT_ROLE
-                embed_title = "General Support"
-                embed_desc = f"Dear {interaction.user.mention}, thank you for opening a **General Support** ticket.\nPlease state your reason for opening this ticket."
-                embed_color = discord.Color.blue()
-
-            elif self.values[0] == "member":
-                role = interaction.guild.get_role(GENERAL_SUPPORT_ROLE)
-                overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+                title = "General Support"
+                desc = f"Dear {interaction.user.mention}, thank you for opening a **General Support** ticket.\nPlease state your reason."
+                color = discord.Color.blue()
+            elif value == "member":
+                role_id = globals().get("GENERAL_SUPPORT_ROLE")
                 name = f"member-report-{ticket_number}"
-                mention_role = GENERAL_SUPPORT_ROLE
-                embed_title = "Member Report"
-                embed_desc = f"Dear {interaction.user.mention}, thank you for creating a **Member Report** ticket.\nPlease provide all valid evidence."
-                embed_color = discord.Color.orange()
-
+                title = "Member Report"
+                desc = f"Dear {interaction.user.mention}, thank you for creating a **Member Report** ticket.\nProvide all valid evidence."
+                color = discord.Color.orange()
             else:
-                role = interaction.guild.get_role(STAFF_REPORT_ROLE)
-                overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+                role_id = globals().get("STAFF_REPORT_ROLE")
                 name = f"staff-report-{ticket_number}"
-                mention_role = STAFF_REPORT_ROLE
-                embed_title = "Staff Report"
-                embed_desc = f"Dear {interaction.user.mention}, thank you for creating a **Staff Report** ticket.\nPlease provide all valid proof."
-                embed_color = discord.Color.red()
+                title = "Staff Report"
+                desc = f"Dear {interaction.user.mention}, thank you for creating a **Staff Report** ticket.\nProvide all valid proof."
+                color = discord.Color.red()
 
-            # Create ticket channel
-            channel = await interaction.guild.create_text_channel(
-                name=name,
-                category=category,
-                overwrites=overwrites,
-                topic=str(interaction.user)
-            )
+            # Add role overwrite if role exists
+            if role_id:
+                role = interaction.guild.get_role(role_id)
+                if role:
+                    overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
 
-            # Send role mention + embed in ticket
+            # Create channel safely
+            try:
+                channel = await interaction.guild.create_text_channel(
+                    name=name,
+                    category=category,
+                    overwrites=overwrites,
+                    topic=str(interaction.user)
+                )
+            except Exception as e:
+                await interaction.followup.send(f"Failed to create ticket channel: {e}", ephemeral=True)
+                return
+
+            # Send embed + mention
             view = CloseTicketButton()
-            await channel.send(f"<@&{mention_role}>")
-            embed = discord.Embed(title=embed_title, description=embed_desc, color=embed_color)
+            if role_id:
+                await channel.send(f"<@&{role_id}>")
+            embed = discord.Embed(title=title, description=desc, color=color)
             await channel.send(embed=embed, view=view)
 
-            # Confirm creation to user
+            # Confirm to user
             await interaction.followup.send(f"Ticket created: {channel.mention}", ephemeral=True)
 
-        except Exception as e:
-            print(f"TicketDropdown callback error: {e}")
-            # Ensure user gets feedback even if something breaks
+        except Exception:
+            import traceback
+            traceback.print_exc()
             try:
                 await interaction.followup.send("Something went wrong creating your ticket.", ephemeral=True)
             except:
                 pass
+
 
 # -------- TICKET PANEL VIEW --------
 class TicketPanelView(discord.ui.View):
