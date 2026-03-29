@@ -264,13 +264,15 @@ class TicketDropdown(discord.ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction):
+        # Defer immediately to prevent "This interaction failed"
+        await interaction.response.defer(ephemeral=True)
+
         role_ids = [role.id for role in interaction.user.roles]
         if BLACKLIST_ROLE_ID in role_ids:
-            await interaction.response.send_message("You are blacklisted from tickets.", ephemeral=True)
+            await interaction.followup.send("You are blacklisted from tickets.", ephemeral=True)
             return
 
         ticket_number = get_next_ticket_number()
-
         category = interaction.guild.get_channel(TICKET_CATEGORY_ID)
 
         overwrites = {
@@ -329,7 +331,8 @@ class TicketDropdown(discord.ui.Select):
             )
             await channel.send(embed=embed, view=view)
 
-        await interaction.response.send_message(f"Ticket created: {channel.mention}", ephemeral=True)
+        # Send confirmation to user
+        await interaction.followup.send(f"Ticket created: {channel.mention}", ephemeral=True)
 
 
 class TicketPanelView(discord.ui.View):
