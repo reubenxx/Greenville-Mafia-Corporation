@@ -252,68 +252,75 @@ class TicketDropdown(discord.ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        role_ids = [role.id for role in interaction.user.roles]
-        if BLACKLIST_ROLE_ID in role_ids:
-            await interaction.response.send_message("You are blacklisted from tickets.", ephemeral=True)
-            return
+        try:
+            # Defer response to avoid "interaction failed"
+            await interaction.response.defer(ephemeral=True)
 
-        ticket_number = get_next_ticket_number()
-        category = interaction.guild.get_channel(TICKET_CATEGORY_ID)
+            # Check blacklist
+            role_ids = [role.id for role in interaction.user.roles]
+            if BLACKLIST_ROLE_ID in role_ids:
+                await interaction.followup.send("You are blacklisted from tickets.", ephemeral=True)
+                return
 
-        overwrites = {
-            interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
-            interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
-        }
+            ticket_number = get_next_ticket_number()
+            category = interaction.guild.get_channel(TICKET_CATEGORY_ID)
 
-        if self.values[0] == "general":
-            role = interaction.guild.get_role(GENERAL_SUPPORT_ROLE)
-            overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
-            name = f"ticket-{ticket_number}"
-        elif self.values[0] == "member":
-            role = interaction.guild.get_role(GENERAL_SUPPORT_ROLE)
-            overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
-            name = f"member-report-{ticket_number}"
-        else:
-            role = interaction.guild.get_role(STAFF_REPORT_ROLE)
-            overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
-            name = f"staff-report-{ticket_number}"
+            overwrites = {
+                interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
+                interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+            }
 
-        channel = await interaction.guild.create_text_channel(
-            name=name,
-            category=category,
-            overwrites=overwrites,
-            topic=str(interaction.user)
-        )
+            if self.values[0] == "general":
+                role = interaction.guild.get_role(GENERAL_SUPPORT_ROLE)
+                overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+                name = f"ticket-{ticket_number}"
+                mention_role = GENERAL_SUPPORT_ROLE
+                embed_title = "General Support"
+                embed_desc = f"Dear {interaction.user.mention}, thank you for opening a **General Support** ticket.\nPlease state your reason for opening this ticket."
+                embed_color = discord.Color.blue()
 
-        view = CloseTicketButton()
+            elif self.values[0] == "member":
+                role = interaction.guild.get_role(GENERAL_SUPPORT_ROLE)
+                overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+                name = f"member-report-{ticket_number}"
+                mention_role = GENERAL_SUPPORT_ROLE
+                embed_title = "Member Report"
+                embed_desc = f"Dear {interaction.user.mention}, thank you for creating a **Member Report** ticket.\nPlease provide all valid evidence."
+                embed_color = discord.Color.orange()
 
-        if self.values[0] == "general":
-            await channel.send(f"<@&{GENERAL_SUPPORT_ROLE}>")
-            embed = discord.Embed(
-                title="General Support",
-                description=f"Dear {interaction.user.mention}, thank you for opening a **General Support** ticket.\nPlease state your reason for opening this ticket.",
-                color=discord.Color.blue()
+            else:
+                role = interaction.guild.get_role(STAFF_REPORT_ROLE)
+                overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+                name = f"staff-report-{ticket_number}"
+                mention_role = STAFF_REPORT_ROLE
+                embed_title = "Staff Report"
+                embed_desc = f"Dear {interaction.user.mention}, thank you for creating a **Staff Report** ticket.\nPlease provide all valid proof."
+                embed_color = discord.Color.red()
+
+            # Create ticket channel
+            channel = await interaction.guild.create_text_channel(
+                name=name,
+                category=category,
+                overwrites=overwrites,
+                topic=str(interaction.user)
             )
-            await channel.send(embed=embed, view=view)
-        elif self.values[0] == "member":
-            await channel.send(f"<@&{GENERAL_SUPPORT_ROLE}>")
-            embed = discord.Embed(
-                title="Member Report",
-                description=f"Dear {interaction.user.mention}, thank you for creating a **Member Report** ticket.\nPlease provide all valid evidence.",
-                color=discord.Color.orange()
-            )
-            await channel.send(embed=embed, view=view)
-        else:
-            await channel.send(f"<@&{STAFF_REPORT_ROLE}>")
-            embed = discord.Embed(
-                title="Staff Report",
-                description=f"Dear {interaction.user.mention}, thank you for creating a **Staff Report** ticket.\nPlease provide all valid proof.",
-                color=discord.Color.red()
-            )
+
+            # Send role mention + embed in ticket
+            view = CloseTicketButton()
+            await channel.send(f"<@&{mention_role}>")
+            embed = discord.Embed(title=embed_title, description=embed_desc, color=embed_color)
             await channel.send(embed=embed, view=view)
 
-        # Respond **once** at the end, ephemeral, confirming channel creation
-        await interaction.response.send_message(f"Ticket created: {channel.mention}", ephemeral=True)
+            # Confirm creation to user
+            await interaction.followup.send(f"Ticket created: {channel.mention}", ephemeral=True)
+
+        except Exception as e:
+            print(f"TicketDropdown callback error: {e}")
+            # Ensure user gets feedback even if something breaks
+            try:
+                await interaction.followup.send("Something went wrong creating your ticket.", ephemeral=True)
+            except:
+                pass
 
 # -------- TICKET PANEL VIEW --------
 class TicketPanelView(discord.ui.View):
