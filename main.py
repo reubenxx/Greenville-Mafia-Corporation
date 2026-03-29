@@ -36,21 +36,6 @@ BLACKLIST_ROLE = 1474121009656500225
 BLACKLIST_PING_ROLE = 1486271938631434363
 BLACKLIST_FILE = "/mnt/disk/blacklist.json"  # <-- point it to your Render disk mount
 BLACKLIST_MESSAGE_ID = 1486281089956974602  
-# -------- TICKET SYSTEM CONSTANTS --------
-
-TICKET_CATEGORY_ID = 1443979964482584688  # <-- CHANGE THIS
-TICKET_PANEL_CHANNEL_ID = 1443980437184577556
-TRANSCRIPT_LOG_CHANNEL = 1471451529838858414
-
-TICKET_BLACKLIST_ROLE = 1487691398755909712
-
-GENERAL_SUPPORT_ROLE = 1474123995375992873
-MEMBER_REPORT_ROLE = 1474123995375992873
-STAFF_REPORT_ROLE = 1474121009656500225
-
-TICKET_COUNT_FILE = "/mnt/disk/ticket_count.json"
-
-ticket_data = {}
 
 # Make sure the folder exists
 os.makedirs(os.path.dirname(BLACKLIST_FILE), exist_ok=True)
@@ -63,6 +48,7 @@ WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/148
 
 bot_start_time = datetime.datetime.utcnow()
 
+# -------- EVENTS --------
 @bot.event
 async def on_ready():
     await bot.tree.sync()
@@ -72,13 +58,7 @@ async def on_ready():
             name="Watching over 'Greenville Mafia Corporation'"
         )
     )
-
-    # Load existing persistent views for tickets
-    bot.add_view(LOAView(0, 0, 0))  # existing one
-    bot.add_view(TicketDropdownView())  # <-- your dropdown ticket panel
-    bot.add_view(TicketCloseButtonView())  # <-- your close buttons for all tickets
-    bot.add_view(AddRemoveUserView())  # <-- optional if you made a view for /adduser & /removeuser buttons
-
+    bot.add_view(LOAView(0, 0, 0))
     print(f"{bot.user} ready")
 
 @bot.event
@@ -131,7 +111,7 @@ async def on_raw_reaction_add(payload):
 async def on_raw_reaction_remove(payload):
     global startup_reactors
     if startup_active and startup_message and payload.message_id == startup_message.id:
-        if str(payload.emoji) == "<:Tick:1480637335237427221>":
+        if str(payload.emoji) == "<:blueheart:1483008124024524820>":
             startup_reactors.discard(payload.user_id)
 
 # -------- BLACKLIST STORAGE --------
@@ -153,293 +133,6 @@ def save_blacklist(data):
         json.dump(data, f, indent=4)
     print(f"Saved blacklist with {len(data)} entries")
 
-def save_blacklist(data):
-    with open(BLACKLIST_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-        print(f"Saved blacklist with {len(data)} entries")
-
-
-# -------- TICKET COUNTER --------
-
-def load_ticket_count():
-    if not os.path.exists(TICKET_COUNT_FILE):
-        with open(TICKET_COUNT_FILE, "w") as f:
-            json.dump({"count": 0}, f)
-        return 0
-
-    with open(TICKET_COUNT_FILE, "r") as f:
-        return json.load(f)["count"]
-
-
-def save_ticket_count(count):
-    with open(TICKET_COUNT_FILE, "w") as f:
-        json.dump({"count": count}, f)
-
-
-def get_next_ticket_number():
-    count = load_ticket_count() + 1
-    save_ticket_count(count)
-    return f"{count:03d}"  # 001, 002, 003
-
-# -------- CLOSE BUTTON --------
-class CloseTicketButton(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="Close Ticket", style=discord.ButtonStyle.danger, custom_id="close_ticket")
-    async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("Are you sure you want to close this ticket?", ephemeral=True, view=ConfirmCloseView())
-
-
-class ConfirmCloseView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=60)
-
-    @discord.ui.button(label="Confirm Close", style=discord.ButtonStyle.danger)
-    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
-        channel = interaction.channel
-        guild = interaction.guild
-
-        messages = []
-        users = set()
-
-        async for msg in channel.history(limit=None, oldest_first=True):
-            timestamp = msg.created_at.strftime("%Y-%m-%d %H:%M")
-            messages.append(f"[{timestamp}] {msg.author}: {msg.content}")
-            users.add(str(msg.author))
-
-        transcript_text = "\n".join(messages)
-
-        transcript_file = discord.File(
-            fp=bytes(transcript_text, "utf-8"),
-            filename=f"{channel.name}-transcript.txt"
-        )
-
-        embed = discord.Embed(
-            title="Ticket Closed",
-            description=f"Transcript for {channel.name}",
-            color=discord.Color.red()
-        )
-
-        embed.add_field(name="Opened By", value=channel.topic or "Unknown", inline=False)
-        embed.add_field(name="Closed By", value=interaction.user.mention, inline=False)
-        embed.add_field(name="Users Involved", value="\n".join(users), inline=False)
-
-        transcript_channel = guild.get_channel(TRANSCRIPT_CHANNEL_ID)
-        await transcript_channel.send(embed=embed, file=transcript_file)
-
-        await channel.delete()
-
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.gray)
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("Close cancelled.", ephemeral=True)
-
-# --------- TICKET DROPDOWN -----------
-class TicketDropdown(discord.ui.Select):
-    def __init__(self):
-        options = [
-            discord.SelectOption(label="General Support", description="Questions & partnerships", value="general"),
-            discord.SelectOption(label="Member Report", description="Report a member", value="member"),
-            discord.SelectOption(label="Staff Report", description="Report a staff member", value="staff"),
-        ]
-
-        super().__init__(
-            placeholder="Choose ticket type...",
-            min_values=1,
-            max_values=1,
-            options=options,
-            custom_id="ticket_dropdown"
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        try:
-            # Defer the response to avoid "interaction failed"
-            await interaction.response.defer(ephemeral=True)
-
-            # Check blacklist
-            role_ids = [role.id for role in interaction.user.roles]
-            if 'BLACKLIST_ROLE_ID' in globals() and BLACKLIST_ROLE_ID in role_ids:
-                await interaction.followup.send("You are blacklisted from tickets.", ephemeral=True)
-                return
-
-            # Get ticket number
-            try:
-                ticket_number = get_next_ticket_number()
-            except Exception:
-                ticket_number = "unknown"
-
-            # Get category
-            category = None
-            if 'TICKET_CATEGORY_ID' in globals():
-                category = interaction.guild.get_channel(TICKET_CATEGORY_ID)
-            if category is None:
-                await interaction.followup.send("Ticket category not found. Contact staff.", ephemeral=True)
-                return
-
-            # Base overwrites
-            overwrites = {
-                interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
-                interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
-            }
-
-            # Determine type
-            value = self.values[0]
-            if value == "general":
-                role_id = globals().get("GENERAL_SUPPORT_ROLE")
-                name = f"ticket-{ticket_number}"
-                title = "General Support"
-                desc = f"Dear {interaction.user.mention}, thank you for opening a **General Support** ticket.\nPlease state your reason."
-                color = discord.Color.blue()
-            elif value == "member":
-                role_id = globals().get("GENERAL_SUPPORT_ROLE")
-                name = f"member-report-{ticket_number}"
-                title = "Member Report"
-                desc = f"Dear {interaction.user.mention}, thank you for creating a **Member Report** ticket.\nProvide all valid evidence."
-                color = discord.Color.orange()
-            else:
-                role_id = globals().get("STAFF_REPORT_ROLE")
-                name = f"staff-report-{ticket_number}"
-                title = "Staff Report"
-                desc = f"Dear {interaction.user.mention}, thank you for creating a **Staff Report** ticket.\nProvide all valid proof."
-                color = discord.Color.red()
-
-            # Add role overwrite if role exists
-            if role_id:
-                role = interaction.guild.get_role(role_id)
-                if role:
-                    overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
-
-            # Create channel safely
-            try:
-                channel = await interaction.guild.create_text_channel(
-                    name=name,
-                    category=category,
-                    overwrites=overwrites,
-                    topic=str(interaction.user)
-                )
-            except Exception as e:
-                await interaction.followup.send(f"Failed to create ticket channel: {e}", ephemeral=True)
-                return
-
-            # Send embed + mention
-            view = CloseTicketButton()
-            if role_id:
-                await channel.send(f"<@&{role_id}>")
-            embed = discord.Embed(title=title, description=desc, color=color)
-            await channel.send(embed=embed, view=view)
-
-            # Confirm to user
-            await interaction.followup.send(f"Ticket created: {channel.mention}", ephemeral=True)
-
-        except Exception:
-            import traceback
-            traceback.print_exc()
-            try:
-                await interaction.followup.send("Something went wrong creating your ticket.", ephemeral=True)
-            except:
-                pass
-
-
-# -------- TICKET PANEL VIEW --------
-class TicketPanelView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-        self.add_item(TicketDropdown())
-
-# -------- CLOSE + MANAGE TICKET BUTTONS --------
-class CloseTicketButton(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    # Close Ticket Button
-    @discord.ui.button(label="Close Ticket", style=discord.ButtonStyle.red, emoji="🛑")
-    async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Only allow ticket creator or staff to close
-        if interaction.user != interaction.channel.topic and 1474123995375992873 not in [r.id for r in interaction.user.roles]:
-            await interaction.response.send_message("You can't close this ticket.", ephemeral=True)
-            return
-
-        # Ask for confirmation
-        view = ConfirmCloseView()
-        await interaction.response.send_message("Are you sure you want to close this ticket?", view=view, ephemeral=True)
-
-    # Add User Button
-    @discord.ui.button(label="Add User", style=discord.ButtonStyle.green, emoji="➕")
-    async def add_user(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Only allow role 1474123995375992873
-        if 1474123995375992873 not in [r.id for r in interaction.user.roles]:
-            await interaction.response.send_message("You don't have permission to add users.", ephemeral=True)
-            return
-
-        await interaction.response.send_modal(AddRemoveUserModal(action="add"))
-
-    # Remove User Button
-    @discord.ui.button(label="Remove User", style=discord.ButtonStyle.grey, emoji="➖")
-    async def remove_user(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Only allow role 1474123995375992873
-        if 1474123995375992873 not in [r.id for r in interaction.user.roles]:
-            await interaction.response.send_message("You don't have permission to remove users.", ephemeral=True)
-            return
-
-        await interaction.response.send_modal(AddRemoveUserModal(action="remove"))
-
-
-# -------- CONFIRM CLOSE VIEW --------
-class ConfirmCloseView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=60)  # 1 min to confirm
-
-    @discord.ui.button(label="Confirm Close", style=discord.ButtonStyle.red, emoji="✅")
-    async def confirm_close(self, interaction: discord.Interaction, button: discord.ui.Button):
-        try:
-            # Only allow ticket creator or staff role to confirm
-            if interaction.user != interaction.channel.topic and 1474123995375992873 not in [r.id for r in interaction.user.roles]:
-                await interaction.response.send_message("You can't confirm closing this ticket.", ephemeral=True)
-                return
-
-            await interaction.channel.delete()
-        except Exception as e:
-            print(f"Error closing ticket: {e}")
-            await interaction.response.send_message("Failed to close the ticket.", ephemeral=True)
-
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.grey, emoji="❌")
-    async def cancel_close(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("Ticket close cancelled.", ephemeral=True)
-        self.stop()
-
-
-# -------- ADD/REMOVE USER MODAL --------
-class AddRemoveUserModal(discord.ui.Modal, title="Add/Remove User"):
-    def __init__(self, action: str):
-        super().__init__()
-        self.action = action
-        self.add_item(discord.ui.InputText(label="User ID to add/remove"))
-
-    async def callback(self, interaction: discord.Interaction):
-        user_id_str = self.children[0].value.strip()
-        try:
-            user_id = int(user_id_str)
-            member = interaction.guild.get_member(user_id)
-            if not member:
-                await interaction.response.send_message("User not found in this server.", ephemeral=True)
-                return
-
-            overwrites = interaction.channel.overwrites
-            if self.action == "add":
-                overwrites[member] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
-                await interaction.channel.edit(overwrites=overwrites)
-                await interaction.response.send_message(f"{member.mention} has been added to this ticket.", ephemeral=True)
-            else:  # remove
-                if member in overwrites:
-                    overwrites.pop(member)
-                    await interaction.channel.edit(overwrites=overwrites)
-                    await interaction.response.send_message(f"{member.mention} has been removed from this ticket.", ephemeral=True)
-                else:
-                    await interaction.response.send_message(f"{member.mention} is not in this ticket.", ephemeral=True)
-
-        except Exception as e:
-            print(f"Add/Remove user error: {e}")
-            await interaction.response.send_message("Failed to modify user.", ephemeral=True)
 # -------- UPDATE BLACKLIST MESSAGE --------
 async def update_blacklist_message(bot):
     channel = bot.get_channel(BLACKLIST_CHANNEL)
@@ -561,28 +254,6 @@ async def blacklist(interaction: discord.Interaction, server_name: str, server_i
 
     await interaction.response.send_message("Blacklist added.", ephemeral=True)
 
-@bot.tree.command(name="sendticketpanel", description="Send the ticket panel")
-async def send_ticket_panel(interaction: discord.Interaction):
-    if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("No permission.", ephemeral=True)
-        return
-
-    embed = discord.Embed(
-        title="Greenville Mafia Corporation Assistance",
-        description="""
-<:dmsarrow:1487692768623984780> | Welcome to the Greenville Mafia Corporation Support Panel. Choose which ticket type to open based on the type of support you require.
-
-<:dasharrow:1480637266815619286> **General Support** | General questions & partnerships
-<:dasharrow:1480637266815619286> **Member Report** | Report a member
-<:dasharrow:1480637266815619286> **Staff Report** | Report a staff member
-""",
-        color=discord.Color.blue()
-    )
-
-    channel = bot.get_channel(TICKET_PANEL_CHANNEL_ID)
-    await channel.send(embed=embed, view=TicketPanelView())
-    await interaction.response.send_message("Panel sent.", ephemeral=True)
-
 # -------- DELETE BLACKLIST --------
 @bot.tree.command(name="delblacklist", description="Delete a blacklist entry")
 @app_commands.describe(number="Blacklist Number")
@@ -650,96 +321,50 @@ async def setupblacklist(interaction: discord.Interaction):
         ephemeral=True
     )
 # -------- LINK COMMAND --------
-from discord import ui
-import discord
-from discord import app_commands
-
-# Button View
 class LinkView(ui.View):
     def __init__(self, url):
         super().__init__(timeout=None)
         self.url = url
-
-    @ui.button(label="Join Event Server", style=discord.ButtonStyle.primary)
-    async def join_button(self, interaction: discord.Interaction, button: ui.Button):
+    @ui.button(label="Join Private Server", style=discord.ButtonStyle.primary)
+    async def join(self, interaction: discord.Interaction, button: ui.Button):
         if not startup_active:
             await interaction.response.send_message("No active convoy.", ephemeral=True)
             return
-
         if interaction.user.id not in startup_reactors:
-            await interaction.response.send_message(
-                "You must react to the startup message first.",
-                ephemeral=True
-            )
+            await interaction.response.send_message("You must react to the startup message first.", ephemeral=True)
             return
-
-        embed = discord.Embed(
-            title="Event Link",
-            description=f"Click **[here]({self.url})** to join the private server.",
-            color=0x87CEFA
-        )
-        embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
-
+        embed = discord.Embed(title="Private Server Link", description=f"> Click **[here]({self.url})** to join the private server.", color=0x87CEFA)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-
-# Slash Command
 @bot.tree.command(name="link", description="Release the private server link")
-@app_commands.describe(url="Private server link")
 async def link(interaction: discord.Interaction, url: str):
-    global link_message
-
     member = interaction.guild.get_member(interaction.user.id)
-
-    # Permission check
     if not any(role.id in ALLOWED_ROLES for role in member.roles):
         await interaction.response.send_message("You are not authorized.", ephemeral=True)
         return
-
-    # Convoy active check
+    global link_message
     if not startup_active:
         await interaction.response.send_message("No active convoy.", ephemeral=True)
         return
-
-    # Host check
     if member != startup_host:
         await interaction.response.send_message("Only the host can release the link.", ephemeral=True)
         return
-
     embed = discord.Embed(
-        title="Event Release",
+        title="SESSION RELEASE",
         description=(
-            f"<a:Animated_Arrow_Bluelite:1484055930919190589> | {member.mention} has released the **Event Link**. "
-            "Please click the button below to gain access to the server. If there are any issues with joining, "
-            "please ping the host in **[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)**.\n\n"
-
-            "**Event Notices**\n"
-            "<:dot:1480643720687915058> | Please ensure you have read through the "
-            "**[guidelines](https://discord.com/channels/1441901639739904125/1481562585781239969)**.\n"
-            "<:dot:1480643720687915058> | Ensure you have set your privacy settings set to __**everyone**__.\n"
-            "<:dot:1480643720687915058> | Additionally, you must follow all host orders at all times to avoid moderation.\n\n"
-
-            "<:Warning:1487346151538819072> | You must react to the startup message or you will be unable to join!"
+            f"> {member.mention} has released the session link.\n"
+            "Please read all **[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)**.\n"
+            "Respect hosts, members & staff. Ping host in **[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** if needed."
         ),
         color=0x87CEFA
     )
-
     embed.set_thumbnail(url=member.display_avatar.url)
     embed.set_image(url=LINK_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
-
     view = LinkView(url)
+    await interaction.response.send_message("Link released!", ephemeral=True)
+    link_message = await interaction.channel.send(content=f"<@&{NOTIFY_ROLE}>", embed=embed, view=view, allowed_mentions=discord.AllowedMentions(roles=True))
 
-    # Respond first so interaction doesn't fail
-    await interaction.response.send_message("Event link released.", ephemeral=True)
-
-    # Send the public embed with button
-    link_message = await interaction.channel.send(
-        content=f"<@&{NOTIFY_ROLE}>",
-        embed=embed,
-        view=view,
-        allowed_mentions=discord.AllowedMentions(roles=True)
-    )
 # -------- LOA SYSTEM AND MODALS --------
 class DenyModal(ui.Modal, title="Deny LOA"):
     reason = ui.TextInput(label="Reason for denial", style=discord.TextStyle.paragraph)
