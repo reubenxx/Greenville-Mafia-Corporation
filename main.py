@@ -234,25 +234,13 @@ class ConfirmCloseView(discord.ui.View):
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message("Close cancelled.", ephemeral=True)
 
-# -------- TICKET DROPDOWN --------
+# --------- TICKET DROPDOWN -----------
 class TicketDropdown(discord.ui.Select):
     def __init__(self):
         options = [
-            discord.SelectOption(
-                label="General Support",
-                description="Questions & partnerships",
-                value="general"
-            ),
-            discord.SelectOption(
-                label="Member Report",
-                description="Report a member",
-                value="member"
-            ),
-            discord.SelectOption(
-                label="Staff Report",
-                description="Report a staff member",
-                value="staff"
-            ),
+            discord.SelectOption(label="General Support", description="Questions & partnerships", value="general"),
+            discord.SelectOption(label="Member Report", description="Report a member", value="member"),
+            discord.SelectOption(label="Staff Report", description="Report a staff member", value="staff"),
         ]
 
         super().__init__(
@@ -264,12 +252,9 @@ class TicketDropdown(discord.ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        # Defer immediately to prevent "This interaction failed"
-        await interaction.response.defer(ephemeral=True)
-
         role_ids = [role.id for role in interaction.user.roles]
         if BLACKLIST_ROLE_ID in role_ids:
-            await interaction.followup.send("You are blacklisted from tickets.", ephemeral=True)
+            await interaction.response.send_message("You are blacklisted from tickets.", ephemeral=True)
             return
 
         ticket_number = get_next_ticket_number()
@@ -284,12 +269,10 @@ class TicketDropdown(discord.ui.Select):
             role = interaction.guild.get_role(GENERAL_SUPPORT_ROLE)
             overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
             name = f"ticket-{ticket_number}"
-
         elif self.values[0] == "member":
             role = interaction.guild.get_role(GENERAL_SUPPORT_ROLE)
             overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
             name = f"member-report-{ticket_number}"
-
         else:
             role = interaction.guild.get_role(STAFF_REPORT_ROLE)
             overwrites[role] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
@@ -312,7 +295,6 @@ class TicketDropdown(discord.ui.Select):
                 color=discord.Color.blue()
             )
             await channel.send(embed=embed, view=view)
-
         elif self.values[0] == "member":
             await channel.send(f"<@&{GENERAL_SUPPORT_ROLE}>")
             embed = discord.Embed(
@@ -321,7 +303,6 @@ class TicketDropdown(discord.ui.Select):
                 color=discord.Color.orange()
             )
             await channel.send(embed=embed, view=view)
-
         else:
             await channel.send(f"<@&{STAFF_REPORT_ROLE}>")
             embed = discord.Embed(
@@ -331,14 +312,8 @@ class TicketDropdown(discord.ui.Select):
             )
             await channel.send(embed=embed, view=view)
 
-        # Send confirmation to user
-        await interaction.followup.send(f"Ticket created: {channel.mention}", ephemeral=True)
-
-
-class TicketPanelView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-        self.add_item(TicketDropdown())
+        # Respond **once** at the end, ephemeral, confirming channel creation
+        await interaction.response.send_message(f"Ticket created: {channel.mention}", ephemeral=True)
 # -------- UPDATE BLACKLIST MESSAGE --------
 async def update_blacklist_message(bot):
     channel = bot.get_channel(BLACKLIST_CHANNEL)
