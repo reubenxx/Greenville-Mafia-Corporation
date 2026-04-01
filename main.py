@@ -92,16 +92,19 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
         role = after.guild.get_role(GVMC_CONTRIBUTOR_ROLE)
         channel = bot.get_channel(GVMC_STATUS_CHANNEL)
 
+        if role is None or channel is None:
+            return
+
         before_status = None
         after_status = None
 
         # Get custom status BEFORE change
-        for activity in before.activities:
+        for activity in (before.activities or []):
             if isinstance(activity, discord.CustomActivity):
                 before_status = activity.name
 
         # Get custom status AFTER change
-        for activity in after.activities:
+        for activity in (after.activities or []):
             if isinstance(activity, discord.CustomActivity):
                 after_status = activity.name
 
@@ -111,22 +114,22 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
                 await after.add_roles(role)
 
                 embed = discord.Embed(
-    title="Greenville Mafia Corporation | Server Contributor",
-    description=(
-        f"> <a:gvmc_heart:1480637190685069472> | Thank you {after.mention} for becoming an official **Greenville Mafia Corporation** contributor!\n"
-        f"> They have received the <@&{GVMC_CONTRIBUTOR_ROLE}> role which contains benefits such as image permissions and exclusive giveaways!\n\n"
-        f"> <a:Animated_Arrow_Bluelite:1484055930919190589> | Would you like to receive the <@&{GVMC_CONTRIBUTOR_ROLE}> role?\n"
-        "> Please put ``/gvmc`` as your status and you will receive all the perks & role."
-    ),
-    color=0x87CEFA
-)
+                    title="Greenville Mafia Corporation | Server Contributor",
+                    description=(
+                        f"> <a:gvmc_heart:1480637190685069472> | Thank you {after.mention} for becoming an official **Greenville Mafia Corporation** contributor!\n"
+                        f"> They have received the <@&{GVMC_CONTRIBUTOR_ROLE}> role which contains benefits such as image permissions and exclusive giveaways!\n\n"
+                        f"> <a:Animated_Arrow_Bluelite:1484055930919190589> | Would you like to receive the <@&{GVMC_CONTRIBUTOR_ROLE}> role?\n"
+                        "> Please put ``/gvmc`` as your status and you will receive all the perks & role."
+                    ),
+                    color=0x87CEFA
+                )
 
-embed.set_footer(
-    text="Greenville Mafia Corporation",
-    icon_url=FOOTER_ICON
-)
+                embed.set_footer(
+                    text="Greenville Mafia Corporation",
+                    icon_url=FOOTER_ICON
+                )
 
-await channel.send(embed=embed)
+                await channel.send(embed=embed)
 
         # ---- USER REMOVED /GVMC ----
         if before_status and GVMC_STATUS_TEXT.lower() in before_status.lower():
