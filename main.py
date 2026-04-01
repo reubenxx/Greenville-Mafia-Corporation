@@ -110,15 +110,23 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
             if role not in after.roles:
                 await after.add_roles(role)
 
-                message = (
-                    "__**Greenville Mafia Corporation**__ | **Server Contributor**\n"
-                    f"> <a:gvmc_heart:1480637190685069472> | Thank you {after.mention} for becoming an official **Greenville Mafia Corporation** contributor! "
-                    f"They have received the <@&{GVMC_CONTRIBUTOR_ROLE}> role which contains benefits such as image permissions and exclusive giveaways!\n\n"
-                    f"> <a:Animated_Arrow_Bluelite:1484055930919190589> | Would you like to receive the <@&{GVMC_CONTRIBUTOR_ROLE}> role? "
-                    "Please put ``/gvmc`` as your status and you will receive all the perks & role."
-                )
+                embed = discord.Embed(
+    title="Greenville Mafia Corporation | Server Contributor",
+    description=(
+        f"> <a:gvmc_heart:1480637190685069472> | Thank you {after.mention} for becoming an official **Greenville Mafia Corporation** contributor!\n"
+        f"> They have received the <@&{GVMC_CONTRIBUTOR_ROLE}> role which contains benefits such as image permissions and exclusive giveaways!\n\n"
+        f"> <a:Animated_Arrow_Bluelite:1484055930919190589> | Would you like to receive the <@&{GVMC_CONTRIBUTOR_ROLE}> role?\n"
+        "> Please put ``/gvmc`` as your status and you will receive all the perks & role."
+    ),
+    color=0x87CEFA
+)
 
-                await channel.send(message)
+embed.set_footer(
+    text="Greenville Mafia Corporation",
+    icon_url=FOOTER_ICON
+)
+
+await channel.send(embed=embed)
 
         # ---- USER REMOVED /GVMC ----
         if before_status and GVMC_STATUS_TEXT.lower() in before_status.lower():
