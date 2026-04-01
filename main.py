@@ -83,6 +83,49 @@ async def on_member_join(member):
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
     await channel.send(content=member.mention, embed=embed)
 
+@bot.event
+async def on_presence_update(before: discord.Member, after: discord.Member):
+    try:
+        role = after.guild.get_role(GVMC_CONTRIBUTOR_ROLE)
+        channel = bot.get_channel(GVMC_STATUS_CHANNEL)
+
+        before_status = None
+        after_status = None
+
+        # Get custom status BEFORE change
+        for activity in before.activities:
+            if isinstance(activity, discord.CustomActivity):
+                before_status = activity.name
+
+        # Get custom status AFTER change
+        for activity in after.activities:
+            if isinstance(activity, discord.CustomActivity):
+                after_status = activity.name
+
+        # ---- USER ADDED /GVMC ----
+        if after_status and GVMC_STATUS_TEXT.lower() in after_status.lower():
+            if role not in after.roles:
+                await after.add_roles(role)
+
+                message = (
+                    "__**Greenville Mafia Corporation**__ | **Server Contributor**\n"
+                    f"> <a:gvmc_heart:1480637190685069472> | Thank you {after.mention} for becoming an official **Greenville Mafia Corporation** contributor! "
+                    f"They have received the <@&{GVMC_CONTRIBUTOR_ROLE}> role which contains benefits such as image permissions and exclusive giveaways!\n\n"
+                    f"> <a:Animated_Arrow_Bluelite:1484055930919190589> | Would you like to receive the <@&{GVMC_CONTRIBUTOR_ROLE}> role? "
+                    "Please put ``/gvmc`` as your status and you will receive all the perks & role."
+                )
+
+                await channel.send(message)
+
+        # ---- USER REMOVED /GVMC ----
+        if before_status and GVMC_STATUS_TEXT.lower() in before_status.lower():
+            if (not after_status) or (GVMC_STATUS_TEXT.lower() not in after_status.lower()):
+                if role in after.roles:
+                    await after.remove_roles(role)
+
+    except Exception as e:
+        print(f"GVMC status error: {e}")
+
 # -------- SAY COMMAND --------
 @bot.command()
 async def say(ctx, *, message):
