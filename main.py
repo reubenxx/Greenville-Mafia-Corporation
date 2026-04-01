@@ -168,7 +168,7 @@ async def on_raw_reaction_add(payload):
 async def on_raw_reaction_remove(payload):
     global startup_reactors
     if startup_active and startup_message and payload.message_id == startup_message.id:
-        if str(payload.emoji) == "<:blueheart:1483008124024524820>":
+        if str(payload.emoji) == "<:Tick:1480637335237427221>":
             startup_reactors.discard(payload.user_id)
 
 # -------- BLACKLIST STORAGE --------
