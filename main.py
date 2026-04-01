@@ -39,7 +39,6 @@ BLACKLIST_MESSAGE_ID = 1486281089956974602
 GVMC_CONTRIBUTOR_ROLE = 1488794560740986970
 GVMC_STATUS_CHANNEL = 1488795010475360347
 GVMC_STATUS_TEXT = "/gvmc"
-MODLOG_CHANNEL = 1483351237394042910
 
 # Make sure the folder exists
 os.makedirs(os.path.dirname(BLACKLIST_FILE), exist_ok=True)
@@ -51,13 +50,6 @@ END_BANNER = "https://cdn.discordapp.com/attachments/1455902346440740894/1484093
 WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/1482361429188284606/Welcome_1.png"
 
 bot_start_time = datetime.datetime.utcnow()
-
-async def send_modlog(guild, embed):
-    channel = guild.get_channel(MODLOG_CHANNEL)
-    if channel:
-        embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
-        embed.timestamp = datetime.datetime.utcnow()
-        await channel.send(embed=embed)
 
 # -------- EVENTS --------
 @bot.event
@@ -83,90 +75,17 @@ async def on_member_join(member):
             "**[verify](https://discord.com/channels/1441901639739904125/1471452917163884738)** "
             "to gain full access to our server.\n\n"
             "<a:pulsatingheart:1480637910347940064> We host daily Convoys, Events, Occasional Giveaways "
-            "and other fun surprises!"
+            "and other fun surprises! We look forward to seeing you participate in the full life of "
+            "__**Greenville Mafia Corporation**__. If you require any form of assistance, please do not "
+            "hesitate to contact our lovely Staff Team "
+            "**[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**. "
+            "<a:pulsatingheart:1480637910347940064>"
         ),
         color=0x87CEFA
     )
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
     await channel.send(content=member.mention, embed=embed)
 
-    # MODLOG
-    log_embed = discord.Embed(
-        title="Member Joined",
-        description=f"{member.mention} joined the server.",
-        color=0x00FF7F
-    )
-    log_embed.set_thumbnail(url=member.display_avatar.url)
-
-    await send_modlog(member.guild, log_embed)
-
-@bot.event
-async def on_member_remove(member):
-    guild = member.guild
-
-    # Check if kicked
-    async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.kick):
-        if entry.target.id == member.id:
-            embed = discord.Embed(
-                title="Member Kicked",
-                description=(
-                    f"{member.mention} was kicked.\n"
-                    f"Moderator: {entry.user.mention}\n"
-                    f"Reason: {entry.reason or 'No reason provided'}"
-                ),
-                color=0xFF5555
-            )
-            await send_modlog(guild, embed)
-            return
-
-    # If not kicked → normal leave
-    embed = discord.Embed(
-        title="Member Left",
-        description=f"{member.mention} left the server.",
-        color=0xFF5555
-    )
-    await send_modlog(guild, embed)
-
-@bot.event
-async def on_member_ban(guild, user):
-    embed = discord.Embed(
-        title="Member Banned",
-        description=f"{user.mention} was banned.",
-        color=0xFF0000
-    )
-    await send_modlog(guild, embed)
-
-
-@bot.event
-async def on_member_unban(guild, user):
-    embed = discord.Embed(
-        title="Member Unbanned",
-        description=f"{user.mention} was unbanned.",
-        color=0x00FF7F
-    )
-    await send_modlog(guild, embed)
-
-@bot.event
-async def on_member_update(before, after):
-    added_roles = [r for r in after.roles if r not in before.roles]
-    removed_roles = [r for r in before.roles if r not in after.roles]
-
-    for role in added_roles:
-        embed = discord.Embed(
-            title="Role Added",
-            description=f"{after.mention} was given {role.mention}",
-            color=0x87CEFA
-        )
-        await send_modlog(after.guild, embed)
-
-    for role in removed_roles:
-        embed = discord.Embed(
-            title="Role Removed",
-            description=f"{after.mention} lost {role.mention}",
-            color=0xFF5555
-        )
-        await send_modlog(after.guild, embed)
-    
 @bot.event
 async def on_presence_update(before: discord.Member, after: discord.Member):
     try:
@@ -222,6 +141,11 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
         print(f"GVMC status error: {e}")
 
 # -------- SAY COMMAND --------
+@bot.command()
+async def say(ctx, *, message):
+    await ctx.message.delete()
+    await ctx.send(message)
+
 @bot.tree.command(name="say", description="Make the bot say something")
 @app_commands.describe(message="The message you want the bot to send")
 async def slash_say(interaction: discord.Interaction, message: str):
@@ -229,17 +153,8 @@ async def slash_say(interaction: discord.Interaction, message: str):
     if 1474121009656500225 not in [role.id for role in member.roles]:
         await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
         return
-
     await interaction.response.defer(ephemeral=True)
     await interaction.channel.send(message)
-
-    # MODLOG
-    log_embed = discord.Embed(
-        title="Command Used: /say",
-        description=f"{interaction.user.mention} made the bot say:\n\n{message}",
-        color=0x87CEFA
-    )
-    await send_modlog(interaction.guild, log_embed)
 
 # -------- REACTION TRACKING --------
 @bot.event
@@ -759,7 +674,7 @@ async def membercount(interaction: discord.Interaction):
     embed.timestamp = datetime.datetime.utcnow()
     await interaction.response.send_message(embed=embed)
 
-# -------- RESET COMMAND --------
+# -------- KILL COMMAND --------
 @bot.tree.command(name="botreset", description="Restart the Bot")
 async def kill(interaction: discord.Interaction):
     member = interaction.guild.get_member(interaction.user.id)
@@ -767,15 +682,8 @@ async def kill(interaction: discord.Interaction):
         await interaction.response.send_message("Only the Bot Developer is authorized to use this command.", ephemeral=True)
         return
     await interaction.response.send_message("The bot has restarted.", ephemeral=True)
-   
-    # ------- BOTLOG EMBED -------
-    log_embed = discord.Embed(
-    title="Bot Restarted",
-    description=f"{interaction.user.mention} restarted the bot.",
-    color=0xFFAA00
-)
-await send_modlog(interaction.guild, log_embed)
     sys.exit()
 
 # -------- RUN BOT --------
 bot.run(TOKEN)
+
