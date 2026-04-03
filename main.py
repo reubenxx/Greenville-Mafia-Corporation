@@ -62,6 +62,7 @@ async def on_ready():
         )
     )
     bot.add_view(LOAView(0, 0, 0))
+    bot.add_view(EndView())
     print(f"{bot.user} ready")
 
 @bot.event
@@ -511,7 +512,14 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
         await interaction.response.send_message("Feedback submitted.", ephemeral=True)
 
 class EndView(ui.View):
-    @ui.button(label="Provide Feedback", style=discord.ButtonStyle.secondary)
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @ui.button(
+        label="Provide Feedback",
+        style=discord.ButtonStyle.secondary,
+        custom_id="feedback_button"
+    )
     async def feedback(self, interaction: discord.Interaction, button: ui.Button):
         await interaction.response.send_modal(FeedbackModal())
 
