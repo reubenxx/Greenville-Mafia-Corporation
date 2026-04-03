@@ -572,11 +572,11 @@ async def end(interaction: discord.Interaction, host_note: str):
             "We appreciate those who were actively involved & participating in this event. "
             "We hope to see you in more of our events in the future as there are **many** more to come!\n\n"
             f"**Event Information**\n"
-            f"<:dot:1480643720687915058> Event Start Time | embed.timestamp = datetime.datetime.utcnow()/n"
-            f"<:dot:1480643720687915058> Event End Time | embed.timestamp = datetime.datetime.utcnow()\n"
+            f"<:dot:1480643720687915058> Event End Time | <t:{int(end_time.timestamp())}:f>\n"
             f"<:dot:1480643720687915058> Event Duration | {str(duration).split('.')[0]}\n\n"
             f"<:announcement:1480640464737800253> Additional Notes | {host_note}\n\n"
             "<a:gvmc_heart:1480637190685069472> | Want to help improve our Events? Give us feedback by clicking the feedback button below!"
+
         ),
         color=0x87CEFA
     )
