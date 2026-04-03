@@ -26,7 +26,7 @@ WELCOME_CHANNEL = 1471452865796116576
 SESSION_LOG_CHANNEL = 1481568871679787088
 FEEDBACK_CHANNEL = 1481568923504611439
 KILL_ROLE = 1481266824917287124
-ALLOWED_ROLES = [1474121009656500225, 1479832999435440178]
+ALLOWED_ROLES = [1474121009656500225, 1479832999435440178] # <-------- High Rank & Meet Launcher ---------
 LOA_ROLE = 1474123995375992873
 LOA_CHANNEL = 1485717423448653874
 LOA_APPROVE_ROLES = [1474120141380911104, 1474116769458421973]
@@ -161,13 +161,36 @@ async def slash_say(interaction: discord.Interaction, message: str):
 @bot.event
 async def on_raw_reaction_add(payload):
     global startup_reactors
+
     if startup_active and startup_message and payload.message_id == startup_message.id:
         if str(payload.emoji) == "<:Tick:1480637335237427221>":
             startup_reactors.add(payload.user_id)
 
+            # ONLY trigger if the reactor is the startup host
+            if startup_host and payload.user_id == startup_host.id:
+                channel = bot.get_channel(payload.channel_id)
+                message = await channel.fetch_message(payload.message_id)
+
+                embed = discord.Embed(
+                    title="Event Setup",
+                    description=(
+                        "> The host is currently setting up the Event. Please remain patient as they get everything ready. "
+                        "Ensure you have set all your privacy settings set to __**everyone**__.\n\n"
+                        "> During this time, we recommend that you look over our "
+                        "**[Event Guidelines](https://discord.com/channels/1441901639739904125/1481562585781239969)**. "
+                        "After this step is completed, the host will release the link. "
+                        "You will be pinged again if you have the **Convoy Ping** role."
+                    ),
+                    color=0x87CEFA
+                )
+
+                await message.reply(embed=embed)
+
+
 @bot.event
 async def on_raw_reaction_remove(payload):
     global startup_reactors
+
     if startup_active and startup_message and payload.message_id == startup_message.id:
         if str(payload.emoji) == "<:Tick:1480637335237427221>":
             startup_reactors.discard(payload.user_id)
