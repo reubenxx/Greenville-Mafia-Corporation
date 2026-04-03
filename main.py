@@ -5,7 +5,6 @@ import datetime
 import os
 import sys
 import json
-import asyncio
 
 TOKEN = os.getenv("TOKEN")
 
@@ -585,18 +584,7 @@ async def end(interaction: discord.Interaction, host_note: str):
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
     view = EndView()
     await interaction.response.send_message("Convoy ended!", ephemeral=True)
-
-# Send the end embed first
-end_message = await interaction.channel.send(embed=embed, view=view)
-
-# Wait a few seconds so people see it
-await asyncio.sleep(5)
-
-# Purge everything except the end message
-def check(msg):
-    return msg.id != end_message.id
-
-await interaction.channel.purge(limit=100, check=check)
+    await interaction.channel.send(embed=embed, view=view)
     log_channel = bot.get_channel(SESSION_LOG_CHANNEL)
     log_embed = discord.Embed(
         title="Session Logged",
