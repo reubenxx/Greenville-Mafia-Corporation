@@ -557,18 +557,18 @@ async def end(interaction: discord.Interaction, host_note: str):
     if not any(role.id in ALLOWED_ROLES for role in member.roles):
         await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
         return
+
     global startup_active, startup_message, link_message, startup_time, startup_host, startup_reactors
     if not startup_active:
         await interaction.response.send_message("No active convoy.", ephemeral=True)
         return
+
     end_time = datetime.datetime.utcnow()
     duration = end_time - startup_time
-    if startup_message:
-        try: await startup_message.delete()
-        except: pass
-    if link_message:
-        try: await link_message.delete()
-        except: pass
+
+    channel = interaction.channel
+
+    # ---- Send the end embed first ----
     embed = discord.Embed(
         title=" <:Gvmc_crown:1480630263456464957> Greenville Mafia Corporation Conclusion <:Gvmc_crown:1480630263456464957>",
         description=(
@@ -588,7 +588,15 @@ async def end(interaction: discord.Interaction, host_note: str):
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
     view = EndView()
     await interaction.response.send_message("Convoy ended!", ephemeral=True)
-    await interaction.channel.send(embed=embed, view=view)
+    end_msg = await channel.send(embed=embed, view=view)  # save reference to not delete it
+
+    # ---- Purge the rest of the messages ----
+    def check(msg):
+        return not msg.pinned and msg.id != end_msg.id
+
+    await channel.purge(check=check, limit=None)  # limit=None fetches everything in channel
+
+    # ---- Log the session as usual ----
     log_channel = bot.get_channel(SESSION_LOG_CHANNEL)
     log_embed = discord.Embed(
         title="Session Logged",
@@ -596,6 +604,8 @@ async def end(interaction: discord.Interaction, host_note: str):
         color=0x87CEFA
     )
     await log_channel.send(embed=log_embed)
+
+    # ---- Reset convoy state ----
     startup_active = False
     startup_host = None
     startup_message = None
