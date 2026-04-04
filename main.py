@@ -580,7 +580,7 @@ async def end(interaction: discord.Interaction, host_note: str):
         ),
         color=0x87CEFA
     )
-    embed.set_thumbnail(url=END_BANNER)
+    embed.set_image(url=END_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
     view = EndView()
     await interaction.response.send_message("Convoy ended!", ephemeral=True)
