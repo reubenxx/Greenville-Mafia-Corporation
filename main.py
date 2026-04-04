@@ -46,7 +46,7 @@ os.makedirs(os.path.dirname(BLACKLIST_FILE), exist_ok=True)
 FOOTER_ICON = "https://media.discordapp.net/attachments/1467783372469178442/1480467031571693710/image.png"
 STARTUP_BANNER = "https://media.discordapp.net/attachments/1455902346440740894/1484092580613591140/Your_paragraph_text.png"
 LINK_BANNER = "https://media.discordapp.net/attachments/1455902346440740894/1484093217744879636/Your_paragraph_text_1.png"
-END_BANNER = "https://cdn.discordapp.com/attachments/1462071387685392425/1489794734791725297/Your_paragraph_text_6.png"
+END_BANNER = "https://cdn.discordapp.com/attachments/1455902346440740894/1484093510763155587/Your_paragraph_text_2.png"
 WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/1482361429188284606/Welcome_1.png"
 
 bot_start_time = datetime.datetime.utcnow()
@@ -572,15 +572,15 @@ async def end(interaction: discord.Interaction, host_note: str):
             "We appreciate those who were actively involved & participating in this event. "
             "We hope to see you in more of our events in the future as there are **many** more to come!\n\n"
             f"**Event Information**\n"
+            f"<:dot:1480643720687915058> Event Start Time | <t:{int(startup_time.timestamp())}:f>\n"
             f"<:dot:1480643720687915058> Event End Time | <t:{int(end_time.timestamp())}:f>\n"
             f"<:dot:1480643720687915058> Event Duration | {str(duration).split('.')[0]}\n\n"
             f"<:announcement:1480640464737800253> Additional Notes | {host_note}\n\n"
             "<a:gvmc_heart:1480637190685069472> | Want to help improve our Events? Give us feedback by clicking the feedback button below!"
-
         ),
         color=0x87CEFA
     )
-    embed.set_image(url=END_BANNER)
+    embed.set_thumbnail(url=END_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
     view = EndView()
     await interaction.response.send_message("Convoy ended!", ephemeral=True)
