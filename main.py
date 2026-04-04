@@ -45,7 +45,7 @@ os.makedirs(os.path.dirname(BLACKLIST_FILE), exist_ok=True)
 
 FOOTER_ICON = "https://media.discordapp.net/attachments/1467783372469178442/1480467031571693710/image.png"
 STARTUP_BANNER = "https://cdn.discordapp.com/attachments/1462071387685392425/1489804105189818439/Your_paragraph_text_8_1.png"
-LINK_BANNER = "https://media.discordapp.net/attachments/1455902346440740894/1484093217744879636/Your_paragraph_text_1.png"
+LINK_BANNER = "https://cdn.discordapp.com/attachments/1483351237394042910/1489807014279381133/Copy_of_Your_paragraph_text_1.png"
 END_BANNER = "https://cdn.discordapp.com/attachments/1483351237394042910/1489798597330604113/Your_paragraph_text_7_1.png"
 WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/1482361429188284606/Welcome_1.png"
 
@@ -439,7 +439,6 @@ async def link(interaction: discord.Interaction, url: str):
         ),
         color=0x87CEFA
     )
-    embed.set_thumbnail(url=member.display_avatar.url)
     embed.set_image(url=LINK_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
     view = LinkView(url)
