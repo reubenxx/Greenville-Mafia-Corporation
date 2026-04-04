@@ -44,7 +44,7 @@ GVMC_STATUS_TEXT = "/gvmc"
 os.makedirs(os.path.dirname(BLACKLIST_FILE), exist_ok=True)
 
 FOOTER_ICON = "https://media.discordapp.net/attachments/1467783372469178442/1480467031571693710/image.png"
-STARTUP_BANNER = "https://media.discordapp.net/attachments/1455902346440740894/1484092580613591140/Your_paragraph_text.png"
+STARTUP_BANNER = "https://cdn.discordapp.com/attachments/1462071387685392425/1489804105189818439/Your_paragraph_text_8_1.png"
 LINK_BANNER = "https://media.discordapp.net/attachments/1455902346440740894/1484093217744879636/Your_paragraph_text_1.png"
 END_BANNER = "https://cdn.discordapp.com/attachments/1483351237394042910/1489798597330604113/Your_paragraph_text_7_1.png"
 WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/1482361429188284606/Welcome_1.png"
