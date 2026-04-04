@@ -19,6 +19,7 @@ link_message = None
 startup_reactors = set()
 startup_time = None
 required_reactions = 5
+startup_host_notified = False  # Tracks if the host setup embed has been sent
 
 # ----- IDs & constants -----
 NOTIFY_ROLE = 1480656237027660046
@@ -158,9 +159,12 @@ async def slash_say(interaction: discord.Interaction, message: str):
     await interaction.channel.send(message)
 
 # -------- REACTION TRACKING --------
+# Global flag to ensure host setup embed only sends once
+host_setup_sent = False
+
 @bot.event
 async def on_raw_reaction_add(payload):
-    global startup_reactors
+    global startup_reactors, host_setup_sent
 
     if startup_active and startup_message and payload.message_id == startup_message.id:
         if str(payload.emoji) == "<:Tick:1480637335237427221>":
@@ -168,24 +172,25 @@ async def on_raw_reaction_add(payload):
 
             # ONLY trigger if the reactor is the startup host
             if startup_host and payload.user_id == startup_host.id:
-                channel = bot.get_channel(payload.channel_id)
-                message = await channel.fetch_message(payload.message_id)
+                if not host_setup_sent:
+                    channel = bot.get_channel(payload.channel_id)
+                    message = await channel.fetch_message(payload.message_id)
 
-                embed = discord.Embed(
-                    title="Event Setup",
-                    description=(
-                        "> The host is currently setting up the Event. Please remain patient as they get everything ready. "
-                        "Ensure you have set all your privacy settings set to __**everyone**__.\n\n"
-                        "> During this time, we recommend that you look over our "
-                        "**[Event Guidelines](https://discord.com/channels/1441901639739904125/1481562585781239969)**. "
-                        "After this step is completed, the host will release the link. "
-                        "You will be pinged again if you have the **Convoy Ping** role."
-                    ),
-                    color=0x87CEFA
-                )
+                    embed = discord.Embed(
+                        title="Event Setup",
+                        description=(
+                            "> The host is currently setting up the Event. Please remain patient as they get everything ready. "
+                            "Ensure you have set all your privacy settings set to __**everyone**__.\n\n"
+                            "> During this time, we recommend that you look over our "
+                            "**[Event Guidelines](https://discord.com/channels/1441901639739904125/1481562585781239969)**. "
+                            "After this step is completed, the host will release the link. "
+                            "You will be pinged again if you have the **Convoy Ping** role."
+                        ),
+                        color=0x87CEFA
+                    )
 
-                await message.reply(embed=embed)
-
+                    await message.reply(embed=embed)
+                    host_setup_sent = True
 
 @bot.event
 async def on_raw_reaction_remove(payload):
