@@ -11,30 +11,58 @@ TOKEN = os.getenv("TOKEN")
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=">", intents=intents)
 
-# ---------------- DYNAMO-STYLE MODLOGS ----------------
-MODLOG_CHANNEL_ID = 1483351237394042910  # Replace with your modlog channel
-MODLOG_COLOR = 0x87CEFA  # Light blue, same as Dyno style
+import discord
+from discord.ext import commands
+from discord import app_commands
+import datetime
 
+# ---------------- BOT SETUP ----------------
+intents = discord.Intents.all()  # Must be all intents
+bot = commands.Bot(command_prefix=">", intents=intents)
+
+MODLOG_CHANNEL_ID = 1483351237394042910  # Modlog channel
+MODLOG_COLOR = 0x87CEFA  # Light blue, Dyno-style
+
+
+# ---------------- UTILITY FUNCTION ----------------
 async def send_modlog(embed: discord.Embed):
     channel = bot.get_channel(MODLOG_CHANNEL_ID)
     if channel:
         await channel.send(embed=embed)
 
-# -------- COMMAND USAGE --------
+
+# ---------------- COMMAND USAGE ----------------
 @bot.event
 async def on_command_completion(ctx):
     embed = discord.Embed(
         title="📝 Command Executed",
         color=MODLOG_COLOR,
-        timestamp=ctx.message.created_at
+        timestamp=datetime.datetime.utcnow()
     )
     embed.add_field(name="User", value=f"{ctx.author} ({ctx.author.mention})", inline=True)
-    embed.add_field(name="Command", value=ctx.command, inline=True)
-    embed.add_field(name="Content", value=ctx.message.content, inline=False)
+    embed.add_field(name="Command", value=f"{ctx.command}", inline=True)
+    embed.add_field(name="Content", value=f"{ctx.message.content}", inline=False)
     embed.set_footer(text=f"User ID: {ctx.author.id} | Message ID: {ctx.message.id}")
     await send_modlog(embed)
 
-# -------- MESSAGE EDITS --------
+
+@bot.event
+async def on_app_command_completion(interaction: discord.Interaction):
+    # Logs slash commands
+    embed = discord.Embed(
+        title="📝 Slash Command Executed",
+        color=MODLOG_COLOR,
+        timestamp=datetime.datetime.utcnow()
+    )
+    embed.add_field(name="User", value=f"{interaction.user} ({interaction.user.mention})", inline=True)
+    embed.add_field(name="Command", value=f"/{interaction.command.name}", inline=True)
+    options = [f"{opt.name} = {opt.value}" for opt in interaction.options.values()] if interaction.options else []
+    embed.add_field(name="Options", value="\n".join(options) or "None", inline=False)
+    embed.set_footer(text=f"User ID: {interaction.user.id} | Interaction ID: {interaction.id}")
+    await send_modlog(embed)
+
+
+# ---------------- MESSAGE EDIT ----------------
 @bot.event
 async def on_message_edit(before, after):
     if before.content == after.content:
@@ -44,14 +72,15 @@ async def on_message_edit(before, after):
         color=MODLOG_COLOR,
         timestamp=datetime.datetime.utcnow()
     )
-    embed.add_field(name="Author", value=f"{before.author} ({before.author.mention})", inline=True)
+    embed.add_field(name="User", value=f"{before.author} ({before.author.mention})", inline=True)
     embed.add_field(name="Channel", value=before.channel.mention, inline=True)
     embed.add_field(name="Before", value=before.content or "Empty", inline=False)
     embed.add_field(name="After", value=after.content or "Empty", inline=False)
     embed.set_footer(text=f"Message ID: {before.id}")
     await send_modlog(embed)
 
-# -------- MESSAGE DELETES --------
+
+# ---------------- MESSAGE DELETE ----------------
 @bot.event
 async def on_message_delete(message):
     embed = discord.Embed(
@@ -59,16 +88,19 @@ async def on_message_delete(message):
         color=MODLOG_COLOR,
         timestamp=datetime.datetime.utcnow()
     )
-    embed.add_field(name="Author", value=f"{message.author} ({message.author.mention})", inline=True)
+    embed.add_field(name="User", value=f"{message.author} ({message.author.mention})", inline=True)
     embed.add_field(name="Channel", value=message.channel.mention, inline=True)
     embed.add_field(name="Content", value=message.content or "Empty", inline=False)
     embed.set_footer(text=f"Message ID: {message.id}")
     await send_modlog(embed)
 
-# -------- ROLE CHANGES --------
+
+# ---------------- ROLE & NICKNAME CHANGES ----------------
 @bot.event
 async def on_member_update(before, after):
     changes = []
+
+    # Role changes
     if before.roles != after.roles:
         added = [r.name for r in after.roles if r not in before.roles]
         removed = [r.name for r in before.roles if r not in after.roles]
@@ -76,8 +108,11 @@ async def on_member_update(before, after):
             changes.append(f"✅ Roles Added: {', '.join(added)}")
         if removed:
             changes.append(f"❌ Roles Removed: {', '.join(removed)}")
+
+    # Nickname changes
     if before.nick != after.nick:
         changes.append(f"✏️ Nickname: {before.nick or before.name} → {after.nick or after.name}")
+
     if changes:
         embed = discord.Embed(
             title="🔧 Member Updated",
@@ -89,7 +124,8 @@ async def on_member_update(before, after):
         embed.set_footer(text=f"User ID: {after.id}")
         await send_modlog(embed)
 
-# -------- MEMBER JOIN/LEAVE --------
+
+# ---------------- MEMBER JOIN/LEAVE ----------------
 @bot.event
 async def on_member_join(member):
     embed = discord.Embed(
@@ -100,6 +136,7 @@ async def on_member_join(member):
     embed.add_field(name="User", value=f"{member} ({member.mention})", inline=True)
     embed.set_footer(text=f"User ID: {member.id}")
     await send_modlog(embed)
+
 
 @bot.event
 async def on_member_remove(member):
@@ -112,7 +149,8 @@ async def on_member_remove(member):
     embed.set_footer(text=f"User ID: {member.id}")
     await send_modlog(embed)
 
-# -------- REACTION ADD/REMOVE --------
+
+# ---------------- REACTIONS ----------------
 @bot.event
 async def on_reaction_add(reaction, user):
     if user.bot:
@@ -127,6 +165,7 @@ async def on_reaction_add(reaction, user):
     embed.add_field(name="Reaction", value=str(reaction.emoji), inline=False)
     embed.set_footer(text=f"Channel: {reaction.message.channel} | Guild: {reaction.message.guild.name}")
     await send_modlog(embed)
+
 
 @bot.event
 async def on_reaction_remove(reaction, user):
@@ -143,7 +182,8 @@ async def on_reaction_remove(reaction, user):
     embed.set_footer(text=f"Channel: {reaction.message.channel} | Guild: {reaction.message.guild.name}")
     await send_modlog(embed)
 
-# -------- VOICE STATE CHANGES --------
+
+# ---------------- VOICE STATE ----------------
 @bot.event
 async def on_voice_state_update(member, before, after):
     if before.channel != after.channel:
