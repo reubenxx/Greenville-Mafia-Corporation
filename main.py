@@ -11,11 +11,6 @@ TOKEN = os.getenv("TOKEN")
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=">", intents=intents)
 
-import discord
-from discord.ext import commands
-from discord import app_commands
-import datetime
-
 # ---------------- MODLOG SYSTEM ----------------
 MODLOG_CHANNEL_ID = 1483351237394042910
 MODLOG_COLOR = 0x87CEFA  # Light blue, Dyno style
@@ -90,7 +85,6 @@ async def on_member_remove(member):
         timestamp=datetime.datetime.utcnow()
     )
     embed.add_field(name="User", value=f"{member} ({member.id})", inline=False)
-    # Attempt to find executor for kicks/bans
     guild = member.guild
     try:
         async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.kick):
