@@ -12,7 +12,7 @@ intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=">", intents=intents)
 
 # ---------------- DYNAMO-STYLE MODLOGS ----------------
-MODLOG_CHANNEL_ID = 1483351237394042910  # Your modlog channel
+MODLOG_CHANNEL_ID = 1483351237394042910
 MODLOG_COLOR = 0x87CEFA  # Light blue
 
 async def send_modlog(embed: discord.Embed):
@@ -35,8 +35,8 @@ async def on_command_completion(ctx):
     await send_modlog(embed)
 
 # -------- SLASH COMMAND USAGE --------
-@bot.tree.listener()
-async def on_app_command_completion(interaction: discord.Interaction):
+@bot.tree.event
+async def on_command_completion(interaction: discord.Interaction):
     if interaction.user.bot:
         return
     embed = discord.Embed(
@@ -46,8 +46,8 @@ async def on_app_command_completion(interaction: discord.Interaction):
     )
     embed.add_field(name="Executor", value=f"{interaction.user} ({interaction.user.mention})", inline=True)
     embed.add_field(name="Command", value=f"/{interaction.command.name}", inline=True)
-    if interaction.data.get("options"):
-        options = ", ".join(f"{opt['name']}: {opt.get('value', 'None')}" for opt in interaction.data["options"])
+    if hasattr(interaction, "options") and interaction.options:
+        options = ", ".join(f"{opt.name}: {opt.value}" for opt in interaction.options)
         embed.add_field(name="Options", value=options, inline=False)
     embed.set_footer(text=f"User ID: {interaction.user.id} | Interaction ID: {interaction.id}")
     await send_modlog(embed)
@@ -87,8 +87,6 @@ async def on_message_delete(message):
 @bot.event
 async def on_member_update(before, after):
     changes = []
-    executor = None
-    # Track role changes
     if before.roles != after.roles:
         added = [r.name for r in after.roles if r not in before.roles]
         removed = [r.name for r in before.roles if r not in after.roles]
@@ -96,7 +94,6 @@ async def on_member_update(before, after):
             changes.append(f"✅ Roles Added: {', '.join(added)}")
         if removed:
             changes.append(f"❌ Roles Removed: {', '.join(removed)}")
-    # Track nickname changes
     if before.nick != after.nick:
         changes.append(f"✏️ Nickname: {before.nick or before.name} → {after.nick or after.name}")
     if changes:
