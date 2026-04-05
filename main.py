@@ -11,46 +11,61 @@ TOKEN = os.getenv("TOKEN")
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=">", intents=intents)
 
-# ---------------- MODLOGS BLOCK ----------------
-MODLOG_CHANNEL_ID = 1483351237394042910  # Your modlog channel
+# ---------------- DYNAMO-STYLE MODLOGS ----------------
+MODLOG_CHANNEL_ID = 1483351237394042910  # Replace with your modlog channel
+MODLOG_COLOR = 0x87CEFA  # Light blue, same as Dyno style
 
 async def send_modlog(embed: discord.Embed):
     channel = bot.get_channel(MODLOG_CHANNEL_ID)
     if channel:
         await channel.send(embed=embed)
 
+# -------- COMMAND USAGE --------
 @bot.event
 async def on_command_completion(ctx):
     embed = discord.Embed(
-        title="Command Used",
-        description=f"**User:** {ctx.author.mention}\n**Command:** {ctx.command}\n**Content:** {ctx.message.content}",
-        color=0x87CEFA
+        title="📝 Command Executed",
+        color=MODLOG_COLOR,
+        timestamp=ctx.message.created_at
     )
+    embed.add_field(name="User", value=f"{ctx.author} ({ctx.author.mention})", inline=True)
+    embed.add_field(name="Command", value=ctx.command, inline=True)
+    embed.add_field(name="Content", value=ctx.message.content, inline=False)
+    embed.set_footer(text=f"User ID: {ctx.author.id} | Message ID: {ctx.message.id}")
     await send_modlog(embed)
 
-# Message edits
+# -------- MESSAGE EDITS --------
 @bot.event
 async def on_message_edit(before, after):
     if before.content == after.content:
         return
     embed = discord.Embed(
-        title="Message Edited",
-        description=f"**Author:** {before.author.mention}\n**Before:** {before.content}\n**After:** {after.content}\n**Channel:** {before.channel.mention}",
-        color=0x87CEFA
+        title="✏️ Message Edited",
+        color=MODLOG_COLOR,
+        timestamp=datetime.datetime.utcnow()
     )
+    embed.add_field(name="Author", value=f"{before.author} ({before.author.mention})", inline=True)
+    embed.add_field(name="Channel", value=before.channel.mention, inline=True)
+    embed.add_field(name="Before", value=before.content or "Empty", inline=False)
+    embed.add_field(name="After", value=after.content or "Empty", inline=False)
+    embed.set_footer(text=f"Message ID: {before.id}")
     await send_modlog(embed)
 
-# Message deletes
+# -------- MESSAGE DELETES --------
 @bot.event
 async def on_message_delete(message):
     embed = discord.Embed(
-        title="Message Deleted",
-        description=f"**Author:** {message.author.mention}\n**Content:** {message.content}\n**Channel:** {message.channel.mention}",
-        color=0x87CEFA
+        title="🗑️ Message Deleted",
+        color=MODLOG_COLOR,
+        timestamp=datetime.datetime.utcnow()
     )
+    embed.add_field(name="Author", value=f"{message.author} ({message.author.mention})", inline=True)
+    embed.add_field(name="Channel", value=message.channel.mention, inline=True)
+    embed.add_field(name="Content", value=message.content or "Empty", inline=False)
+    embed.set_footer(text=f"Message ID: {message.id}")
     await send_modlog(embed)
 
-# Role changes
+# -------- ROLE CHANGES --------
 @bot.event
 async def on_member_update(before, after):
     changes = []
@@ -58,37 +73,90 @@ async def on_member_update(before, after):
         added = [r.name for r in after.roles if r not in before.roles]
         removed = [r.name for r in before.roles if r not in after.roles]
         if added:
-            changes.append(f"Roles Added: {', '.join(added)}")
+            changes.append(f"✅ Roles Added: {', '.join(added)}")
         if removed:
-            changes.append(f"Roles Removed: {', '.join(removed)}")
+            changes.append(f"❌ Roles Removed: {', '.join(removed)}")
     if before.nick != after.nick:
-        changes.append(f"Nickname: {before.nick} → {after.nick}")
+        changes.append(f"✏️ Nickname: {before.nick or before.name} → {after.nick or after.name}")
     if changes:
         embed = discord.Embed(
-            title="Member Updated",
-            description=f"**User:** {after.mention}\n" + "\n".join(changes),
-            color=0x87CEFA
+            title="🔧 Member Updated",
+            color=MODLOG_COLOR,
+            timestamp=datetime.datetime.utcnow()
         )
+        embed.add_field(name="User", value=f"{after} ({after.mention})", inline=True)
+        embed.add_field(name="Changes", value="\n".join(changes), inline=False)
+        embed.set_footer(text=f"User ID: {after.id}")
         await send_modlog(embed)
 
-# Member joins/leaves
+# -------- MEMBER JOIN/LEAVE --------
 @bot.event
 async def on_member_join(member):
     embed = discord.Embed(
-        title="Member Joined",
-        description=f"{member.mention} has joined the server.",
-        color=0x87CEFA
+        title="👤 Member Joined",
+        color=MODLOG_COLOR,
+        timestamp=datetime.datetime.utcnow()
     )
+    embed.add_field(name="User", value=f"{member} ({member.mention})", inline=True)
+    embed.set_footer(text=f"User ID: {member.id}")
     await send_modlog(embed)
 
 @bot.event
 async def on_member_remove(member):
     embed = discord.Embed(
-        title="Member Left",
-        description=f"{member.mention} has left the server.",
-        color=0x87CEFA
+        title="🚪 Member Left",
+        color=MODLOG_COLOR,
+        timestamp=datetime.datetime.utcnow()
     )
+    embed.add_field(name="User", value=f"{member} ({member.mention})", inline=True)
+    embed.set_footer(text=f"User ID: {member.id}")
     await send_modlog(embed)
+
+# -------- REACTION ADD/REMOVE --------
+@bot.event
+async def on_reaction_add(reaction, user):
+    if user.bot:
+        return
+    embed = discord.Embed(
+        title="➕ Reaction Added",
+        color=MODLOG_COLOR,
+        timestamp=datetime.datetime.utcnow()
+    )
+    embed.add_field(name="User", value=f"{user} ({user.mention})", inline=True)
+    embed.add_field(name="Message ID", value=str(reaction.message.id), inline=True)
+    embed.add_field(name="Reaction", value=str(reaction.emoji), inline=False)
+    embed.set_footer(text=f"Channel: {reaction.message.channel} | Guild: {reaction.message.guild.name}")
+    await send_modlog(embed)
+
+@bot.event
+async def on_reaction_remove(reaction, user):
+    if user.bot:
+        return
+    embed = discord.Embed(
+        title="➖ Reaction Removed",
+        color=MODLOG_COLOR,
+        timestamp=datetime.datetime.utcnow()
+    )
+    embed.add_field(name="User", value=f"{user} ({user.mention})", inline=True)
+    embed.add_field(name="Message ID", value=str(reaction.message.id), inline=True)
+    embed.add_field(name="Reaction", value=str(reaction.emoji), inline=False)
+    embed.set_footer(text=f"Channel: {reaction.message.channel} | Guild: {reaction.message.guild.name}")
+    await send_modlog(embed)
+
+# -------- VOICE STATE CHANGES --------
+@bot.event
+async def on_voice_state_update(member, before, after):
+    if before.channel != after.channel:
+        embed = discord.Embed(
+            title="🔊 Voice State Update",
+            color=MODLOG_COLOR,
+            timestamp=datetime.datetime.utcnow()
+        )
+        embed.add_field(name="User", value=f"{member} ({member.mention})", inline=True)
+        embed.add_field(name="Before", value=str(before.channel) if before.channel else "None", inline=True)
+        embed.add_field(name="After", value=str(after.channel) if after.channel else "None", inline=True)
+        embed.set_footer(text=f"User ID: {member.id}")
+        await send_modlog(embed)
 # ----- Convoy state -----
 startup_active = False
 startup_host = None
