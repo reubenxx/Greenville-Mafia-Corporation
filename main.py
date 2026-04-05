@@ -19,7 +19,7 @@ link_message = None
 startup_reactors = set()
 startup_time = None
 required_reactions = 5
-startup_host_notified = False  # Tracks if the host setup embed has been sent
+host_setup_sent = False
 
 # ----- IDs & constants -----
 NOTIFY_ROLE = 1480656237027660046
@@ -159,8 +159,7 @@ async def slash_say(interaction: discord.Interaction, message: str):
     await interaction.channel.send(message)
 
 # -------- REACTION TRACKING --------
-# Global flag to ensure host setup embed only sends once
-host_setup_sent = False
+host_setup_sent = False  # ONLY flag used
 
 @bot.event
 async def on_raw_reaction_add(payload):
@@ -170,28 +169,28 @@ async def on_raw_reaction_add(payload):
         if str(payload.emoji) == "<:Tick:1480637335237427221>":
             startup_reactors.add(payload.user_id)
 
-            # ONLY trigger if the reactor is the startup host
-            if startup_host and payload.user_id == startup_host.id:
-                if not host_setup_sent:
-                    channel = bot.get_channel(payload.channel_id)
-                    message = await channel.fetch_message(payload.message_id)
+            # ONLY host + ONLY once
+            if startup_host and payload.user_id == startup_host.id and not host_setup_sent:
+                channel = bot.get_channel(payload.channel_id)
+                message = await channel.fetch_message(payload.message_id)
 
-                    embed = discord.Embed(
-                        title="Event Setup",
-                        description=(
-                            "> The host is currently setting up the Event. Please remain patient as they get everything ready. "
-                            "Ensure you have set all your privacy settings set to __**everyone**__.\n\n"
-                            "> During this time, we recommend that you look over our "
-                            "**[Event Guidelines](https://discord.com/channels/1441901639739904125/1481562585781239969)**. "
-                            "After this step is completed, the host will release the link. "
-                            "You will be pinged again if you have the **Convoy Ping** role."
-                        ),
-                        color=0x87CEFA
-                    )
+                embed = discord.Embed(
+                    title="Event Setup",
+                    description=(
+                        "> The host is currently setting up the Event. Please remain patient as they get everything ready. "
+                        "Ensure you have set all your privacy settings set to __**everyone**__.\n\n"
+                        "> During this time, we recommend that you look over our "
+                        "**[Event Guidelines](https://discord.com/channels/1441901639739904125/1481562585781239969)**. "
+                        "After this step is completed, the host will release the link. "
+                        "You will be pinged again if you have the **Convoy Ping** role."
+                    ),
+                    color=0x87CEFA
+                )
 
-                    await message.reply(embed=embed)
-                    host_setup_sent = True
+                await message.reply(embed=embed)
 
+                # LOCK IT FOREVER FOR THIS CONVOY
+                host_setup_sent = True
 @bot.event
 async def on_raw_reaction_remove(payload):
     global startup_reactors
@@ -260,15 +259,20 @@ async def startup(interaction: discord.Interaction, reactions: int):
     if not any(role.id in ALLOWED_ROLES for role in member.roles):
         await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
         return
-    global startup_active, startup_host, startup_message, startup_reactors, startup_time, required_reactions
+
+    global startup_active, startup_host, startup_message, startup_reactors, startup_time, required_reactions, host_setup_sent  # ← ADDED host_setup_sent
+
     if startup_active:
         await interaction.response.send_message("A convoy session is already active.", ephemeral=True)
         return
+
     required_reactions = reactions
     startup_active = True
     startup_host = member
     startup_reactors = set()
     startup_time = datetime.datetime.utcnow()
+    host_setup_sent = False  # ← ADD THIS LINE (VERY IMPORTANT)
+
     embed = discord.Embed(
         title="<:GVMC_trophy:1480637860590911610> Greenville Mafia Corporation Event Startup <:GVMC_trophy:1480637860590911610>",
         description=(
@@ -287,12 +291,18 @@ async def startup(interaction: discord.Interaction, reactions: int):
         ),
         color=0x87CEFA
     )
+
     embed.set_image(url=STARTUP_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
+
     await interaction.response.send_message("Convoy started!", ephemeral=True)
+
     startup_message = await interaction.channel.send(
-        content=f"<@&{NOTIFY_ROLE}>", embed=embed, allowed_mentions=discord.AllowedMentions(roles=True)
+        content=f"<@&{NOTIFY_ROLE}>",
+        embed=embed,
+        allowed_mentions=discord.AllowedMentions(roles=True)
     )
+
     await startup_message.add_reaction("<:Tick:1480637335237427221>")
 
 @bot.tree.command(name="blacklist", description="Blacklist a server")
