@@ -6,6 +6,21 @@ import os
 import sys
 import json
 
+# -------- TIME FORMAT FUNCTION --------
+def format_time(dt):
+    now = datetime.now(timezone.utc)
+    local = dt.replace(tzinfo=timezone.utc).astimezone()
+
+    today = now.astimezone().date()
+    date = local.date()
+
+    if date == today:
+        return local.strftime("Today at %I:%M %p")
+    elif (today - date).days == 1:
+        return local.strftime("Yesterday at %I:%M %p")
+    else:
+        return local.strftime("%B %d at %I:%M %p")
+
 TOKEN = os.getenv("TOKEN")
 
 intents = discord.Intents.all()
@@ -771,6 +786,9 @@ async def end(interaction: discord.Interaction, host_note: str):
 
     end_time = datetime.datetime.utcnow()
     duration = end_time - startup_time
+    
+    start_str = format_time(startup_time)
+    end_str = format_time(end_time)
 
     channel = interaction.channel
 
@@ -782,8 +800,8 @@ async def end(interaction: discord.Interaction, host_note: str):
             "We appreciate those who were actively involved & participating in this event. "
             "We hope to see you in more of our events in the future as there are **many** more to come!\n\n"
             f"**Event Information**\n"
-            f"<:dot:1480643720687915058> Event Start Time | <t:{int(startup_time.timestamp())}:f>\n"
-            f"<:dot:1480643720687915058> Event End Time | <t:{int(end_time.timestamp())}:f>\n"
+            f"<:dot:1480643720687915058> Event Start Time | {start_str}\n"
+            f"<:dot:1480643720687915058> Event End Time | {end_str}\n"
             f"<:dot:1480643720687915058> Event Duration | {str(duration).split('.')[0]}\n\n"
             f"<:announcement:1480640464737800253> Additional Notes | {host_note}\n\n"
             "<a:gvmc_heart:1480637190685069472> | Want to help improve our Events? Give us feedback by clicking the feedback button below!"
