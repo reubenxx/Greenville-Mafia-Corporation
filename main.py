@@ -13,7 +13,7 @@ bot = commands.Bot(command_prefix=">", intents=intents)
 
 # ---------------- DYNAMO-STYLE MODLOGS (TARGET + EXECUTOR) ----------------
 MODLOG_CHANNEL_ID = 1483351237394042910  # Replace with your modlog channel
-MODLOG_COLOR = FFA11F  # Light blue, same as Dyno style
+MODLOG_COLOR = 0xFFA11F  # Light blue, same as Dyno style
 TICK_EMOJI = "<:Checkmark:1490181125325193369>"
 CROSS_EMOJI = "<:crossmark:1490180947507675367>"
 
