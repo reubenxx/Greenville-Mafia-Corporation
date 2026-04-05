@@ -11,6 +11,84 @@ TOKEN = os.getenv("TOKEN")
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=">", intents=intents)
 
+# ---------------- MODLOGS BLOCK ----------------
+MODLOG_CHANNEL_ID = 1483351237394042910  # Your modlog channel
+
+async def send_modlog(embed: discord.Embed):
+    channel = bot.get_channel(MODLOG_CHANNEL_ID)
+    if channel:
+        await channel.send(embed=embed)
+
+@bot.event
+async def on_command_completion(ctx):
+    embed = discord.Embed(
+        title="Command Used",
+        description=f"**User:** {ctx.author.mention}\n**Command:** {ctx.command}\n**Content:** {ctx.message.content}",
+        color=0x87CEFA
+    )
+    await send_modlog(embed)
+
+# Message edits
+@bot.event
+async def on_message_edit(before, after):
+    if before.content == after.content:
+        return
+    embed = discord.Embed(
+        title="Message Edited",
+        description=f"**Author:** {before.author.mention}\n**Before:** {before.content}\n**After:** {after.content}\n**Channel:** {before.channel.mention}",
+        color=0x87CEFA
+    )
+    await send_modlog(embed)
+
+# Message deletes
+@bot.event
+async def on_message_delete(message):
+    embed = discord.Embed(
+        title="Message Deleted",
+        description=f"**Author:** {message.author.mention}\n**Content:** {message.content}\n**Channel:** {message.channel.mention}",
+        color=0x87CEFA
+    )
+    await send_modlog(embed)
+
+# Role changes
+@bot.event
+async def on_member_update(before, after):
+    changes = []
+    if before.roles != after.roles:
+        added = [r.name for r in after.roles if r not in before.roles]
+        removed = [r.name for r in before.roles if r not in after.roles]
+        if added:
+            changes.append(f"Roles Added: {', '.join(added)}")
+        if removed:
+            changes.append(f"Roles Removed: {', '.join(removed)}")
+    if before.nick != after.nick:
+        changes.append(f"Nickname: {before.nick} → {after.nick}")
+    if changes:
+        embed = discord.Embed(
+            title="Member Updated",
+            description=f"**User:** {after.mention}\n" + "\n".join(changes),
+            color=0x87CEFA
+        )
+        await send_modlog(embed)
+
+# Member joins/leaves
+@bot.event
+async def on_member_join(member):
+    embed = discord.Embed(
+        title="Member Joined",
+        description=f"{member.mention} has joined the server.",
+        color=0x87CEFA
+    )
+    await send_modlog(embed)
+
+@bot.event
+async def on_member_remove(member):
+    embed = discord.Embed(
+        title="Member Left",
+        description=f"{member.mention} has left the server.",
+        color=0x87CEFA
+    )
+    await send_modlog(embed)
 # ----- Convoy state -----
 startup_active = False
 startup_host = None
