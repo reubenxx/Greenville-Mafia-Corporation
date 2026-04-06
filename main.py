@@ -314,10 +314,10 @@ async def say(interaction: discord.Interaction, content: str):
             name="\u200b",  # blank field name
             value=(
                 f"**Command Executed** | /say\n"
-                f"**User**             | {interaction.user.mention}\n"
-                f"**Content**          | {content}\n"
-                f"**Time**             | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
-                f"**Channel**          | {interaction.channel.mention}"
+                f"**User** | {interaction.user.mention}\n"
+                f"**Content** | {content}\n"
+                f"**Time** | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Channel** | {interaction.channel.mention}"
             ),
             inline=False
         )
@@ -989,9 +989,9 @@ async def info(interaction: discord.Interaction):
             name="\u200b",
             value=(
                 f"**Command Executed** | /botinfo\n"
-                f"**User**             | {interaction.user.mention}\n"
-                f"**Time**             | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
-                f"**Channel**          | {interaction.channel.mention}"
+                f"**User** | {interaction.user.mention}\n"
+                f"**Time** | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Channel** | {interaction.channel.mention}"
             ),
             inline=False
         )
@@ -1036,9 +1036,9 @@ async def membercount(interaction: discord.Interaction):
             name="\u200b",
             value=(
                 f"**Command Executed** | /membercount\n"
-                f"**User**             | {interaction.user.mention}\n"
-                f"**Time**             | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
-                f"**Channel**          | {interaction.channel.mention}"
+                f"**User** | {interaction.user.mention}\n"
+                f"**Time** | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Channel** | {interaction.channel.mention}"
             ),
             inline=False
         )
