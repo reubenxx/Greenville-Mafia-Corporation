@@ -835,10 +835,7 @@ async def membercount(interaction: discord.Interaction):
         )
         return
 
-    # Step 1: Respond ephemerally to avoid command header
-    await interaction.response.send_message("✅ Member count displayed!", ephemeral=True)
-
-    # Step 2: Send the actual embed in the channel
+    # Step 1: Send the actual embed in the channel
     count = guild.member_count
     embed = discord.Embed(
         title="**Members**",
@@ -846,7 +843,7 @@ async def membercount(interaction: discord.Interaction):
         color=EMBED_COLOR,
         timestamp=datetime.datetime.utcnow()
     )
-    await interaction.channel.send(embed=embed)
+    await interaction.response.send_message(embed=embed)
 
     # -------- MODLOG --------
     log_channel = bot.get_channel(MODLOG_CHANNEL)
@@ -857,6 +854,10 @@ async def membercount(interaction: discord.Interaction):
             timestamp=discord.utils.utcnow()
         )
 
+        # PFP + username at top
+        log_embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
+
+        # Horizontal info like /say but without content
         log_embed.add_field(
             name="\u200b",
             value=(
@@ -868,11 +869,7 @@ async def membercount(interaction: discord.Interaction):
             inline=False
         )
 
-        # PFP + username at the top
-        log_embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
-
         await log_channel.send(embed=log_embed)
-
 # -------- KILL COMMAND --------
 @bot.tree.command(name="botreset", description="Restart the Bot")
 async def kill(interaction: discord.Interaction):
