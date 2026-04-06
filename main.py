@@ -191,6 +191,26 @@ async def on_member_update(before, after):
         embed.add_field(name="**Roles Removed**", value=roles_removed_text, inline=False)
 
         await log_channel.send(embed=embed)
+        
+# ------- PARTNERSHIP EMBED --------
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    if message.channel.id == 1480243298294694200:
+        embed = discord.Embed(
+            description="## <:Info:1490510396493402172> __**Tired of Pings?**__\n"
+                        "To avoid pings from this channel, feel free to mute it in settings.\n"
+                        "Looking to partner? Reach out to our Staff through the **[support system]"
+                        "(https://discord.com/channels/1441901639739904125/1443980437184577556)**.",
+            color=EMBED_COLOR
+        )
+
+        await message.channel.send(embed=embed)
+
+    await bot.process_commands(message)
+    
 # -------- MODLOG MESSAGE DELETE --------
 @bot.event
 async def on_message_delete(message):
