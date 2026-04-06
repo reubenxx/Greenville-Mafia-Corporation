@@ -156,7 +156,7 @@ async def on_member_update(before, after):
 
         embed = discord.Embed(
             title="Member Roles Updated",
-            color=EMBED_COLOR
+            color=EMBED_COLOR,
             timestamp=discord.utils.utcnow()
         )
         embed.set_thumbnail(url=after.display_avatar.url)
@@ -179,7 +179,7 @@ async def on_member_update(before, after):
 
         embed = discord.Embed(
             title="Member Roles Updated",
-            color=EMBED_COLOR
+            color=EMBED_COLOR,
             timestamp=discord.utils.utcnow()
         )
         embed.set_thumbnail(url=after.display_avatar.url)
@@ -228,7 +228,7 @@ async def on_message_edit(before, after):
     embed = discord.Embed(
         description=f"**Message from {before.author.mention} edited in {before.channel.mention}.**\n"
                     f"[**Jump to Message**]({after.jump_url})",
-        color=discord.Color.blue()
+        color=EMBED_COLOR
     )
     embed.set_author(name=str(before.author), icon_url=before.author.display_avatar.url)
     embed.add_field(name="Before", value=before.content or "*(Empty Message)*", inline=False)
@@ -305,7 +305,7 @@ async def say(interaction: discord.Interaction, content: str):
     if log_channel:
         embed = discord.Embed(
             title="__**Command Execution**__",
-            color=EMBED_COLOR
+            color=EMBED_COLOR,
             timestamp=discord.utils.utcnow()
         )
 
@@ -856,7 +856,7 @@ async def end(interaction: discord.Interaction, host_note: str):
     if modlog_channel:
         log_embed = discord.Embed(
             title="__**Command Execution**__",
-            color=EMBED_COLOR
+            color=EMBED_COLOR,
             timestamp=discord.utils.utcnow()
         )
         log_embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
@@ -977,7 +977,7 @@ async def info(interaction: discord.Interaction):
     if log_channel:
         log_embed = discord.Embed(
             title="__**Command Execution**__",
-            color=EMBED_COLOR
+            color=EMBED_COLOR,
             timestamp=discord.utils.utcnow()
         )
 
@@ -1024,7 +1024,7 @@ async def membercount(interaction: discord.Interaction):
     if log_channel:
         log_embed = discord.Embed(
             title="__**Command Execution**__",
-            color=EMBED_COLOR
+            color=EMBED_COLOR,
             timestamp=discord.utils.utcnow()
         )
 
