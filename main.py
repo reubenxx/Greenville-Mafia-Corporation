@@ -40,6 +40,7 @@ BLACKLIST_MESSAGE_ID = 1490555367644729364
 GVMC_CONTRIBUTOR_ROLE = 1488794560740986970
 GVMC_STATUS_CHANNEL = 1488795010475360347
 GVMC_STATUS_TEXT = "/gvmc"
+MODLOG_CHANNEL = 1483351237394042910
 
 # Make sure the folder exists
 os.makedirs(os.path.dirname(BLACKLIST_FILE), exist_ok=True)
@@ -89,6 +90,31 @@ async def on_member_join(member):
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
     await channel.send(content=member.mention, embed=embed)
 
+  # -------- MODLOG JOIN --------
+    log_channel = bot.get_channel(MODLOG_CHANNEL)
+    if log_channel:
+        log_embed = discord.Embed(
+            description=f"**Member Joined**\n{member.mention} joined the server",
+            color=discord.Color.green()
+        )
+        log_embed.add_field(name="User ID", value=member.id)
+        log_embed.set_thumbnail(url=member.display_avatar.url)
+        log_embed.timestamp = discord.utils.utcnow()
+        await log_channel.send(embed=log_embed)
+
+@bot.event
+async def on_member_remove(member):
+    log_channel = bot.get_channel(MODLOG_CHANNEL)
+    if log_channel:
+        log_embed = discord.Embed(
+            description=f"**Member Left**\n{member.mention} left the server",
+            color=discord.Color.red()
+        )
+        log_embed.add_field(name="User ID", value=member.id)
+        log_embed.set_thumbnail(url=member.display_avatar.url)
+        log_embed.timestamp = discord.utils.utcnow()
+        await log_channel.send(embed=log_embed)
+        
 @bot.event
 async def on_presence_update(before: discord.Member, after: discord.Member):
     try:
@@ -142,7 +168,6 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
 
     except Exception as e:
         print(f"GVMC status error: {e}")
-
 # -------- SAY COMMAND --------
 @bot.command()
 async def say(ctx, *, message):
