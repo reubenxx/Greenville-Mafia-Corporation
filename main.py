@@ -719,6 +719,7 @@ class LOAView(ui.View):
 class FeedbackModal(ui.Modal, title="Convoy Feedback"):
     rating = ui.TextInput(label="Rating (1-5)")
     feedback = ui.TextInput(label="Feedback", style=discord.TextStyle.paragraph)
+
     async def on_submit(self, interaction: discord.Interaction):
         channel = bot.get_channel(FEEDBACK_CHANNEL)
         embed = discord.Embed(title="NEW CONVOY FEEDBACK", color=0x87CEFA)
@@ -727,6 +728,7 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
         embed.add_field(name="Feedback", value=self.feedback.value)
         await channel.send(embed=embed)
         await interaction.response.send_message("Feedback submitted.", ephemeral=True)
+
 
 class EndView(ui.View):
     def __init__(self):
@@ -739,6 +741,7 @@ class EndView(ui.View):
     )
     async def feedback(self, interaction: discord.Interaction, button: ui.Button):
         await interaction.response.send_modal(FeedbackModal())
+
 
 @bot.tree.command(name="end", description="End the current convoy")
 @app_commands.describe(host_note="Host note for the convoy")
@@ -755,7 +758,6 @@ async def end(interaction: discord.Interaction, host_note: str):
 
     end_time = datetime.datetime.utcnow()
     duration = end_time - startup_time
-
     channel = interaction.channel
 
     # ---- Send the end embed first ----
@@ -778,15 +780,14 @@ async def end(interaction: discord.Interaction, host_note: str):
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
     view = EndView()
     await interaction.response.send_message("Convoy ended!", ephemeral=True)
-    end_msg = await channel.send(embed=embed, view=view)  # save reference to not delete it
+    end_msg = await channel.send(embed=embed, view=view)
 
     # ---- Purge the rest of the messages ----
     def check(msg):
         return not msg.pinned and msg.id != end_msg.id
+    await channel.purge(check=check, limit=None)
 
-    await channel.purge(check=check, limit=None)  # limit=None fetches everything in channel
-
-    # ---- Log the session as usual ----
+    # ---- Session log (internal) ----
     log_channel = bot.get_channel(SESSION_LOG_CHANNEL)
     log_embed = discord.Embed(
         title="Session Logged",
@@ -794,6 +795,29 @@ async def end(interaction: discord.Interaction, host_note: str):
         color=EMBED_COLOR
     )
     await log_channel.send(embed=log_embed)
+
+    # ---- MODLOG ----
+    modlog_channel = bot.get_channel(MODLOG_CHANNEL)
+    if modlog_channel:
+        log_embed = discord.Embed(
+            title="__**Command Execution**__",
+            color=discord.Color.blurple(),
+            timestamp=discord.utils.utcnow()
+        )
+        log_embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
+        log_embed.add_field(
+            name="\u200b",
+            value=(
+                f"**Command Executed** | /end\n"
+                f"**User**             | {interaction.user.mention}\n"
+                f"**Time**             | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Channel**          | {interaction.channel.mention}\n"
+                f"**Host Note**        | {host_note}\n"
+                f"**Event Duration**   | {str(duration).split('.')[0]}"
+            ),
+            inline=False
+        )
+        await modlog_channel.send(embed=log_embed)
 
     # ---- Reset convoy state ----
     startup_active = False
