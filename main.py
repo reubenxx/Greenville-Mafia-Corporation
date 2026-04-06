@@ -200,14 +200,22 @@ async def on_message(message):
 
     if message.channel.id == 1480243298294694200:
         embed = discord.Embed(
-            description="## <:Info:1490510396493402172> __**Tired of Pings?**__\n"
-                        "To avoid pings from this channel, feel free to mute it in settings.\n"
-                        "Looking to partner? Reach out to our Staff through the **[support system]"
-                        "(https://discord.com/channels/1441901639739904125/1443980437184577556)**.",
+            description="### <:Info:1490510396493402172> __**Tired of Pings?**__\n"
+                        "To avoid pings from this channel, feel free to mute it in settings.",
             color=EMBED_COLOR
         )
 
-        await message.channel.send(embed=embed)
+        embed.set_footer(
+            text="Looking to partner? Reach out to our Staff through the support system."
+        )
+
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(
+            label="Support System",
+            url="https://discord.com/channels/1441901639739904125/1443980437184577556"
+        ))
+
+        await message.channel.send(embed=embed, view=view)
 
     await bot.process_commands(message)
     
