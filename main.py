@@ -160,25 +160,27 @@ async def on_message_delete(message):
 # -------- MODLOG MESSAGE EDIT --------
 @bot.event
 async def on_message_edit(before, after):
-    # Ignore edits from bots
     if before.author.bot:
-        return
+        return  # ignore bot edits
 
-    # Only log if content changed
     if before.content == after.content:
-        return
+        return  # ignore edits that don’t change text
 
     log_channel = bot.get_channel(MODLOG_CHANNEL)
-    if log_channel:
-        log_embed = discord.Embed(
-            description=f"**Message Edited**\nBy: {before.author.mention} in {before.channel.mention}",
-            color=discord.Color.blue()
-        )
-        log_embed.add_field(name="User ID", value=before.author.id)
-        log_embed.add_field(name="Before", value=before.content or "No content", inline=False)
-        log_embed.add_field(name="After", value=after.content or "No content", inline=False)
-        log_embed.timestamp = discord.utils.utcnow()
-        await log_channel.send(embed=log_embed)
+    if not log_channel:
+        return
+
+    embed = discord.Embed(
+        description=f"**Message from {before.author.mention} edited in {before.channel.mention}.**\n"
+                    f"[**Jump to Message**]({after.jump_url})",
+        color=discord.Color.blue()
+    )
+    embed.set_author(name=str(before.author), icon_url=before.author.display_avatar.url)
+    embed.add_field(name="Before", value=before.content or "*(Empty Message)*", inline=False)
+    embed.add_field(name="After", value=after.content or "*(Empty Message)*", inline=False)
+    embed.timestamp = discord.utils.utcnow()
+
+    await log_channel.send(embed=embed)
         
 @bot.event
 async def on_presence_update(before: discord.Member, after: discord.Member):
