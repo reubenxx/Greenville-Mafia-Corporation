@@ -135,6 +135,47 @@ async def on_member_remove(member):
         log_embed.set_thumbnail(url=member.display_avatar.url)
         log_embed.timestamp = discord.utils.utcnow()
         await log_channel.send(embed=log_embed)
+
+# -------- MODLOG MESSAGE DELETE --------
+@bot.event
+async def on_message_delete(message):
+    # Ignore messages from bots
+    if message.author.bot:
+        return
+
+    log_channel = bot.get_channel(MODLOG_CHANNEL)
+    if log_channel:
+        log_embed = discord.Embed(
+            description=f"**Message Deleted**\nBy: {message.author.mention} in {message.channel.mention}",
+            color=discord.Color.orange()
+        )
+        log_embed.add_field(name="User ID", value=message.author.id)
+        log_embed.add_field(name="Message Content", value=message.content or "No content", inline=False)
+        log_embed.timestamp = discord.utils.utcnow()
+        await log_channel.send(embed=log_embed)
+
+# -------- MODLOG MESSAGE EDIT --------
+@bot.event
+async def on_message_edit(before, after):
+    # Ignore edits from bots
+    if before.author.bot:
+        return
+
+    # Only log if content changed
+    if before.content == after.content:
+        return
+
+    log_channel = bot.get_channel(MODLOG_CHANNEL)
+    if log_channel:
+        log_embed = discord.Embed(
+            description=f"**Message Edited**\nBy: {before.author.mention} in {before.channel.mention}",
+            color=discord.Color.blue()
+        )
+        log_embed.add_field(name="User ID", value=before.author.id)
+        log_embed.add_field(name="Before", value=before.content or "No content", inline=False)
+        log_embed.add_field(name="After", value=after.content or "No content", inline=False)
+        log_embed.timestamp = discord.utils.utcnow()
+        await log_channel.send(embed=log_embed)
         
 @bot.event
 async def on_presence_update(before: discord.Member, after: discord.Member):
