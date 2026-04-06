@@ -90,27 +90,37 @@ async def on_member_join(member):
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
     await channel.send(content=member.mention, embed=embed)
 
-  # -------- MODLOG JOIN --------
-    log_channel = bot.get_channel(MODLOG_CHANNEL)
-    if log_channel:
-        log_embed = discord.Embed(
-            description=f"**Member Joined**\n{member.mention} joined the server",
-            color=discord.Color.green()
-        )
-        log_embed.add_field(name="User ID", value=member.id)
-        log_embed.set_thumbnail(url=member.display_avatar.url)
-        log_embed.timestamp = discord.utils.utcnow()
-        await log_channel.send(embed=log_embed)
+ # -------- MODLOG JOIN --------
+log_channel = bot.get_channel(MODLOG_CHANNEL)
+if log_channel:
+    account_created = member.created_at
+    account_age_days = (discord.utils.utcnow() - account_created).days
+
+    log_embed = discord.Embed(
+        description=f"**Member Joined**\n{member.mention} has joined the server",
+        color=discord.Color.green()
+    )
+    log_embed.add_field(name="User ID", value=member.id)
+    log_embed.add_field(name="Account Created", value=f"<t:{int(account_created.timestamp())}:F>", inline=False)
+    log_embed.add_field(name="Account Age", value=f"{account_age_days} days", inline=False)
+    log_embed.set_thumbnail(url=member.display_avatar.url)
+    log_embed.timestamp = discord.utils.utcnow()
+    await log_channel.send(embed=log_embed)
 
 @bot.event
 async def on_member_remove(member):
     log_channel = bot.get_channel(MODLOG_CHANNEL)
     if log_channel:
+        account_created = member.created_at
+        account_age_days = (discord.utils.utcnow() - account_created).days
+
         log_embed = discord.Embed(
-            description=f"**Member Left**\n{member.mention} left the server",
+            description=f"**Member Left**\n{member.mention} has left the server",
             color=discord.Color.red()
         )
         log_embed.add_field(name="User ID", value=member.id)
+        log_embed.add_field(name="Account Created", value=f"<t:{int(account_created.timestamp())}:F>", inline=False)
+        log_embed.add_field(name="Account Age", value=f"{account_age_days} days", inline=False)
         log_embed.set_thumbnail(url=member.display_avatar.url)
         log_embed.timestamp = discord.utils.utcnow()
         await log_channel.send(embed=log_embed)
