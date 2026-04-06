@@ -674,7 +674,7 @@ async def link(interaction: discord.Interaction, url: str):
     if log_channel:
         log_embed = discord.Embed(
             title="__**Command Execution**__",
-            color=EMBED_COLOR
+            color=EMBED_COLOR,
             timestamp=discord.utils.utcnow()
         )
 
