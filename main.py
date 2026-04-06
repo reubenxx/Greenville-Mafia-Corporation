@@ -562,6 +562,7 @@ class LinkView(ui.View):
     def __init__(self, url):
         super().__init__(timeout=None)
         self.url = url
+
     @ui.button(label="Join Private Server", style=discord.ButtonStyle.primary)
     async def join(self, interaction: discord.Interaction, button: ui.Button):
         if not startup_active:
@@ -570,7 +571,11 @@ class LinkView(ui.View):
         if interaction.user.id not in startup_reactors:
             await interaction.response.send_message("You must react to the startup message first.", ephemeral=True)
             return
-        embed = discord.Embed(title="Private Server Link", description=f"> Click **[here]({self.url})** to join the private server.", color=0x87CEFA)
+        embed = discord.Embed(
+            title="Private Server Link",
+            description=f"> Click **[here]({self.url})** to join the private server.",
+            color=0x87CEFA
+        )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="link", description="Release the private server link")
@@ -586,6 +591,8 @@ async def link(interaction: discord.Interaction, url: str):
     if member != startup_host:
         await interaction.response.send_message("Only the host can release the link.", ephemeral=True)
         return
+
+    # -------- MAIN EMBED --------
     embed = discord.Embed(
         title="SESSION RELEASE",
         description=(
@@ -597,10 +604,42 @@ async def link(interaction: discord.Interaction, url: str):
     )
     embed.set_image(url=LINK_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
+
     view = LinkView(url)
     await interaction.response.send_message("Link released!", ephemeral=True)
-    link_message = await interaction.channel.send(content=f"<@&{NOTIFY_ROLE}>", embed=embed, view=view, allowed_mentions=discord.AllowedMentions(roles=True))
+    link_message = await interaction.channel.send(
+        content=f"<@&{NOTIFY_ROLE}>",
+        embed=embed,
+        view=view,
+        allowed_mentions=discord.AllowedMentions(roles=True)
+    )
 
+    # -------- MODLOG --------
+    log_channel = bot.get_channel(MODLOG_CHANNEL)
+    if log_channel:
+        log_embed = discord.Embed(
+            title="__**Command Execution**__",
+            color=discord.Color.blurple(),
+            timestamp=discord.utils.utcnow()
+        )
+
+        # PFP + username at top
+        log_embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
+
+        # Horizontal info
+        log_embed.add_field(
+            name="\u200b",
+            value=(
+                f"**Command Executed** | /link\n"
+                f"**User**             | {interaction.user.mention}\n"
+                f"**Content**          | {url}\n"
+                f"**Time**             | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Channel**          | {interaction.channel.mention}"
+            ),
+            inline=False
+        )
+
+        await log_channel.send(embed=log_embed)
 # -------- LOA SYSTEM AND MODALS --------
 class DenyModal(ui.Modal, title="Deny LOA"):
     reason = ui.TextInput(label="Reason for denial", style=discord.TextStyle.paragraph)
