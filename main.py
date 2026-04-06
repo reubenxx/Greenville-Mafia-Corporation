@@ -239,8 +239,11 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
 @bot.tree.command(name="say", description="Say something as the bot")
 @app_commands.describe(content="Content to send")
 async def say(interaction: discord.Interaction, content: str):
-    # Send the message cleanly
-    await interaction.response.send_message(content, ephemeral=False)
+    # Step 1: Respond ephemerally to bypass the default slash command header
+    await interaction.response.send_message("> Message sent!", ephemeral=True)
+
+    # Step 2: Send the actual message as the bot in the channel
+    await interaction.channel.send(content)
 
     # -------- MODLOG --------
     log_channel = bot.get_channel(MODLOG_CHANNEL)
@@ -251,9 +254,9 @@ async def say(interaction: discord.Interaction, content: str):
             timestamp=discord.utils.utcnow()
         )
 
-        # Single field with "label | value" format per line
+        # Single field with "label | value" format
         embed.add_field(
-            name="\u200b",  # blank name so it doesn't show a header
+            name="\u200b",  # blank field name
             value=(
                 f"**Command Executed** | /say\n"
                 f"**User**             | {interaction.user.mention}\n"
@@ -264,7 +267,7 @@ async def say(interaction: discord.Interaction, content: str):
             inline=False
         )
 
-        # Author with PFP at top
+        # PFP + username at the top
         embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
 
         await log_channel.send(embed=embed)
