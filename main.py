@@ -100,7 +100,7 @@ async def on_member_join(member):
 
         log_embed = discord.Embed(
             description=f"**Member Joined**\n{member.mention} has joined the server",
-            color=discord.Color.green()
+            color=EMBED_COLOR
         )
         log_embed.add_field(name="User ID", value=member.id)
         log_embed.add_field(
@@ -127,7 +127,7 @@ async def on_member_remove(member):
 
         log_embed = discord.Embed(
             description=f"**Member Left**\n{member.mention} has left the server",
-            color=discord.Color.red()
+            color=EMBED_COLOR
         )
         log_embed.add_field(name="User ID", value=member.id)
         log_embed.add_field(name="Account Created", value=f"<t:{int(account_created.timestamp())}:F>", inline=False)
@@ -156,7 +156,7 @@ async def on_member_update(before, after):
 
         embed = discord.Embed(
             title="Member Roles Updated",
-            color=discord.Color.green(),
+            color=EMBED_COLOR
             timestamp=discord.utils.utcnow()
         )
         embed.set_thumbnail(url=after.display_avatar.url)
@@ -179,7 +179,7 @@ async def on_member_update(before, after):
 
         embed = discord.Embed(
             title="Member Roles Updated",
-            color=discord.Color.red(),
+            color=EMBED_COLOR
             timestamp=discord.utils.utcnow()
         )
         embed.set_thumbnail(url=after.display_avatar.url)
@@ -205,7 +205,7 @@ async def on_message_delete(message):
     embed = discord.Embed(
         description=f"**Message from {message.author.mention} was deleted in {message.channel.mention}.**\n"
                     f"It was sent on | <t:{int(message.created_at.timestamp())}:F>",
-        color=discord.Color.orange()
+        color=EMBED_COLOR
     )
     embed.set_author(name=str(message.author), icon_url=message.author.display_avatar.url)  # PFP + username
     embed.add_field(name="Message Content", value=message.content or "*(Embed/Attachment/Empty Message)*", inline=False)
@@ -305,7 +305,7 @@ async def say(interaction: discord.Interaction, content: str):
     if log_channel:
         embed = discord.Embed(
             title="__**Command Execution**__",
-            color=discord.Color.blurple(),
+            color=EMBED_COLOR
             timestamp=discord.utils.utcnow()
         )
 
@@ -629,7 +629,7 @@ class LinkView(ui.View):
         embed = discord.Embed(
             title="Private Server Link",
             description=f"> Click **[here]({self.url})** to join the private server.",
-            color=0x87CEFA
+            color=EMBED_COLOR
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -674,7 +674,7 @@ async def link(interaction: discord.Interaction, url: str):
     if log_channel:
         log_embed = discord.Embed(
             title="__**Command Execution**__",
-            color=discord.Color.blurple(),
+            color=EMBED_COLOR
             timestamp=discord.utils.utcnow()
         )
 
@@ -856,7 +856,7 @@ async def end(interaction: discord.Interaction, host_note: str):
     if modlog_channel:
         log_embed = discord.Embed(
             title="__**Command Execution**__",
-            color=discord.Color.blurple(),
+            color=EMBED_COLOR
             timestamp=discord.utils.utcnow()
         )
         log_embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
@@ -977,7 +977,7 @@ async def info(interaction: discord.Interaction):
     if log_channel:
         log_embed = discord.Embed(
             title="__**Command Execution**__",
-            color=discord.Color.blurple(),
+            color=EMBED_COLOR
             timestamp=discord.utils.utcnow()
         )
 
@@ -1024,7 +1024,7 @@ async def membercount(interaction: discord.Interaction):
     if log_channel:
         log_embed = discord.Embed(
             title="__**Command Execution**__",
-            color=discord.Color.blurple(),
+            color=EMBED_COLOR
             timestamp=discord.utils.utcnow()
         )
 
