@@ -810,6 +810,8 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
 async def info(interaction: discord.Interaction):
     uptime = datetime.datetime.utcnow() - bot_start_time
     api_ping = round(bot.latency * 1000)
+
+    # Step 1: Bot info embed
     embed = discord.Embed(
         title="BOT INFO",
         description=(
@@ -820,9 +822,36 @@ async def info(interaction: discord.Interaction):
             f"> Discord.py Version: {discord.__version__}\n"
             f"> Status: Online"
         ),
-        color=EMBED_COLOR
+        color=EMBED_COLOR,
+        timestamp=datetime.datetime.utcnow()
     )
     await interaction.response.send_message(embed=embed)
+
+    # -------- MODLOG --------
+    log_channel = bot.get_channel(MODLOG_CHANNEL)
+    if log_channel:
+        log_embed = discord.Embed(
+            title="__**Command Execution**__",
+            color=discord.Color.blurple(),
+            timestamp=discord.utils.utcnow()
+        )
+
+        # PFP + username at top
+        log_embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
+
+        # Horizontal info (no content field needed for info command)
+        log_embed.add_field(
+            name="\u200b",
+            value=(
+                f"**Command Executed** | /botinfo\n"
+                f"**User**             | {interaction.user.mention}\n"
+                f"**Time**             | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Channel**          | {interaction.channel.mention}"
+            ),
+            inline=False
+        )
+
+        await log_channel.send(embed=log_embed)
 
 # -------- MEMBERCOUNT COMMAND --------
 @bot.tree.command(name="membercount", description="Show total member count")
