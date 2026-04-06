@@ -147,7 +147,7 @@ async def on_member_update(before: discord.Member, after: discord.Member):
     added_roles = [role for role in after.roles if role not in before.roles and role != after.guild.default_role]
     if added_roles:
         embed = discord.Embed(
-            description=f"**{after.display_name} was given the following roles:**",
+            description=f"**{after.mention} was given the following roles:**",
             color=discord.Color.green(),
             timestamp=discord.utils.utcnow()
         )
@@ -160,7 +160,7 @@ async def on_member_update(before: discord.Member, after: discord.Member):
     removed_roles = [role for role in before.roles if role not in after.roles and role != after.guild.default_role]
     if removed_roles:
         embed = discord.Embed(
-            description=f"**{after.display_name} was removed from the following roles:**",
+            description=f"**{after.mention} was removed from the following roles:**",
             color=discord.Color.red(),
             timestamp=discord.utils.utcnow()
         )
