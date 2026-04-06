@@ -235,19 +235,14 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
 
     except Exception as e:
         print(f"GVMC status error: {e}")
-# -------- /SAY COMMAND WITH MODLOG --------
-from discord import app_commands
-from discord.ext import commands
-import discord
-import datetime
-
+# -------- /SAY COMMAND WITH RIGHT-ALIGNED MODLOG --------
 @bot.tree.command(name="say", description="Say something as the bot")
 @app_commands.describe(content="Content to send")
 async def say(interaction: discord.Interaction, content: str):
-    # Send the content to the channel
-    await interaction.response.send_message(content)
+    # Send the message cleanly
+    await interaction.response.send_message(content, ephemeral=False)
 
-    # -------- MODLOG FOR /SAY --------
+    # -------- MODLOG --------
     log_channel = bot.get_channel(MODLOG_CHANNEL)
     if log_channel:
         embed = discord.Embed(
@@ -255,11 +250,21 @@ async def say(interaction: discord.Interaction, content: str):
             color=discord.Color.blurple(),
             timestamp=discord.utils.utcnow()
         )
-        embed.add_field(name="Command Executed", value="/say", inline=False)
-        embed.add_field(name="User", value=f"{interaction.user.mention} ({interaction.user})", inline=False)
-        embed.add_field(name="Content", value=content, inline=False)
-        embed.add_field(name="Time", value=f"<t:{int(datetime.datetime.utcnow().timestamp())}:F>", inline=False)
-        embed.add_field(name="Channel", value=interaction.channel.mention, inline=False)
+
+        # Single field with "label | value" format per line
+        embed.add_field(
+            name="\u200b",  # blank name so it doesn't show a header
+            value=(
+                f"**Command Executed** | /say\n"
+                f"**User**             | {interaction.user.mention}\n"
+                f"**Content**          | {content}\n"
+                f"**Time**             | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Channel**          | {interaction.channel.mention}"
+            ),
+            inline=False
+        )
+
+        # Author with PFP at top
         embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
 
         await log_channel.send(embed=embed)
