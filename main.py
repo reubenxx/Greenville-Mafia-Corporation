@@ -374,7 +374,7 @@ async def startup(interaction: discord.Interaction, reactions: int):
         await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
         return
 
-    global startup_active, startup_host, startup_message, startup_reactors, startup_time, required_reactions, host_setup_sent  # ← ADDED host_setup_sent
+    global startup_active, startup_host, startup_message, startup_reactors, startup_time, required_reactions, host_setup_sent
 
     if startup_active:
         await interaction.response.send_message("A convoy session is already active.", ephemeral=True)
@@ -385,8 +385,9 @@ async def startup(interaction: discord.Interaction, reactions: int):
     startup_host = member
     startup_reactors = set()
     startup_time = datetime.datetime.utcnow()
-    host_setup_sent = False  # ← ADD THIS LINE (VERY IMPORTANT)
+    host_setup_sent = False
 
+    # -------- MAIN EMBED --------
     embed = discord.Embed(
         title="<:GVMC_trophy:1480637860590911610> Greenville Mafia Corporation Event Startup <:GVMC_trophy:1480637860590911610>",
         description=(
@@ -405,7 +406,6 @@ async def startup(interaction: discord.Interaction, reactions: int):
         ),
         color=EMBED_COLOR
     )
-
     embed.set_image(url=STARTUP_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
@@ -418,6 +418,33 @@ async def startup(interaction: discord.Interaction, reactions: int):
     )
 
     await startup_message.add_reaction("<:Tick:1480637335237427221>")
+
+    # -------- MODLOG --------
+    log_channel = bot.get_channel(MODLOG_CHANNEL)
+    if log_channel:
+        log_embed = discord.Embed(
+            title="__**Command Execution**__",
+            color=discord.Color.blurple(),
+            timestamp=discord.utils.utcnow()
+        )
+
+        # PFP + username at top
+        log_embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
+
+        # Horizontal info
+        log_embed.add_field(
+            name="\u200b",
+            value=(
+                f"**Command Executed** | /startup\n"
+                f"**User**             | {interaction.user.mention}\n"
+                f"**Content**          | {reactions} reactions requested\n"
+                f"**Time**             | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Channel**          | {interaction.channel.mention}"
+            ),
+            inline=False
+        )
+
+        await log_channel.send(embed=log_embed)
 
 @bot.tree.command(name="blacklist", description="Blacklist a server")
 @app_commands.describe(
