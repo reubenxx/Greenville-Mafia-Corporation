@@ -50,6 +50,7 @@ LINK_BANNER = "https://cdn.discordapp.com/attachments/1483351237394042910/148980
 END_BANNER = "https://cdn.discordapp.com/attachments/1483351237394042910/1489798597330604113/Your_paragraph_text_7_1.png"
 WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/1482361429188284606/Welcome_1.png"
 
+EMBED_COLOR=0xEECB69
 bot_start_time = datetime.datetime.utcnow()
 
 # -------- EVENTS --------
@@ -83,7 +84,7 @@ async def on_member_join(member):
             "**[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**. "
             "<a:pulsatingheart:1480637910347940064>"
         ),
-        color=0x87CEFA
+        color=EMBED_COLOR
     )
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
     await channel.send(content=member.mention, embed=embed)
@@ -123,7 +124,7 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
                         f"> <a:Animated_Arrow_Bluelite:1484055930919190589> | Would you like to receive the <@&{GVMC_CONTRIBUTOR_ROLE}> role?\n"
                         "> Please put ``/gvmc`` as your status and you will receive all the perks & role."
                     ),
-                    color=0x87CEFA
+                    color=EMBED_COLOR
                 )
 
                 embed.set_footer(
@@ -184,7 +185,7 @@ async def on_raw_reaction_add(payload):
                         "After this step is completed, the host will release the link. "
                         "You will be pinged again if you have the **Convoy Ping** role."
                     ),
-                    color=0x87CEFA
+                    color=EMBED_COLOR
                 )
 
                 await message.reply(embed=embed)
@@ -245,7 +246,7 @@ async def update_blacklist_message(bot):
     embed = discord.Embed(
         title="Blacklisted Servers",
         description=description,
-        color=0x87CEFA
+        color=EMBED_COLOR
     )
 
     message = await channel.fetch_message(BLACKLIST_MESSAGE_ID)
@@ -289,7 +290,7 @@ async def startup(interaction: discord.Interaction, reactions: int):
             "<a:pulsatingheart:1480637910347940064> | Please wait for the **session release**. "
             "You will be notified within this channel when it has been **released**."
         ),
-        color=0x87CEFA
+        color=EMBED_COLOR
     )
 
     embed.set_image(url=STARTUP_BANNER)
@@ -343,7 +344,7 @@ async def blacklist(interaction: discord.Interaction, server_name: str, server_i
             f"Reason: {reason}\n"
             f"Notes: {notes}"
         ),
-        color=0x87CEFA
+        color=EMBED_COLOR
     )
 
     await log_channel.send(embed=embed)
@@ -383,7 +384,7 @@ async def delblacklist(interaction: discord.Interaction, number: int):
             f"Reason: {removed['reason']}\n"
             f"Notes: {removed['notes']}"
         ),
-        color=0xFF0000
+        color=EMBED_COLOR
     )
 
     await log_channel.send(f"<@&{BLACKLIST_PING_ROLE}>", embed=embed)
@@ -407,7 +408,7 @@ async def setupblacklist(interaction: discord.Interaction):
             "For proof of a specific blacklist or appeal a blacklist, please open a support ticket.\n\n"
             "No blacklisted servers."
         ),
-        color=0x87CEFA
+        color=EMBED_COLOR
     )
 
     msg = await channel.send(embed=embed)
@@ -452,7 +453,7 @@ async def link(interaction: discord.Interaction, url: str):
             "Please read all **[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)**.\n"
             "Respect hosts, members & staff. Ping host in **[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** if needed."
         ),
-        color=0x87CEFA
+        color=EMBED_COLOR
     )
     embed.set_image(url=LINK_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
@@ -475,7 +476,7 @@ class DenyModal(ui.Modal, title="Deny LOA"):
                 "If this is a misunderstanding, please contact management. "
                 "Please do not submit another LOA until you have discussed with Management."
             ),
-            color=0x87CEFA
+            color=EMBED_COLOR
         )
         try: await self.target_user.send(embed=embed)
         except: pass
@@ -514,7 +515,7 @@ class LOAView(ui.View):
                 "After your LOA ends, activity is expected. You may not submit another LOA for 28 days.\n\n"
                 "Kind Regards,\nGreenville Mafia Corporation,\nManagement."
             ),
-            color=0x87CEFA
+            color=EMBED_COLOR
         )
         try: await user.send(embed=embed)
         except: pass
@@ -592,7 +593,7 @@ async def end(interaction: discord.Interaction, host_note: str):
             f"<:announcement:1480640464737800253> Additional Notes | {host_note}\n\n"
             "<a:gvmc_heart:1480637190685069472> | Want to help improve our Events? Give us feedback by clicking the feedback button below!"
         ),
-        color=0x87CEFA
+        color=EMBED_COLOR
     )
     embed.set_image(url=END_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
@@ -611,7 +612,7 @@ async def end(interaction: discord.Interaction, host_note: str):
     log_embed = discord.Embed(
         title="Session Logged",
         description=f"Host: {member.mention}\nDuration: {str(duration).split('.')[0]}\nHost Note: {host_note}",
-        color=0x87CEFA
+        color=EMBED_COLOR
     )
     await log_channel.send(embed=log_embed)
 
@@ -662,7 +663,7 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
 
             "**If you do not get a DM response within 1 day, please create a ticket.**"
         ),
-        color=0x87CEFA
+        color=EMBED_COLOR
     )
 
     # Send confirmation via followup
@@ -683,7 +684,7 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
                     f"<:dot:1480643720687915058> Additional Notes | {notes}\n\n"
                     "Please use the buttons below to approve/deny this LOA."
                 ),
-                color=0x87CEFA
+                color=EMBED_COLOR
             )
 
             view = LOAView(member.id, start_ts, end_ts)
@@ -706,7 +707,7 @@ async def info(interaction: discord.Interaction):
             f"> Discord.py Version: {discord.__version__}\n"
             f"> Status: Online"
         ),
-        color=0x87CEFA
+        color=EMBED_COLOR
     )
     await interaction.response.send_message(embed=embed)
 
@@ -724,7 +725,7 @@ async def membercount(interaction: discord.Interaction):
     embed = discord.Embed(
         title="**Members**",
         description=f"{count}",
-        color=0x87CEFA
+        color=EMBED_COLOR
     )
     embed.timestamp = datetime.datetime.utcnow()
     await interaction.response.send_message(embed=embed)
