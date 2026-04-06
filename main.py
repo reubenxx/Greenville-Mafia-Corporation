@@ -136,39 +136,61 @@ async def on_member_remove(member):
         log_embed.timestamp = discord.utils.utcnow()
         await log_channel.send(embed=log_embed)
 
-# -------- MODLOG ROLE UPDATES --------
 @bot.event
-async def on_member_update(before: discord.Member, after: discord.Member):
+async def on_member_update(before, after):
     log_channel = bot.get_channel(MODLOG_CHANNEL)
     if not log_channel:
         return
 
-    # Detect added roles
-    added_roles = [role for role in after.roles if role not in before.roles and role != after.guild.default_role]
+    # Check for role changes
+    added_roles = [role for role in after.roles if role not in before.roles]
+    removed_roles = [role for role in before.roles if role not in after.roles]
+
+    # Roles Added
     if added_roles:
+        executor = None
+        async for entry in after.guild.audit_logs(limit=5, action=discord.AuditLogAction.member_role_update):
+            if entry.target.id == after.id and entry.created_at > (discord.utils.utcnow() - datetime.timedelta(seconds=5)):
+                executor = entry.user
+                break
+
         embed = discord.Embed(
-            description=f"**{after.mention} was given the following roles:**",
+            title="Member Roles Updated",
             color=discord.Color.green(),
             timestamp=discord.utils.utcnow()
         )
-        embed.set_author(name=str(after), icon_url=after.display_avatar.url)
-        for role in added_roles:
-            embed.add_field(name="\u200b", value=f"<:Checkmark:1490181125325193369> | {role.mention}", inline=False)
+        embed.set_thumbnail(url=after.display_avatar.url)
+        embed.add_field(name="**Executor**", value=executor.mention if executor else "Unknown", inline=True)
+        embed.add_field(name="**Target**", value=after.mention, inline=True)
+        embed.add_field(name="**Time**", value=f"<t:{int(discord.utils.utcnow().timestamp())}:F>", inline=False)
+
+        roles_added_text = "\n".join(f"<:Checkmark:1490181125325193369> | {role.mention}" for role in added_roles)
+        embed.add_field(name="**Roles Added**", value=roles_added_text, inline=False)
+
         await log_channel.send(embed=embed)
 
-    # Detect removed roles
-    removed_roles = [role for role in before.roles if role not in after.roles and role != after.guild.default_role]
+    # Roles Removed
     if removed_roles:
+        executor = None
+        async for entry in after.guild.audit_logs(limit=5, action=discord.AuditLogAction.member_role_update):
+            if entry.target.id == after.id and entry.created_at > (discord.utils.utcnow() - datetime.timedelta(seconds=5)):
+                executor = entry.user
+                break
+
         embed = discord.Embed(
-            description=f"**{after.mention} was removed from the following roles:**",
+            title="Member Roles Updated",
             color=discord.Color.red(),
             timestamp=discord.utils.utcnow()
         )
-        embed.set_author(name=str(after), icon_url=after.display_avatar.url)
-        for role in removed_roles:
-            embed.add_field(name="\u200b", value=f"<:crossmark:1490180947507675367> | {role.mention}", inline=False)
-        await log_channel.send(embed=embed)
+        embed.set_thumbnail(url=after.display_avatar.url)
+        embed.add_field(name="**Executor**", value=executor.mention if executor else "Unknown", inline=True)
+        embed.add_field(name="**Target**", value=after.mention, inline=True)
+        embed.add_field(name="**Time**", value=f"<t:{int(discord.utils.utcnow().timestamp())}:F>", inline=False)
 
+        roles_removed_text = "\n".join(f"<:crossmark:1490180947507675367> | {role.mention}" for role in removed_roles)
+        embed.add_field(name="**Roles Removed**", value=roles_removed_text, inline=False)
+
+        await log_channel.send(embed=embed)
 # -------- MODLOG MESSAGE DELETE --------
 @bot.event
 async def on_message_delete(message):
