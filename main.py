@@ -70,25 +70,27 @@ async def on_ready():
 
 @bot.event
 async def on_member_join(member):
+    # -------- WELCOME MESSAGE --------
     channel = bot.get_channel(WELCOME_CHANNEL)
-    embed = discord.Embed(
-        title="<a:welcome:1483008041413509141> Welcome to __**Greenville Mafia Corporation**__ <a:welcome:1483008041413509141>",
-        description=(
-            "<a:gvmc_heart:1480637190685069472> **Welcome to __Greenville Mafia Corporation!__**\n"
-            "We are honored to have you here with us! Before you venture off into **GVMC**, please "
-            "**[verify](https://discord.com/channels/1441901639739904125/1471452917163884738)** "
-            "to gain full access to our server.\n\n"
-            "<a:pulsatingheart:1480637910347940064> We host daily Convoys, Events, Occasional Giveaways "
-            "and other fun surprises! We look forward to seeing you participate in the full life of "
-            "__**Greenville Mafia Corporation**__. If you require any form of assistance, please do not "
-            "hesitate to contact our lovely Staff Team "
-            "**[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**. "
-            "<a:pulsatingheart:1480637910347940064>"
-        ),
-        color=EMBED_COLOR
-    )
-    embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
-    await channel.send(content=member.mention, embed=embed)
+    if channel:
+        embed = discord.Embed(
+            title="<a:welcome:1483008041413509141> Welcome to __**Greenville Mafia Corporation**__ <a:welcome:1483008041413509141>",
+            description=(
+                "<a:gvmc_heart:1480637190685069472> **Welcome to __Greenville Mafia Corporation!__**\n"
+                "We are honored to have you here with us! Before you venture off into **GVMC**, please "
+                "**[verify](https://discord.com/channels/1441901639739904125/1471452917163884738)** "
+                "to gain full access to our server.\n\n"
+                "<a:pulsatingheart:1480637910347940064> We host daily Convoys, Events, Occasional Giveaways "
+                "and other fun surprises! We look forward to seeing you participate in the full life of "
+                "__**Greenville Mafia Corporation**__. If you require any form of assistance, please do not "
+                "hesitate to contact our lovely Staff Team "
+                "**[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**. "
+                "<a:pulsatingheart:1480637910347940064>"
+            ),
+            color=EMBED_COLOR
+        )
+        embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
+        await channel.send(content=member.mention, embed=embed)
 
     # -------- MODLOG JOIN --------
     log_channel = bot.get_channel(MODLOG_CHANNEL)
@@ -101,10 +103,19 @@ async def on_member_join(member):
             color=discord.Color.green()
         )
         log_embed.add_field(name="User ID", value=member.id)
-        log_embed.add_field(name="Account Created", value=f"<t:{int(account_created.timestamp())}:F>", inline=False)
-        log_embed.add_field(name="Account Age", value=f"{account_age_days} days", inline=False)
+        log_embed.add_field(
+            name="Account Created",
+            value=f"<t:{int(account_created.timestamp())}:F>",
+            inline=False
+        )
+        log_embed.add_field(
+            name="Account Age",
+            value=f"{account_age_days} days",
+            inline=False
+        )
         log_embed.set_thumbnail(url=member.display_avatar.url)
         log_embed.timestamp = discord.utils.utcnow()
+
         await log_channel.send(embed=log_embed)
 
 @bot.event
