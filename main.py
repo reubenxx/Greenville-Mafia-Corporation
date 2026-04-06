@@ -235,21 +235,34 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
 
     except Exception as e:
         print(f"GVMC status error: {e}")
-# -------- SAY COMMAND --------
-@bot.command()
-async def say(ctx, *, message):
-    await ctx.message.delete()
-    await ctx.send(message)
+# -------- /SAY COMMAND WITH MODLOG --------
+from discord import app_commands
+from discord.ext import commands
+import discord
+import datetime
 
-@bot.tree.command(name="say", description="Make the bot say something")
-@app_commands.describe(message="The message you want the bot to send")
-async def slash_say(interaction: discord.Interaction, message: str):
-    member = interaction.guild.get_member(interaction.user.id)
-    if 1474121009656500225 not in [role.id for role in member.roles]:
-        await interaction.response.send_message("You are not authorized to use this command.", ephemeral=True)
-        return
-    await interaction.response.defer(ephemeral=True)
-    await interaction.channel.send(message)
+@bot.tree.command(name="say", description="Say something as the bot")
+@app_commands.describe(content="Content to send")
+async def say(interaction: discord.Interaction, content: str):
+    # Send the content to the channel
+    await interaction.response.send_message(content)
+
+    # -------- MODLOG FOR /SAY --------
+    log_channel = bot.get_channel(MODLOG_CHANNEL)
+    if log_channel:
+        embed = discord.Embed(
+            title="__**Command Execution**__",
+            color=discord.Color.blurple(),
+            timestamp=discord.utils.utcnow()
+        )
+        embed.add_field(name="Command Executed", value="/say", inline=False)
+        embed.add_field(name="User", value=f"{interaction.user.mention} ({interaction.user})", inline=False)
+        embed.add_field(name="Content", value=content, inline=False)
+        embed.add_field(name="Time", value=f"<t:{int(datetime.datetime.utcnow().timestamp())}:F>", inline=False)
+        embed.add_field(name="Channel", value=interaction.channel.mention, inline=False)
+        embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
+
+        await log_channel.send(embed=embed)
 
 # -------- REACTION TRACKING --------
 host_setup_sent = False  # ONLY flag used
