@@ -139,21 +139,24 @@ async def on_member_remove(member):
 # -------- MODLOG MESSAGE DELETE --------
 @bot.event
 async def on_message_delete(message):
-    # Ignore messages from bots
     if message.author.bot:
-        return
+        return  # ignore bot messages
 
     log_channel = bot.get_channel(MODLOG_CHANNEL)
-    if log_channel:
-        log_embed = discord.Embed(
-            description=f"**Message Deleted**\nBy: {message.author.mention} in {message.channel.mention}",
-            color=discord.Color.orange()
-        )
-        log_embed.add_field(name="User ID", value=message.author.id)
-        log_embed.add_field(name="Message Content", value=message.content or "No content", inline=False)
-        log_embed.timestamp = discord.utils.utcnow()
-        await log_channel.send(embed=log_embed)
+    if not log_channel:
+        return
 
+    # Build horizontal embed
+    embed = discord.Embed(
+        description=f"**Message from {message.author.mention} was deleted in {message.channel.mention}.**\n"
+                    f"It was sent on | <t:{int(message.created_at.timestamp())}:F>",
+        color=discord.Color.orange()
+    )
+    embed.set_author(name=str(message.author), icon_url=message.author.display_avatar.url)  # PFP + username
+    embed.add_field(name="Message Content", value=message.content or "*(Embed/Attachment/Empty Message)*", inline=False)
+    embed.timestamp = discord.utils.utcnow()
+
+    await log_channel.send(embed=embed)
 # -------- MODLOG MESSAGE EDIT --------
 @bot.event
 async def on_message_edit(before, after):
