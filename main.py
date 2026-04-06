@@ -136,6 +136,39 @@ async def on_member_remove(member):
         log_embed.timestamp = discord.utils.utcnow()
         await log_channel.send(embed=log_embed)
 
+# -------- MODLOG ROLE UPDATES --------
+@bot.event
+async def on_member_update(before: discord.Member, after: discord.Member):
+    log_channel = bot.get_channel(MODLOG_CHANNEL)
+    if not log_channel:
+        return
+
+    # Detect added roles
+    added_roles = [role for role in after.roles if role not in before.roles and role != after.guild.default_role]
+    if added_roles:
+        embed = discord.Embed(
+            description=f"**{after.display_name} was given the following roles:**",
+            color=discord.Color.green(),
+            timestamp=discord.utils.utcnow()
+        )
+        embed.set_author(name=str(after), icon_url=after.display_avatar.url)
+        for role in added_roles:
+            embed.add_field(name="\u200b", value=f"<:Checkmark:1490181125325193369> | {role.mention}", inline=False)
+        await log_channel.send(embed=embed)
+
+    # Detect removed roles
+    removed_roles = [role for role in before.roles if role not in after.roles and role != after.guild.default_role]
+    if removed_roles:
+        embed = discord.Embed(
+            description=f"**{after.display_name} was removed from the following roles:**",
+            color=discord.Color.red(),
+            timestamp=discord.utils.utcnow()
+        )
+        embed.set_author(name=str(after), icon_url=after.display_avatar.url)
+        for role in removed_roles:
+            embed.add_field(name="\u200b", value=f"<:crossmark:1490180947507675367> | {role.mention}", inline=False)
+        await log_channel.send(embed=embed)
+
 # -------- MODLOG MESSAGE DELETE --------
 @bot.event
 async def on_message_delete(message):
