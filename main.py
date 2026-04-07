@@ -51,7 +51,7 @@ LINK_BANNER = "https://i.imgur.com/5Eo9qNz.jpeg"
 END_BANNER = "https://i.imgur.com/FE8kfRq.jpeg"
 WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/1482361429188284606/Welcome_1.png"
 
-EMBED_COLOR=0xEECB69
+EMBED_COLOR=0x996515
 bot_start_time = datetime.datetime.utcnow()
 
 # -------- EVENTS --------
@@ -583,7 +583,7 @@ async def startup(interaction: discord.Interaction, reactions: int):
     if log_channel:
         log_embed = discord.Embed(
             title="__**Command Execution**__",
-            color=discord.Color.blurple(),
+            color=EMBED_COLOR
             timestamp=discord.utils.utcnow()
         )
 
@@ -790,10 +790,10 @@ async def link(interaction: discord.Interaction, url: str):
             name="\u200b",
             value=(
                 f"**Command Executed** | /link\n"
-                f"**User**             | {interaction.user.mention}\n"
-                f"**Content**          | {url}\n"
-                f"**Time**             | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
-                f"**Channel**          | {interaction.channel.mention}"
+                f"**User** | {interaction.user.mention}\n"
+                f"**Content** | {url}\n"
+                f"**Time** | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Channel** | {interaction.channel.mention}"
             ),
             inline=False
         )
@@ -968,11 +968,11 @@ async def end(interaction: discord.Interaction, host_note: str):
             name="\u200b",
             value=(
                 f"**Command Executed** | /end\n"
-                f"**User**             | {interaction.user.mention}\n"
-                f"**Time**             | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
-                f"**Channel**          | {interaction.channel.mention}\n"
-                f"**Host Note**        | {host_note}\n"
-                f"**Event Duration**   | {str(duration).split('.')[0]}"
+                f"**User** | {interaction.user.mention}\n"
+                f"**Time** | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Channel** | {interaction.channel.mention}\n"
+                f"**Host Note** | {host_note}\n"
+                f"**Event Duration** | {str(duration).split('.')[0]}"
             ),
             inline=False
         )
