@@ -51,7 +51,7 @@ LINK_BANNER = "https://i.imgur.com/5Eo9qNz.jpeg"
 END_BANNER = "https://i.imgur.com/FE8kfRq.jpeg"
 WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/1482361429188284606/Welcome_1.png"
 
-EMBED_COLOR=0x996515
+EMBED_COLOR=0xEECB69
 bot_start_time = datetime.datetime.utcnow()
 
 # -------- EVENTS --------
