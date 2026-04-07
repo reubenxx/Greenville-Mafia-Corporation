@@ -46,9 +46,9 @@ MODLOG_CHANNEL = 1483351237394042910
 os.makedirs(os.path.dirname(BLACKLIST_FILE), exist_ok=True)
 
 FOOTER_ICON = "https://media.discordapp.net/attachments/1467783372469178442/1480467031571693710/image.png"
-STARTUP_BANNER = "https://cdn.discordapp.com/attachments/1462071387685392425/1489804105189818439/Your_paragraph_text_8_1.png"
-LINK_BANNER = "https://cdn.discordapp.com/attachments/1483351237394042910/1489807014279381133/Copy_of_Your_paragraph_text_1.png"
-END_BANNER = "https://cdn.discordapp.com/attachments/1483351237394042910/1489798597330604113/Your_paragraph_text_7_1.png"
+STARTUP_BANNER = "https://i.imgur.com/cpnzBpT.jpeg"
+LINK_BANNER = "https://i.imgur.com/5Eo9qNz.jpeg"
+END_BANNER = "https://i.imgur.com/FE8kfRq.jpeg"
 WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/1482361429188284606/Welcome_1.png"
 
 EMBED_COLOR=0xEECB69
