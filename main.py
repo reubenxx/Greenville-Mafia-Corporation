@@ -738,7 +738,7 @@ class LinkView(ui.View):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="link", description="Release the private server link")
-async def link(interaction: discord.Interaction, url: str):
+async def link(interaction: discord.Interaction, url: str, session_type: str, additional_info: str = "N/A"):
     member = interaction.guild.get_member(interaction.user.id)
     if not any(role.id in ALLOWED_ROLES for role in member.roles):
         await interaction.response.send_message("You are not authorized.", ephemeral=True)
@@ -752,15 +752,25 @@ async def link(interaction: discord.Interaction, url: str):
         return
 
     # -------- MAIN EMBED --------
-    embed = discord.Embed(
-        title="SESSION RELEASE",
-        description=(
-            f"> {member.mention} has released the session link.\n"
-            "Please read all **[convoy rules](https://discord.com/channels/1441901639739904125/1481562585781239969)**.\n"
-            "Respect hosts, members & staff. Ping host in **[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** if needed."
-        ),
-        color=EMBED_COLOR
-    )
+   embed = discord.Embed(
+    title="SESSION RELEASE",
+    description=(
+        f"> <:dmsarrow:1491008371682443325> {member.mention} has released the following session. "
+        "Please ensure you have read over our "
+        "**[guidelines](https://discord.com/channels/1441901639739904125/1481562585781239969)** before proceeding. "
+        "Please remember to use our "
+        "**[event chat](https://discord.com/channels/1441901639739904125/1474109435751305286)** "
+        "if you are affected by any form of **Roblox Chat Restrictions.**\n\n"
+
+        f"**Information**\n"
+        f"> <:dot:1491005539201843290> **Session Type** | {session_type}\n"
+        f"<:dot:1491005539201843290> **Host** | {startup_host.mention}\n"
+        f"<:dot:1491005539201843290> **Additional Information** | {additional_info}\n\n"
+
+        "> Join using the button beneath this embed. We hope you enjoy the session, leave feedback at the end!"
+    ),
+    color=EMBED_COLOR
+)
     embed.set_image(url=LINK_BANNER)
     embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
 
