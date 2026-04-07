@@ -275,10 +275,24 @@ async def on_message(message):
         )
 
         view = discord.ui.View()
-        view.add_item(discord.ui.Button(
-            label="Support System",
-            url="https://discord.com/channels/1441901639739904125/1443980437184577556"
-        ))
+
+# Support button
+view.add_item(discord.ui.Button(
+    label="Support System",
+    url="https://discord.com/channels/1441901639739904125/1443980437184577556"
+))
+
+# Partnership Requirements button
+view.add_item(discord.ui.Button(
+    label="Partnership Requirements",
+    url="https://discord.com/channels/1441901639739904125/1480243298294694200/1480644355583774832"
+))
+
+# Blacklisted Servers button
+view.add_item(discord.ui.Button(
+    label="Blacklisted Servers",
+    url="https://discord.com/channels/1441901639739904125/1485708172965580851"
+))
 
         await message.channel.send(embed=embed, view=view)
 
@@ -584,10 +598,10 @@ async def startup(interaction: discord.Interaction, reactions: int):
             name="\u200b",
             value=(
                 f"**Command Executed** | /startup\n"
-                f"**User**             | {interaction.user.mention}\n"
-                f"**Content**          | {reactions} reactions requested\n"
-                f"**Time**             | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
-                f"**Channel**          | {interaction.channel.mention}"
+                f"**User** | {interaction.user.mention}\n"
+                f"**Content** | {reactions} reactions requested\n"
+                f"**Time** | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Channel** | {interaction.channel.mention}"
             ),
             inline=False
         )
