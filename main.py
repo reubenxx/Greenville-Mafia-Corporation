@@ -439,7 +439,7 @@ async def on_raw_reaction_add(payload):
     global startup_reactors, host_setup_sent
 
     if startup_active and startup_message and payload.message_id == startup_message.id:
-        if str(payload.emoji) == "<:Tick:1480637335237427221>":
+        if str(payload.emoji) == "<:Checkmark:1490181125325193369>":
             startup_reactors.add(payload.user_id)
 
             # ONLY host + ONLY once
@@ -469,7 +469,7 @@ async def on_raw_reaction_remove(payload):
     global startup_reactors
 
     if startup_active and startup_message and payload.message_id == startup_message.id:
-        if str(payload.emoji) == "<:Tick:1480637335237427221>":
+        if str(payload.emoji) == "<:Checkmark:1490181125325193369>":
             startup_reactors.discard(payload.user_id)
 
 # -------- BLACKLIST STORAGE --------
@@ -722,7 +722,7 @@ class LinkView(ui.View):
         super().__init__(timeout=None)
         self.url = url
 
-    @ui.button(label="Join Private Server", style=discord.ButtonStyle.primary)
+    @ui.button(label="Server Access", style=discord.ButtonStyle.secondary)
     async def join(self, interaction: discord.Interaction, button: ui.Button):
         if not startup_active:
             await interaction.response.send_message("No active convoy.", ephemeral=True)
@@ -764,8 +764,8 @@ async def link(interaction: discord.Interaction, url: str, session_type: str, ad
 
             f"**Information**\n"
             f"> <:dot:1491005539201843290> **Session Type** | {session_type}\n"
-            f"<:dot:1491005539201843290> **Host** | {startup_host.mention}\n"
-            f"<:dot:1491005539201843290> **Additional Information** | {additional_info}\n\n"
+            f"> <:dot:1491005539201843290> **Host** | {startup_host.mention}\n"
+            f"> <:dot:1491005539201843290> **Additional Information** | {additional_info}\n\n"
 
             "> Join using the button beneath this embed. We hope you enjoy the session, leave feedback at the end!"
         ),
