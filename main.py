@@ -276,22 +276,10 @@ async def on_message(message):
 
         view = discord.ui.View()
 
-# Support button
+view = discord.ui.View()
 view.add_item(discord.ui.Button(
     label="Support System",
     url="https://discord.com/channels/1441901639739904125/1443980437184577556"
-))
-
-# Partnership Requirements button
-view.add_item(discord.ui.Button(
-    label="Partnership Requirements",
-    url="https://discord.com/channels/1441901639739904125/1480243298294694200/1480644355583774832"
-))
-
-# Blacklisted Servers button
-view.add_item(discord.ui.Button(
-    label="Blacklisted Servers",
-    url="https://discord.com/channels/1441901639739904125/1485708172965580851"
 ))
 
         await message.channel.send(embed=embed, view=view)
