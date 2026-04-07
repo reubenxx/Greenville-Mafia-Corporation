@@ -556,9 +556,9 @@ async def startup(interaction: discord.Interaction, reactions: int):
             "to ensure a smooth event for everyone. To confirm presence, please react with the <:Tick:1480637335237427221> below. "
             "We also ask that you have your privacy settings set to __**everyone**__ to ensure a trouble free event.\n\n"
             f"**Information**\n"
-            f"<:dot:1480643720687915058> | The host has requested __**{required_reactions}**__ reactions. "
+            f"<:dot:1491005539201843290> | The host has requested __**{required_reactions}**__ reactions. "
             "Once we reach the reaction count, the link will be released within this channel.\n"
-            "<:dot:1480643720687915058> | Affected by **Roblox Chat Restriction**? Feel free to communicate with others or the host in our "
+            "<:dot:1491005539201843290> | Affected by **Roblox Chat Restriction**? Feel free to communicate with others or the host in our "
             "**[convoy chat](https://discord.com/channels/1441901639739904125/1474109435751305286)**\n\n"
             "<a:pulsatingheart:1480637910347940064> | Please wait for the **session release**. "
             "You will be notified within this channel when it has been **released**."
@@ -576,7 +576,7 @@ async def startup(interaction: discord.Interaction, reactions: int):
         allowed_mentions=discord.AllowedMentions(roles=True)
     )
 
-    await startup_message.add_reaction("<:Tick:1480637335237427221>")
+    await startup_message.add_reaction("<:Checkmark:1490181125325193369>")
 
     # -------- MODLOG --------
     log_channel = bot.get_channel(MODLOG_CHANNEL)
@@ -932,16 +932,16 @@ async def end(interaction: discord.Interaction, host_note: str):
 
     # ---- Send the end embed first ----
     embed = discord.Embed(
-        title=" <:Gvmc_crown:1480630263456464957> Greenville Mafia Corporation Conclusion <:Gvmc_crown:1480630263456464957>",
+        title="<:Gvmc_crown:1491015668215058572> Greenville Mafia Corporation Conclusion <:Gvmc_crown:1491015668215058572>",
         description=(
             f"<a:Animated_Arrow_Bluelite:1484055930919190589> | The Event that was hosted by {member.mention} has concluded. "
             "We appreciate those who were actively involved & participating in this event. "
             "We hope to see you in more of our events in the future as there are **many** more to come!\n\n"
             f"**Event Information**\n"
-            f"<:dot:1480643720687915058> Event Start Time | <t:{int(startup_time.timestamp())}:f>\n"
-            f"<:dot:1480643720687915058> Event End Time | <t:{int(end_time.timestamp())}:f>\n"
-            f"<:dot:1480643720687915058> Event Duration | {str(duration).split('.')[0]}\n\n"
-            f"<:announcement:1480640464737800253> Additional Notes | {host_note}\n\n"
+            f"<:dot:1491005539201843290> Event Start Time | <t:{int(startup_time.timestamp())}:f>\n"
+            f"<:dot:1491005539201843290> Event End Time | <t:{int(end_time.timestamp())}:f>\n"
+            f"<:dot:1491005539201843290> Event Duration | {str(duration).split('.')[0]}\n\n"
+            f"<:announcement:1491014792440451082> Additional Notes | {host_note}\n\n"
             "<a:gvmc_heart:1480637190685069472> | Want to help improve our Events? Give us feedback by clicking the feedback button below!"
         ),
         color=EMBED_COLOR
