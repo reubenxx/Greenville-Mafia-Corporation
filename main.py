@@ -553,7 +553,7 @@ async def startup(interaction: discord.Interaction, reactions: int):
             f"<a:Animated_Arrow_Bluelite:1484055930919190589> | An Event is currently being started by {member.mention}. "
             "Before reacting, please ensure you have read all of our "
             "**[guidelines](https://discord.com/channels/1441901639739904125/1481562585781239969)** "
-            "to ensure a smooth event for everyone. To confirm presence, please react with the <:Tick:1480637335237427221> below. "
+            "to ensure a smooth event for everyone. To confirm your presence, please react with the <:Checkmark:1490181125325193369> below. "
             "We also ask that you have your privacy settings set to __**everyone**__ to ensure a trouble free event.\n\n"
             f"**Information**\n"
             f"<:dot:1491005539201843290> | The host has requested __**{required_reactions}**__ reactions. "
