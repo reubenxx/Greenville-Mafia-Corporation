@@ -191,6 +191,64 @@ async def on_member_update(before, after):
         embed.add_field(name="**Roles Removed**", value=roles_removed_text, inline=False)
 
         await log_channel.send(embed=embed)
+
+@bot.event
+async def on_guild_channel_update(before: discord.abc.GuildChannel, after: discord.abc.GuildChannel):
+    log_channel = bot.get_channel(MODLOG_CHANNEL)
+    if not log_channel:
+        return
+
+    # Compare overwrites to detect changes
+    changes_detected = []
+
+    for target in after.overwrites:
+        before_perm = before.overwrites.get(target)
+        after_perm = after.overwrites.get(target)
+
+        if before_perm != after_perm:
+            for perm_name in discord.Permissions.VALID_FLAGS:
+                before_value = getattr(before_perm, perm_name, None) if before_perm else None
+                after_value = getattr(after_perm, perm_name, None) if after_perm else None
+                if before_value != after_value:
+                    # Determine emoji representation
+                    def perm_emoji(val):
+                        if val is True:
+                            return "<:Checkmark:1490181125325193369>"
+                        elif val is False:
+                            return "<:crossmark:1490180947507675367>"
+                        else:
+                            return "<:slash:1490874469848449195>"
+
+                    changes_detected.append(
+                        f"**{perm_name.replace('_', ' ').title()}:** {perm_emoji(before_value)} **-->** {perm_emoji(after_value)}"
+                    )
+
+            # Send a single embed per target
+            if changes_detected:
+                embed = discord.Embed(
+                    title="**Channel Permission Updated**",
+                    color=EMBED_COLOR,
+                    timestamp=discord.utils.utcnow()
+                )
+
+                embed.set_author(name=str(after.guild.icon), icon_url=after.guild.icon.url if after.guild.icon else None)
+                embed.add_field(name="**Channel**", value=after.mention, inline=True)
+                embed.add_field(name="**Executor**", value="Unknown", inline=True)  # Can check audit log below
+                embed.add_field(name="**Target**", value=target.mention if isinstance(target, discord.Role) else target.mention, inline=True)
+                embed.add_field(name="**Permission**", value="\n".join(changes_detected), inline=False)
+                embed.set_footer(text=f"Channel ID: {after.id} | <t:{int(datetime.datetime.utcnow().timestamp())}:F>")
+
+                # Attempt to get executor from audit logs
+                try:
+                    async for entry in after.guild.audit_logs(limit=5, action=discord.AuditLogAction.overwrite_update):
+                        if entry.target.id == after.id:
+                            embed.set_field_at(1, name="**Executor**", value=entry.user.mention, inline=True)
+                            break
+                except:
+                    pass
+
+                await log_channel.send(embed=embed)
+                changes_detected.clear()
         
 # ------- PARTNERSHIP EMBED --------
 @bot.event
