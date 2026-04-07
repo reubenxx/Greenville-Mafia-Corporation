@@ -214,7 +214,7 @@ async def on_guild_channel_update(before: discord.abc.GuildChannel, after: disco
                         if val is True:
                             return "<:Checkmark:1490181125325193369>"
                         elif val is False:
-                            return "<:crossmark:1490180947507673367>"
+                            return "<:crossmark:1490180947507675367>"
                         else:
                             return "<:slash:1490874469848449195>"
 
@@ -224,7 +224,7 @@ async def on_guild_channel_update(before: discord.abc.GuildChannel, after: disco
 
             if changes_detected:
                 embed = discord.Embed(
-                    title="**Channel Permission Updated**",
+                    title="Changes below:",
                     color=EMBED_COLOR,
                     timestamp=discord.utils.utcnow()
                 )
