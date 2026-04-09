@@ -39,7 +39,7 @@ BLACKLIST_FILE = "/mnt/disk/blacklist.json"  # <-- point it to your Render disk 
 BLACKLIST_MESSAGE_ID = 1490555367644729364  
 GVMC_CONTRIBUTOR_ROLE = 1488794560740986970
 GVMC_STATUS_CHANNEL = 1488795010475360347
-GVMC_STATUS_TEXT = "/gvmc"
+GVMC_STATUS_TEXT = "/gvrpg"
 MODLOG_CHANNEL = 1483351237394042910
 
 # Make sure the folder exists
@@ -76,20 +76,20 @@ async def on_member_join(member):
         embed = discord.Embed(
             title="<a:welcome:1483008041413509141> Welcome to __**Greenville Mafia Corporation**__ <a:welcome:1483008041413509141>",
             description=(
-                "<a:gvmc_heart:1480637190685069472> **Welcome to __Greenville Mafia Corporation!__**\n"
-                "We are honored to have you here with us! Before you venture off into **GVMC**, please "
+                "<a:gvmc_heart:1480637190685069472> **Welcome to __Greenville Roleplay Global!__**\n"
+                "We are honored to have you here with us! Before you venture off into **GVRPG**, please "
                 "**[verify](https://discord.com/channels/1441901639739904125/1471452917163884738)** "
                 "to gain full access to our server.\n\n"
                 "<a:pulsatingheart:1480637910347940064> We host daily Convoys, Events, Occasional Giveaways "
                 "and other fun surprises! We look forward to seeing you participate in the full life of "
-                "__**Greenville Mafia Corporation**__. If you require any form of assistance, please do not "
+                "__**Greenville Roleplay Global**__. If you require any form of assistance, please do not "
                 "hesitate to contact our lovely Staff Team "
                 "**[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**. "
                 "<a:pulsatingheart:1480637910347940064>"
             ),
             color=EMBED_COLOR
         )
-        embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
+        embed.set_footer(text="Greenville Roleplay Global", icon_url=FOOTER_ICON)
         await channel.send(content=member.mention, embed=embed)
 
     # -------- MODLOG JOIN --------
@@ -351,12 +351,12 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
                 await after.add_roles(role)
 
                 embed = discord.Embed(
-                    title="Greenville Mafia Corporation | Server Contributor",
+                    title="Greenville Roleplay Global | Server Contributor",
                     description=(
-                        f"> <a:gvmc_heart:1480637190685069472> | Thank you {after.mention} for becoming an official **Greenville Mafia Corporation** contributor!\n"
+                        f"> <a:gvmc_heart:1480637190685069472> | Thank you {after.mention} for becoming an official **Greenville Roleplay Global** contributor!\n"
                         f"> They have received the <@&{GVMC_CONTRIBUTOR_ROLE}> role which contains benefits such as image permissions and exclusive giveaways!\n\n"
                         f"> <a:Animated_Arrow_Bluelite:1484055930919190589> | Would you like to receive the <@&{GVMC_CONTRIBUTOR_ROLE}> role?\n"
-                        "> Please put ``/gvmc`` as your status and you will receive all the perks & role."
+                        "> Please put ``/gvrpg`` as your status and you will receive all the perks & role."
                     ),
                     color=EMBED_COLOR
                 )
@@ -482,7 +482,7 @@ async def update_blacklist_message(bot):
     data = load_blacklist()
 
     description = (
-        "All servers below are blacklisted from all **GVMC** fast-passing, partnerships and any other affiliations. "
+        "All servers below are blacklisted from all **Greenville Roleplay Global** fast-passing, partnerships and any other affiliations. "
         "For proof of a specific blacklist or appeal a blacklist, please open a "
         "**[support ticket](https://discord.com/channels/1441901639739904125/1443980437184577556)** today "
         "and a member of the **High Ranking** Team will provide assistance.\n\n"
@@ -548,7 +548,7 @@ async def startup(interaction: discord.Interaction, reactions: int):
         color=EMBED_COLOR
     )
     embed.set_image(url=STARTUP_BANNER)
-    embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
+    embed.set_footer(text="Greenville Roleplay Global", icon_url=FOOTER_ICON)
 
     await interaction.response.send_message("Convoy started!", ephemeral=True)
 
@@ -755,7 +755,7 @@ async def link(interaction: discord.Interaction, url: str, session_type: str, ad
     )
 
     embed.set_image(url=LINK_BANNER)
-    embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
+    embed.set_footer(text="Greenville Roleplay Global", icon_url=FOOTER_ICON)
 
     view = LinkView(url)
     await interaction.response.send_message("Link released!", ephemeral=True)
@@ -844,7 +844,7 @@ class LOAView(ui.View):
                 f"<:dot:1480643720687915058> End Date | <t:{self.end_ts}:f>\n\n"
                 "You are exempt from **Staff Quota** during this period.\n\n"
                 "After your LOA ends, activity is expected. You may not submit another LOA for 28 days.\n\n"
-                "Kind Regards,\nGreenville Mafia Corporation,\nManagement."
+                "Kind Regards,\nGreenville Roleplay Global,\nManagement."
             ),
             color=EMBED_COLOR
         )
@@ -874,7 +874,7 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
 
     async def on_submit(self, interaction: discord.Interaction):
         channel = bot.get_channel(FEEDBACK_CHANNEL)
-        embed = discord.Embed(title="NEW CONVOY FEEDBACK", color=0x87CEFA)
+        embed = discord.Embed(title="Feedback Received", color=EMBED_COLOR)
         embed.add_field(name="User", value=interaction.user.mention)
         embed.add_field(name="Rating", value=self.rating.value)
         embed.add_field(name="Feedback", value=self.feedback.value)
@@ -914,7 +914,7 @@ async def end(interaction: discord.Interaction, host_note: str):
 
     # ---- Send the end embed first ----
     embed = discord.Embed(
-        title="<:Gvmc_crown:1491015668215058572> Greenville Mafia Corporation Conclusion <:Gvmc_crown:1491015668215058572>",
+        title="<:Gvmc_crown:1491015668215058572> Greenville Roleplay Global Conclusion <:Gvmc_crown:1491015668215058572>",
         description=(
             f"<a:Animated_Arrow_Bluelite:1484055930919190589> | The Event that was hosted by {member.mention} has concluded. "
             "We appreciate those who were actively involved & participating in this event. "
@@ -929,7 +929,7 @@ async def end(interaction: discord.Interaction, host_note: str):
         color=EMBED_COLOR
     )
     embed.set_image(url=END_BANNER)
-    embed.set_footer(text="Greenville Mafia Corporation", icon_url=FOOTER_ICON)
+    embed.set_footer(text="Greenville Roleplay Global", icon_url=FOOTER_ICON)
     view = EndView()
     await interaction.response.send_message("Convoy ended!", ephemeral=True)
     end_msg = await channel.send(embed=embed, view=view)
