@@ -265,8 +265,8 @@ async def on_message(message):
 
     if message.channel.id == 1480243298294694200:
         embed = discord.Embed(
-            description="### <:Info:1490510396493402172> __**Tired of Pings?**__\n"
-                        "To avoid pings from this channel, feel free to mute it in settings.",
+            description="### <:announcement:1491014792440451082> __**Tired of Pings?**__\n"
+                        "<:dmsarrow:1491008371682443325> To avoid pings from this channel, feel free to mute it in settings.",
             color=EMBED_COLOR
         )
 
@@ -274,22 +274,34 @@ async def on_message(message):
             text="Looking to partner? Reach out to our Staff through the support system."
         )
 
+        class PartnerDropdown(discord.ui.Select):
+            def __init__(self):
+                options = [
+                    discord.SelectOption(
+                        label="Support System",
+                        description="Reach out to staff for help",
+                        url="https://discord.com/channels/1441901639739904125/1443980437184577556"
+                    ),
+                    discord.SelectOption(
+                        label="Partnership Requirements",
+                        description="See partnership requirements",
+                        url="https://discord.com/channels/1441901639739904125/1480243298294694200/1480644355583774832"
+                    ),
+                    discord.SelectOption(
+                        label="Blacklisted Servers",
+                        description="Check blacklisted servers",
+                        url="https://discord.com/channels/1441901639739904125/1485708172965580851"
+                    ),
+                ]
+                super().__init__(placeholder="Choose an option...", min_values=1, max_values=1, options=options)
+
+            async def callback(self, interaction: discord.Interaction):
+                # Send the selected link as a response
+                selected = self.values[0]
+                await interaction.response.send_message(f"Here’s your link: {selected}", ephemeral=True)
+
         view = discord.ui.View()
-
-        view.add_item(discord.ui.Button(
-            label="Support System",
-            url="https://discord.com/channels/1441901639739904125/1443980437184577556"
-        ))
-
-        view.add_item(discord.ui.Button(
-            label="Partnership Requirements",
-            url="https://discord.com/channels/1441901639739904125/1480243298294694200/1480644355583774832"
-        ))
-
-        view.add_item(discord.ui.Button(
-            label="Blacklisted Servers",
-            url="https://discord.com/channels/1441901639739904125/1485708172965580851"
-        ))
+        view.add_item(PartnerDropdown())
 
         await message.channel.send(embed=embed, view=view)
 
