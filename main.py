@@ -685,7 +685,7 @@ async def setupblacklist(interaction: discord.Interaction):
     embed = discord.Embed(
         title="Blacklisted Servers",
         description=(
-            "All servers below are blacklisted from all **GVMC** fast-passing, partnerships and any other affiliations. "
+            "All servers below are blacklisted from all **Greenville Roleplay Global** fast-passing, partnerships and any other affiliations. "
             "For proof of a specific blacklist or appeal a blacklist, please open a support ticket.\n\n"
             "No blacklisted servers."
         ),
