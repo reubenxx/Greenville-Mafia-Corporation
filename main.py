@@ -268,7 +268,7 @@ async def on_message(message):
             description=(
                 "### Tired of Pings?\n"
                 "> <:dot:1491005539201843290> Sick of being pinged? Simply mute this channel in settings to prevent further notifications. There is nothing we can do on our end.\n\n"
-                "<:dmsarrow:1491008371682443325> Interested in partnering with us? Please open a **[partnership ticket](https://discord.com/channels/1441901639739904125/1443980437184577556)** today. Ensure you have reviewed our **[blacklisted servers](https://discord.com/channels/1441901639739904125/1485708172965580851)** before proceeding."
+                "> <:dmsarrow:1491008371682443325> Interested in partnering with us? Please open a **[partnership ticket](https://discord.com/channels/1441901639739904125/1443980437184577556)** today. Ensure you have reviewed our **[blacklisted servers](https://discord.com/channels/1441901639739904125/1485708172965580851)** before proceeding."
             ),
             color=EMBED_COLOR
         )
