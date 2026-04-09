@@ -61,7 +61,7 @@ async def on_ready():
     await bot.change_presence(
         activity=discord.Activity(
             type=discord.ActivityType.watching,
-            name="Watching over 'Greenville Mafia Corporation'"
+            name="Watching over 'Greenville Roleplay Global'"
         )
     )
     bot.add_view(LOAView(0, 0, 0))
