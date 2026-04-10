@@ -629,7 +629,7 @@ async def blacklist(interaction: discord.Interaction, server_name: str, server_i
         "notes": notes
     })
 
-    save_blacklist(data)
+    await save_blacklist(data)
     await update_blacklist_message(bot)
 
     # LOG EMBED
@@ -668,7 +668,7 @@ async def delblacklist(interaction: discord.Interaction, number: int):
         return
 
     removed = data.pop(number - 1)
-    save_blacklist(data)
+    await save_blacklist(data)
 
     await update_blacklist_message(bot)
 
@@ -843,7 +843,11 @@ class LOAView(ui.View):
         return any(role.id in LOA_APPROVE_ROLES for role in member.roles)
     def disable_all(self):
         for item in self.children: item.disabled = True
-    @ui.button(label="Approve", style=discord.ButtonStyle.success)
+    @ui.button(
+    label="Approve",
+    style=discord.ButtonStyle.success,
+    custom_id="loa_approve"
+)
     async def approve(self, interaction: discord.Interaction, button: ui.Button):
         if not self.has_permission(interaction.user):
             await interaction.response.send_message("No permission.", ephemeral=True)
@@ -872,7 +876,11 @@ class LOAView(ui.View):
         self.disable_all()
         await interaction.message.edit(view=self)
         await interaction.response.send_message("LOA approved.", ephemeral=True)
-    @ui.button(label="Deny", style=discord.ButtonStyle.danger)
+    @ui.button(
+    label="Deny",
+    style=discord.ButtonStyle.danger,
+    custom_id="loa_deny"
+)
     async def deny(self, interaction: discord.Interaction, button: ui.Button):
         if not self.has_permission(interaction.user):
             await interaction.response.send_message("No permission.", ephemeral=True)
