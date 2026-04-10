@@ -723,7 +723,11 @@ class LinkView(ui.View):
         super().__init__(timeout=None)
         self.url = url
 
-    @ui.button(label="<:extlink:1491980087065837748> Server Access", style=discord.ButtonStyle.secondary)
+    @ui.button(
+    label="Server Access",
+    style=discord.ButtonStyle.secondary,
+    emoji=discord.PartialEmoji.from_str("<:extlink:1491980087065837748>")
+)
     async def join(self, interaction: discord.Interaction, button: ui.Button):
         if not startup_active:
             await interaction.response.send_message("No active convoy.", ephemeral=True)
