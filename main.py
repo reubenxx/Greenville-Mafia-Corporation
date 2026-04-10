@@ -47,6 +47,249 @@ GVMC_STATUS_TEXT = "/gvrpg"
 MODLOG_CHANNEL = 1483351237394042910
 DATA_DIR = "/mnt/disk"
 BLACKLIST_FILE = f"{DATA_DIR}/blacklist.json"
+TICKET_CATEGORY_ID = 1234567890  # category where tickets go
+TICKET_ACCESS_ROLE = 1474123995375992873  # main staff role (can see normal tickets)
+HIGH_RANK_ROLE = 1474121009656500225  # staff report access role
+TICKET_LOG_CHANNEL = 1471451529838858414
+
+
+# =========================
+# PERSISTENT TICKET STATE
+# =========================
+
+active_tickets: dict[int, int] = {}
+ticket_message_ids: set[int] = set()
+
+# =========================
+# RECOVERY SYSTEM (STEP 1B)
+# =========================
+
+async def restore_ticket_views():
+    bot.add_view(TicketPanelView())
+
+
+# =========================
+# DROPDOWN MENU
+# =========================
+
+class TicketDropdown(discord.ui.Select):
+    def __init__(self):
+        super().__init__(
+            placeholder="Select a ticket type...",
+            min_values=1,
+            max_values=1,
+            options=[
+                discord.SelectOption(label="Partnership Request", value="partnership"),
+                discord.SelectOption(label="Civilian Report", value="civilian"),
+                discord.SelectOption(label="Staff Report", value="staff"),
+                discord.SelectOption(label="General Inquiries", value="general"),
+            ],
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+
+        try:
+            choice = self.values[0]
+
+            await interaction.response.send_message(
+                "Creating your ticket...",
+                ephemeral=True
+            )
+
+            form_data = {"Status": "Awaiting form submission"}
+
+            allowed_roles = (
+                [HIGH_RANK_ROLE] if choice == "staff"
+                else [TICKET_ACCESS_ROLE]
+            )
+
+            await create_ticket(interaction, choice, form_data, allowed_roles)
+
+        except Exception as e:
+            await interaction.followup.send(
+                f"Ticket error occurred.",
+                ephemeral=True
+            )
+            raise e
+
+
+# =========================
+# PANEL VIEW
+# =========================
+
+class TicketPanelView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(TicketDropdown())
+
+
+# =========================
+# CORE ENGINE
+# =========================
+
+async def create_ticket(
+    interaction: discord.Interaction,
+    ticket_type: str,
+    form_data: dict,
+    allowed_role_ids: list[int]
+):
+    guild = interaction.guild
+    user = interaction.user
+
+    if guild is None:
+        return
+
+    category = discord.utils.get(guild.categories, id=TICKET_CATEGORY_ID)
+
+    if category is None:
+        await interaction.followup.send(
+            "Ticket category missing or invalid.",
+            ephemeral=True
+        )
+        return
+
+    overwrites = {
+        guild.default_role: discord.PermissionOverwrite(view_channel=False),
+        user: discord.PermissionOverwrite(
+            view_channel=True,
+            send_messages=True,
+            read_message_history=True
+        ),
+    }
+
+    for role_id in allowed_role_ids:
+        role = guild.get_role(role_id)
+        if role:
+            overwrites[role] = discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=True,
+                read_message_history=True
+            )
+
+    channel = await guild.create_text_channel(
+        name=f"{ticket_type}-{user.name}".lower(),
+        category=category,
+        overwrites=overwrites
+    )
+
+    if channel is None:
+        await interaction.followup.send(
+            "Failed to create ticket channel.",
+            ephemeral=True
+        )
+        return
+
+    active_tickets[channel.id] = user.id
+
+    embed = discord.Embed(
+        title=f"{ticket_type.replace('_', ' ').title()} Ticket",
+        color=discord.Color.green()
+    )
+
+    embed.set_footer(text=f"Opened by {user} ({user.id})")
+
+    for k, v in form_data.items():
+        embed.add_field(
+            name=k,
+            value=str(v) if v else "Not provided",
+            inline=False
+        )
+
+    await channel.send(embed=embed)
+
+    return channel
+
+
+# =========================
+# FORMS
+# =========================
+
+class PartnershipForm(discord.ui.Modal, title="Partnership Request"):
+
+    server_name = discord.ui.TextInput(label="Server Name", required=True)
+    member_count = discord.ui.TextInput(label="Member Count", required=True)
+    additional_details = discord.ui.TextInput(
+        label="Additional Details",
+        style=discord.TextStyle.paragraph,
+        required=False
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+
+        await create_ticket(
+            interaction,
+            "partnership",
+            {
+                "Server Name": self.server_name.value,
+                "Member Count": self.member_count.value,
+                "Additional Details": self.additional_details.value or "Not provided",
+            },
+            [TICKET_ACCESS_ROLE],
+        )
+
+
+class CivilianForm(discord.ui.Modal, title="Civilian Report"):
+
+    reported_users = discord.ui.TextInput(label="Reported Users", required=True)
+    issue = discord.ui.TextInput(label="Issue", style=discord.TextStyle.paragraph, required=True)
+    additional_details = discord.ui.TextInput(
+        label="Additional Details",
+        style=discord.TextStyle.paragraph,
+        required=False
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+
+        await create_ticket(
+            interaction,
+            "civilian_report",
+            {
+                "Reported Users": self.reported_users.value,
+                "Issue": self.issue.value,
+                "Additional Details": self.additional_details.value or "Not provided",
+            },
+            [TICKET_ACCESS_ROLE],
+        )
+
+
+class StaffForm(discord.ui.Modal, title="Staff Report"):
+
+    reported_staff = discord.ui.TextInput(label="Reported Staff", required=True)
+    issue = discord.ui.TextInput(label="Issue", style=discord.TextStyle.paragraph, required=True)
+    hr_status = discord.ui.TextInput(label="High Ranking? (Yes/No/Unknown)", required=True)
+    additional_details = discord.ui.TextInput(label="Additional Details", required=False)
+
+    async def on_submit(self, interaction: discord.Interaction):
+
+        await create_ticket(
+            interaction,
+            "staff_report",
+            {
+                "Reported Staff": self.reported_staff.value,
+                "Issue": self.issue.value,
+                "High Ranking?": self.hr_status.value,
+                "Additional Details": self.additional_details.value or "Not provided",
+            },
+            [HIGH_RANK_ROLE],
+        )
+
+
+class GeneralForm(discord.ui.Modal, title="General Inquiry"):
+
+    reason = discord.ui.TextInput(label="Reason", required=True)
+    additional_details = discord.ui.TextInput(label="Additional Details", required=False)
+
+    async def on_submit(self, interaction: discord.Interaction):
+
+        await create_ticket(
+            interaction,
+            "general_inquiry",
+            {
+                "Reason": self.reason.value,
+                "Additional Details": self.additional_details.value or "Not provided",
+            },
+            [TICKET_ACCESS_ROLE],
+        )
 
 # Make sure the folder exists
 os.makedirs(os.path.dirname(BLACKLIST_FILE), exist_ok=True)
@@ -72,6 +315,9 @@ async def on_ready():
     )
     bot.add_view(LOAView(0, 0, 0))
     bot.add_view(EndView())
+    await restore_ticket_views()
+    await bot.wait_until_ready()
+    bot.add_view(TicketPanelView())
     print(f"{bot.user} ready")
 
 @bot.event
