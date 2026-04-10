@@ -320,6 +320,47 @@ async def on_ready():
     bot.add_view(TicketPanelView())
     print(f"{bot.user} ready")
 
+
+# =========================
+# SLASH COMMANDS
+# =========================
+
+@bot.tree.command(name="panel-setup", description="Send the ticket panel")
+@commands.has_permissions(administrator=True)
+async def panel_setup(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="🎫 Support Tickets",
+        description="Select a category below to open a ticket.",
+        color=discord.Color.blurple()
+    )
+
+    await interaction.channel.send(embed=embed, view=TicketPanelView())
+    await interaction.response.send_message("Panel sent.", ephemeral=True)
+
+
+@bot.tree.command(name="add", description="Add a user to the ticket")
+@commands.has_permissions(manage_channels=True)
+async def add_user(interaction: discord.Interaction, user: discord.Member):
+
+    if interaction.channel.id not in active_tickets:
+        await interaction.response.send_message("Not a ticket.", ephemeral=True)
+        return
+
+    await interaction.channel.set_permissions(user, view_channel=True, send_messages=True)
+    await interaction.response.send_message(f"Added {user.mention}", ephemeral=True)
+
+
+@bot.tree.command(name="remove", description="Remove a user from the ticket")
+@commands.has_permissions(manage_channels=True)
+async def remove_user(interaction: discord.Interaction, user: discord.Member):
+
+    if interaction.channel.id not in active_tickets:
+        await interaction.response.send_message("Not a ticket.", ephemeral=True)
+        return
+
+    await interaction.channel.set_permissions(user, view_channel=None)
+    await interaction.response.send_message(f"Added {user.mention}", ephemeral=True)
+
 @bot.event
 async def on_member_join(member):
     # -------- WELCOME MESSAGE --------
