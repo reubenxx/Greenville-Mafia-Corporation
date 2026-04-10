@@ -498,7 +498,7 @@ async def update_blacklist_message(bot):
     if channel is None:
         return
 
-    data = load_blacklist()
+    data = await load_blacklist()
 
     description = (
         "All servers below are blacklisted from all **Greenville Roleplay Global** fast-passing, partnerships and any other affiliations. "
