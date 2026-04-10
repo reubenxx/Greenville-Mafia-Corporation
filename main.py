@@ -5,6 +5,11 @@ import datetime
 import os
 import sys
 import json
+import asyncio
+import tempfile
+import shutil
+
+blacklist_lock = asyncio.Lock()
 
 TOKEN = os.getenv("TOKEN")
 
@@ -35,12 +40,13 @@ BLACKLIST_CHANNEL = 1485708172965580851
 BLACKLIST_LOG_CHANNEL = 1487028216978739302
 BLACKLIST_ROLE = 1474121009656500225
 BLACKLIST_PING_ROLE = 1486271938631434363
-BLACKLIST_FILE = "/mnt/disk/blacklist.json"  # <-- point it to your Render disk mount
 BLACKLIST_MESSAGE_ID = 1491774781228453978  
 GVMC_CONTRIBUTOR_ROLE = 1488794560740986970
 GVMC_STATUS_CHANNEL = 1488795010475360347
 GVMC_STATUS_TEXT = "/gvrpg"
 MODLOG_CHANNEL = 1483351237394042910
+DATA_DIR = "/mnt/disk"
+BLACKLIST_FILE = f"{DATA_DIR}/blacklist.json"
 
 # Make sure the folder exists
 os.makedirs(os.path.dirname(BLACKLIST_FILE), exist_ok=True)
@@ -362,7 +368,7 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
                 )
 
                 embed.set_footer(
-                    text="Greenville Mafia Corporation",
+                    text="Greenville Roleplay Global",
                     icon_url=FOOTER_ICON
                 )
 
@@ -455,23 +461,36 @@ async def on_raw_reaction_remove(payload):
             startup_reactors.discard(payload.user_id)
 
 # -------- BLACKLIST STORAGE --------
-def load_blacklist():
-    if not os.path.exists(BLACKLIST_FILE):
-        print("blacklist.json not found, creating new file")
-        with open(BLACKLIST_FILE, "w") as f:
-            json.dump([], f)
-        return []
+async def load_blacklist():
+    async with blacklist_lock:
+        if not os.path.exists(BLACKLIST_FILE):
+            with open(BLACKLIST_FILE, "w") as f:
+                json.dump([], f)
+            return []
 
-    with open(BLACKLIST_FILE, "r") as f:
-        data = json.load(f)
-        print(f"Loaded blacklist with {len(data)} entries")
-        return data
+        try:
+            with open(BLACKLIST_FILE, "r") as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            backup_path = BLACKLIST_FILE + ".corrupt"
+            shutil.copy(BLACKLIST_FILE, backup_path)
+
+            with open(BLACKLIST_FILE, "w") as f:
+                json.dump([], f)
+
+            print(f"Blacklist corrupted. Backup saved to {backup_path}")
+            return []
 
 
-def save_blacklist(data):
-    with open(BLACKLIST_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-    print(f"Saved blacklist with {len(data)} entries")
+async def save_blacklist(data):
+    async with blacklist_lock:
+        dir_name = os.path.dirname(BLACKLIST_FILE)
+
+        with tempfile.NamedTemporaryFile("w", delete=False, dir=dir_name) as tmp:
+            json.dump(data, tmp, indent=4)
+            temp_name = tmp.name
+
+        os.replace(temp_name, BLACKLIST_FILE)
 
 # -------- UPDATE BLACKLIST MESSAGE --------
 async def update_blacklist_message(bot):
@@ -530,7 +549,7 @@ async def startup(interaction: discord.Interaction, reactions: int):
 
     # -------- MAIN EMBED --------
     embed = discord.Embed(
-        title="<:GVMC_trophy:1480637860590911610> Greenville Mafia Corporation Event Startup <:GVMC_trophy:1480637860590911610>",
+        title="<:GVMC_trophy:1480637860590911610> Greenville Roleplay Global Event Startup <:GVMC_trophy:1480637860590911610>",
         description=(
             f"<a:Animated_Arrow_Bluelite:1484055930919190589> | An Event is currently being started by {member.mention}. "
             "Before reacting, please ensure you have read all of our "
@@ -601,7 +620,7 @@ async def blacklist(interaction: discord.Interaction, server_name: str, server_i
         await interaction.response.send_message("You are not authorized.", ephemeral=True)
         return
 
-    data = load_blacklist()
+    data = await load_blacklist()
 
     data.append({
         "server_name": server_name,
@@ -642,7 +661,7 @@ async def delblacklist(interaction: discord.Interaction, number: int):
         await interaction.response.send_message("You are not authorized.", ephemeral=True)
         return
 
-    data = load_blacklist()
+    data = await load_blacklist()
 
     if number < 1 or number > len(data):
         await interaction.response.send_message("Invalid blacklist number.", ephemeral=True)
