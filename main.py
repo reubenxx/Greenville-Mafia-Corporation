@@ -58,7 +58,7 @@ END_BANNER = "https://i.imgur.com/FE8kfRq.jpeg"
 WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/1482361429188284606/Welcome_1.png"
 
 EMBED_COLOR=0xEECB69
-bot_start_time = datetime.datetime.utcnow()
+bot_start_time = datetime.datetime.now(datetime.UTC)
 
 # -------- EVENTS --------
 @bot.event
@@ -248,7 +248,7 @@ async def on_guild_channel_update(before: discord.abc.GuildChannel, after: disco
 
                 # Human-readable footer
                 embed.set_footer(
-                    text=f"Channel ID: {after.id} | {discord.utils.format_dt(datetime.datetime.utcnow(), style='F')}"
+                    text=f"Channel ID: {after.id} | {discord.utils.format_dt(datetime.datetime.now(datetime.UTC), style='F')}"
                 )
 
                 # Try to get executor from audit logs
@@ -408,7 +408,7 @@ async def say(interaction: discord.Interaction, content: str):
                 f"**Command Executed** | /say\n"
                 f"**User** | {interaction.user.mention}\n"
                 f"**Content** | {content}\n"
-                f"**Time** | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Time** | <t:{int(datetime.datetime.now(datetime.UTC).timestamp())}:F>\n"
                 f"**Channel** | {interaction.channel.mention}"
             ),
             inline=False
@@ -544,7 +544,7 @@ async def startup(interaction: discord.Interaction, reactions: int):
     startup_active = True
     startup_host = member
     startup_reactors = set()
-    startup_time = datetime.datetime.utcnow()
+    startup_time = datetime.datetime.now(datetime.UTC)
     host_setup_sent = False
 
     # -------- MAIN EMBED --------
@@ -598,7 +598,7 @@ async def startup(interaction: discord.Interaction, reactions: int):
                 f"**Command Executed** | /startup\n"
                 f"**User** | {interaction.user.mention}\n"
                 f"**Content** | {reactions} reactions requested\n"
-                f"**Time** | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Time** | <t:{int(datetime.datetime.now(datetime.UTC).timestamp())}:F>\n"
                 f"**Channel** | {interaction.channel.mention}"
             ),
             inline=False
@@ -804,7 +804,7 @@ async def link(interaction: discord.Interaction, url: str, session_type: str, ad
                 f"**Command Executed** | /link\n"
                 f"**User** | {interaction.user.mention}\n"
                 f"**Content** | {url}\n"
-                f"**Time** | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Time** | <t:{int(datetime.datetime.now(datetime.UTC).timestamp())}:F>\n"
                 f"**Channel** | {interaction.channel.mention}"
             ),
             inline=False
@@ -935,7 +935,7 @@ async def end(interaction: discord.Interaction, host_note: str):
         await interaction.response.send_message("No active convoy.", ephemeral=True)
         return
 
-    end_time = datetime.datetime.utcnow()
+    end_time = datetime.datetime.now(datetime.UTC)
     duration = end_time - startup_time
     channel = interaction.channel
 
@@ -989,7 +989,7 @@ async def end(interaction: discord.Interaction, host_note: str):
             value=(
                 f"**Command Executed** | /end\n"
                 f"**User** | {interaction.user.mention}\n"
-                f"**Time** | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Time** | <t:{int(datetime.datetime.now(datetime.UTC).timestamp())}:F>\n"
                 f"**Channel** | {interaction.channel.mention}\n"
                 f"**Host Note** | {host_note}\n"
                 f"**Event Duration** | {str(duration).split('.')[0]}"
@@ -1077,7 +1077,7 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
 # -------- INFO COMMAND --------
 @bot.tree.command(name="botinfo", description="View the Bot's information")
 async def info(interaction: discord.Interaction):
-    uptime = datetime.datetime.utcnow() - bot_start_time
+    uptime = datetime.datetime.now(datetime.UTC) - bot_start_time
     api_ping = round(bot.latency * 1000)
 
     # Step 1: Bot info embed
@@ -1092,7 +1092,7 @@ async def info(interaction: discord.Interaction):
             f"> Status: Online"
         ),
         color=EMBED_COLOR,
-        timestamp=datetime.datetime.utcnow()
+        timestamp=datetime.datetime.now(datetime.UTC)
     )
     await interaction.response.send_message(embed=embed)
 
@@ -1114,7 +1114,7 @@ async def info(interaction: discord.Interaction):
             value=(
                 f"**Command Executed** | /botinfo\n"
                 f"**User** | {interaction.user.mention}\n"
-                f"**Time** | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Time** | <t:{int(datetime.datetime.now(datetime.UTC).timestamp())}:F>\n"
                 f"**Channel** | {interaction.channel.mention}"
             ),
             inline=False
@@ -1139,7 +1139,7 @@ async def membercount(interaction: discord.Interaction):
         title="**Members**",
         description=f"{count}",
         color=EMBED_COLOR,
-        timestamp=datetime.datetime.utcnow()
+        timestamp=datetime.datetime.now(datetime.UTC)
     )
     await interaction.response.send_message(embed=embed)
 
@@ -1161,7 +1161,7 @@ async def membercount(interaction: discord.Interaction):
             value=(
                 f"**Command Executed** | /membercount\n"
                 f"**User** | {interaction.user.mention}\n"
-                f"**Time** | <t:{int(datetime.datetime.utcnow().timestamp())}:F>\n"
+                f"**Time** | <t:{int(datetime.datetime.now(datetime.UTC).timestamp())}:F>\n"
                 f"**Channel** | {interaction.channel.mention}"
             ),
             inline=False
