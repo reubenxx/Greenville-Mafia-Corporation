@@ -139,7 +139,7 @@ async def create_ticket(
     if guild is None:
         return
 
-    category = discord.utils.get(guild.categories, id=TICKET_CATEGORY_ID)
+    category = guild.get_channel(TICKET_CATEGORY_ID)
 
     if category is None:
         await interaction.followup.send(
