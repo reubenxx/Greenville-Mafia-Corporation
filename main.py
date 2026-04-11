@@ -821,6 +821,60 @@ class RegistrationView(discord.ui.View):
             )
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+#---------- UNREGISTER VIEW ----------
+class UnregisterSelect(discord.ui.Select):
+    def __init__(self, user_id, registrations):
+        self.user_id = user_id
+        self.registrations = registrations
+
+        options = [
+            discord.SelectOption(
+                label=f"{r['brand']} {r['model']}",
+                description=f"{r['color']} | {r['plate']} | {r['year']}",
+                value=str(i)
+            )
+            for i, r in enumerate(registrations)
+        ]
+
+        super().__init__(
+            placeholder="Select vehicle(s) to unregister...",
+            min_values=1,
+            max_values=len(options),
+            options=options,
+            custom_id="unregister_select"
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        data = await load_registrations()
+        user_regs = data.get(self.user_id, [])
+
+        # Remove selected vehicles
+        selected_indexes = sorted([int(v) for v in self.values], reverse=True)
+
+        removed = []
+        for index in selected_indexes:
+            if index < len(user_regs):
+                removed.append(user_regs.pop(index))
+
+        data[self.user_id] = user_regs
+        await save_registrations(data)
+
+        embed = discord.Embed(
+            title="Vehicle(s) Unregistered",
+            description="\n".join(
+                f"Removed: {r['brand']} {r['model']}"
+                for r in removed
+            ),
+            color=EMBED_COLOR
+        )
+
+        await interaction.response.edit_message(embed=embed, view=None)
+
+class UnregisterView(discord.ui.View):
+    def __init__(self, user_id, registrations):
+        super().__init__(timeout=None)
+        self.add_item(UnregisterSelect(user_id, registrations))
         
 # -------- LINK COMMAND --------
 class LinkView(ui.View):
@@ -1223,6 +1277,37 @@ async def register(interaction: discord.Interaction, brand: str, model: str, col
         embed.add_field(name="Year", value=year)
 
     await interaction.followup.send("Vehicle registered successfully.", ephemeral=True)
+
+# -------- UNREGISTER COMMAND (UPGRADED) --------
+@bot.tree.command(name="unregister", description="Remove registered vehicle(s)")
+async def unregister(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+
+    data = await load_registrations()
+    user_id = str(interaction.user.id)
+    user_regs = data.get(user_id, [])
+
+    if not user_regs:
+        embed = discord.Embed(
+            description="No registered vehicles found.",
+            color=EMBED_COLOR
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        return
+
+    view = UnregisterView(user_id, user_regs)
+    await interaction.followup.send(
+        embed=discord.Embed(
+            title="__Your registered vehicles__",
+            description="\n".join(
+                f"<:dmsarrow:1491008371682443325> {r['brand']} {r['model']}"
+                for r in user_regs
+            ),
+            color=EMBED_COLOR
+        ),
+        view=view,
+        ephemeral=True
+    )
     
 # -------- INFO COMMAND --------
 @bot.tree.command(name="botinfo", description="View the Bot's information")
