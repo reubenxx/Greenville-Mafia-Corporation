@@ -811,10 +811,11 @@ class RegistrationView(discord.ui.View):
             embed.add_field(
                 name="Vehicle",
                 value=(
-                    f"**Vehicle Brand** | {reg['brand']}\n"
-                    f"**Vehicle Color** | {reg['color']}\n"
-                    f"**Vehicle Plate** | {reg['plate']}\n"
-                    f"**Vehicle Year** | {reg['year']}"
+                    f"**Vehicle Brand** | {reg.get('brand', 'N/A')}\n"
+                    f"**Vehicle Model** | {reg.get('model', 'N/A')}\n"
+                    f"**Vehicle Color** | {reg.get('color', 'N/A')}\n"
+                    f"**Vehicle Plate** | {reg.get('plate', 'N/A')}\n"
+                    f"**Vehicle Year** | {reg.get('year', 'N/A')}"
                 ),
                 inline=False
             )
@@ -1186,11 +1187,12 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
 @bot.tree.command(name="register", description="Register a vehicle")
 @app_commands.describe(
     brand="Vehicle brand",
+    model="Vehicle model",
     color="Vehicle color",
     plate="Plate number",
     year="Vehicle year"
 )
-async def register(interaction: discord.Interaction, brand: str, color: str, plate: str, year: str):
+async def register(interaction: discord.Interaction, brand: str, model: str, color: str, plate: str, year: str):
     await interaction.response.defer(ephemeral=True)
 
     data = await load_registrations()
@@ -1200,11 +1202,12 @@ async def register(interaction: discord.Interaction, brand: str, color: str, pla
         data[user_id] = []
 
     new_reg = {
-        "brand": brand,
-        "color": color,
-        "plate": plate,
-        "year": year
-    }
+    "brand": brand,
+    "model": model,
+    "color": color,
+    "plate": plate,
+    "year": year
+}
 
     data[user_id].append(new_reg)
     await save_registrations(data)
@@ -1214,10 +1217,10 @@ async def register(interaction: discord.Interaction, brand: str, color: str, pla
         embed = discord.Embed(title="New Registration", color=EMBED_COLOR)
         embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
         embed.add_field(name="Brand", value=brand)
+        embed.add_field(name="Model", value=model)
         embed.add_field(name="Color", value=color)
         embed.add_field(name="Plate", value=plate)
         embed.add_field(name="Year", value=year)
-        await log_channel.send(embed=embed)
 
     await interaction.followup.send("Vehicle registered successfully.", ephemeral=True)
     
