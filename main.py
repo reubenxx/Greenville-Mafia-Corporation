@@ -846,26 +846,37 @@ class UnregisterSelect(discord.ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        data = await load_registrations()
-        user_regs = data.get(self.user_id, [])
+    data = await load_registrations()
+    user_id = str(self.user_id)
+    user_regs = data.get(user_id, [])
 
-        # Remove selected vehicles
-        selected_indexes = sorted([int(v) for v in self.values], reverse=True)
+    # Remove selected vehicles
+    selected_indexes = sorted([int(v) for v in self.values], reverse=True)
 
-        removed = []
-        for index in selected_indexes:
-            if index < len(user_regs):
-                removed.append(user_regs.pop(index))
+    removed = []
+    for index in selected_indexes:
+        if index < len(user_regs):
+            removed.append(user_regs.pop(index))
 
-        data[self.user_id] = user_regs
-        await save_registrations(data)
+    data[user_id] = user_regs
+    await save_registrations(data)
 
-        description="\n".join(
-    f"Removed: {r.get('brand','Unknown')} {r.get('model','')}".strip()
-    for r in removed
-),
+    # Build embed
+    if removed:
+        description = "\n".join(
+            f"Removed: {r.get('brand','Unknown')} {r.get('model','')}".strip()
+            for r in removed
+        )
+    else:
+        description = "No vehicles were removed."
 
-        await interaction.response.edit_message(embed=embed, view=None)
+    embed = discord.Embed(
+        title="Unregistered Vehicles",
+        description=description,
+        color=EMBED_COLOR
+    )
+
+    await interaction.response.edit_message(embed=embed, view=None)
 
 class UnregisterView(discord.ui.View):
     def __init__(self, user_id, registrations):
@@ -1296,7 +1307,7 @@ async def unregister(interaction: discord.Interaction):
         embed=discord.Embed(
             title="__Your registered vehicles__",
             description="\n".join(
-                f"<:dmsarrow:1491008371682443325> {r['brand']} {r['model']}"
+                f"<:dmsarrow:1491008371682443325> {r.get('brand','Unknown')} {r.get('model','')}".strip()
                 for r in user_regs
             ),
             color=EMBED_COLOR
