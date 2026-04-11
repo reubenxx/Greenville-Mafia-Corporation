@@ -552,18 +552,32 @@ async def update_blacklist_message(bot):
     await message.edit(embed=embed)
 
 # -------- BLOXLINK FETCH --------
-async def get_roblox_id(discord_id: int, guild_id: int):
-    # Try Bloxlink first
-    url = f"https://api.blox.link/v4/public/guilds/{guild_id}/discord-to-roblox/{discord_id}"
-
+async def get_roblox_data(discord_id: int, guild_id: int):
     async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
-            if resp.status == 200:
-                data = await resp.json()
-                roblox_id = data.get("robloxID")
 
-                if roblox_id:
-                    return roblox_id
+        # ---- BLOXLINK GUILD ----
+        try:
+            url = f"https://api.blox.link/v4/public/guilds/{guild_id}/discord-to-roblox/{discord_id}"
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if data.get("robloxID"):
+                        return data["robloxID"]
+        except:
+            pass
+
+        # ---- BLOXLINK GLOBAL ----
+        try:
+            url = f"https://api.blox.link/v4/public/discord-to-roblox/{discord_id}"
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if data.get("robloxID"):
+                        return data["robloxID"]
+        except:
+            pass
+
+    return None
 
     # ---- FALLBACK: GLOBAL LOOKUP ----
     url = f"https://api.blox.link/v4/public/discord-to-roblox/{discord_id}"
@@ -1263,26 +1277,33 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
 
     target = user or interaction.user
 
-    roblox_id = await get_roblox_id(target.id, interaction.guild.id)
+    roblox_id = await get_roblox_data(target.id, interaction.guild.id)
 
-    username = "Not Linked"
-    avatar_url = target.display_avatar.url
-    profile_url = None
+username = None
+avatar_url = None
+profile_url = None
 
-    if roblox_id:
-        async with aiohttp.ClientSession() as session:
+if roblox_id:
+    async with aiohttp.ClientSession() as session:
+        try:
+            # ---- USER INFO ----
             async with session.get(f"https://users.roblox.com/v1/users/{roblox_id}") as resp:
-                data = await resp.json()
+                if resp.status == 200:
+                    data = await resp.json()
+                    username = data.get("name")
 
-            username = data.get("name", "Unknown")
-
+            # ---- AVATAR ----
             async with session.get(
                 f"https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={roblox_id}&size=150x150&format=Png&isCircular=false"
             ) as resp:
-                avatar_data = await resp.json()
+                if resp.status == 200:
+                    avatar_data = await resp.json()
+                    avatar_url = avatar_data["data"][0]["imageUrl"]
 
-            avatar_url = avatar_data["data"][0]["imageUrl"]
             profile_url = f"https://www.roblox.com/users/{roblox_id}/profile"
+
+        except Exception as e:
+            print(f"Roblox fetch error: {e}")
 
     data = await load_registrations()
     reg_count = len(data.get(str(target.id), []))
