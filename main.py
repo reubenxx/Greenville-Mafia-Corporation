@@ -1319,12 +1319,20 @@ if roblox_id:
         color=EMBED_COLOR
     )
 
-    embed.set_thumbnail(url=avatar_url)
+    embed.set_thumbnail(url=avatar_url if avatar_url else target.display_avatar.url)
 
-    if profile_url:
-        embed.add_field(name="Roblox Username", value=f"[{username}]({profile_url})", inline=False)
-    else:
-        embed.add_field(name="Roblox Username", value="Not Linked", inline=False)
+    if username and profile_url:
+    embed.add_field(
+        name="Roblox Username",
+        value=f"[{username}]({profile_url})",
+        inline=False
+    )
+else:
+    embed.add_field(
+        name="Roblox Username",
+        value="Not Linked",
+        inline=False
+    )
 
     embed.add_field(name="Registration(s)", value=str(reg_count), inline=True)
     embed.add_field(name="License Status", value=license_status, inline=True)
