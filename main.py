@@ -1279,6 +1279,8 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
 
     roblox_id = await get_roblox_data(target.id, interaction.guild.id)
 
+print("ROBLOX_ID:", roblox_id)
+
     username = None
     avatar_url = None
     profile_url = None
