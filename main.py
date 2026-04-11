@@ -1279,39 +1279,38 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
 
     roblox_id = await get_roblox_data(target.id, interaction.guild.id)
 
-username = None
-avatar_url = None
-profile_url = None
+    username = None
+    avatar_url = None
+    profile_url = None
 
-if roblox_id:
-    async with aiohttp.ClientSession() as session:
-        try:
-            # ---- USER INFO ----
-            async with session.get(f"https://users.roblox.com/v1/users/{roblox_id}") as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    username = data.get("name")
+    if roblox_id:
+        async with aiohttp.ClientSession() as session:
 
-            # ---- AVATAR ----
-            async with session.get(
-                f"https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={roblox_id}&size=150x150&format=Png&isCircular=false"
-            ) as resp:
-                if resp.status == 200:
-                    avatar_data = await resp.json()
-                    avatar_url = avatar_data["data"][0]["imageUrl"]
+            try:
+                # ---- USER INFO ----
+                async with session.get(f"https://users.roblox.com/v1/users/{roblox_id}") as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        username = data.get("name")
 
-            profile_url = f"https://www.roblox.com/users/{roblox_id}/profile"
+                # ---- AVATAR ----
+                async with session.get(
+                    f"https://thumbnails.roblox.com/v1/users/avatar-headshot"
+                    f"?userIds={roblox_id}&size=150x150&format=Png&isCircular=false"
+                ) as resp:
+                    if resp.status == 200:
+                        avatar_data = await resp.json()
+                        avatar_url = avatar_data["data"][0]["imageUrl"]
 
-        except Exception as e:
-            print(f"Roblox fetch error: {e}")
+                profile_url = f"https://www.roblox.com/users/{roblox_id}/profile"
+
+            except Exception as e:
+                print(f"Roblox fetch error: {e}")
 
     data = await load_registrations()
     reg_count = len(data.get(str(target.id), []))
 
-    if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles):
-        license_status = "Suspended"
-    else:
-        license_status = "Active"
+    license_status = "Suspended" if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles) else "Active"
 
     embed = discord.Embed(
         title="Greenville Roleplay Global | Civilian Profile",
@@ -1319,20 +1318,21 @@ if roblox_id:
         color=EMBED_COLOR
     )
 
-    embed.set_thumbnail(url=avatar_url if avatar_url else target.display_avatar.url)
+    embed.set_thumbnail(url=avatar_url or target.display_avatar.url)
 
+    # Roblox username field
     if username and profile_url:
-    embed.add_field(
-        name="Roblox Username",
-        value=f"[{username}]({profile_url})",
-        inline=False
-    )
-else:
-    embed.add_field(
-        name="Roblox Username",
-        value="Not Linked",
-        inline=False
-    )
+        embed.add_field(
+            name="Roblox Username",
+            value=f"[{username}]({profile_url})",
+            inline=False
+        )
+    else:
+        embed.add_field(
+            name="Roblox Username",
+            value="Not Linked",
+            inline=False
+        )
 
     embed.add_field(name="Registration(s)", value=str(reg_count), inline=True)
     embed.add_field(name="License Status", value=license_status, inline=True)
