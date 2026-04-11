@@ -1277,43 +1277,49 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
 
     target = user or interaction.user
 
+    # ---- ROBLOX ID FETCH ----
     roblox_id = await get_roblox_data(target.id, interaction.guild.id)
 
-print("ROBLOX_ID:", roblox_id)
+    # 🔥 DEBUG (CHECK TERMINAL)
+    print("ROBLOX_ID:", roblox_id)
 
     username = None
     avatar_url = None
     profile_url = None
 
+    # ---- ROBLOX DATA ----
     if roblox_id:
         async with aiohttp.ClientSession() as session:
-
             try:
-                # ---- USER INFO ----
+                # USER INFO
                 async with session.get(f"https://users.roblox.com/v1/users/{roblox_id}") as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         username = data.get("name")
 
-                # ---- AVATAR ----
+                # AVATAR
                 async with session.get(
                     f"https://thumbnails.roblox.com/v1/users/avatar-headshot"
                     f"?userIds={roblox_id}&size=150x150&format=Png&isCircular=false"
                 ) as resp:
                     if resp.status == 200:
                         avatar_data = await resp.json()
-                        avatar_url = avatar_data["data"][0]["imageUrl"]
+                        if avatar_data.get("data"):
+                            avatar_url = avatar_data["data"][0].get("imageUrl")
 
                 profile_url = f"https://www.roblox.com/users/{roblox_id}/profile"
 
             except Exception as e:
-                print(f"Roblox fetch error: {e}")
+                print("Roblox fetch error:", e)
 
+    # ---- REGISTRATIONS ----
     data = await load_registrations()
     reg_count = len(data.get(str(target.id), []))
 
+    # ---- LICENSE STATUS ----
     license_status = "Suspended" if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles) else "Active"
 
+    # ---- EMBED ----
     embed = discord.Embed(
         title="Greenville Roleplay Global | Civilian Profile",
         description=f"You are currently viewing {target.mention}'s profile.",
@@ -1322,7 +1328,7 @@ print("ROBLOX_ID:", roblox_id)
 
     embed.set_thumbnail(url=avatar_url or target.display_avatar.url)
 
-    # Roblox username field
+    # ---- ROBLOX FIELD ----
     if username and profile_url:
         embed.add_field(
             name="Roblox Username",
