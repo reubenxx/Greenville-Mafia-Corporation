@@ -8,6 +8,7 @@ import json
 import asyncio
 import tempfile
 import shutil
+import aiohttp
 
 blacklist_lock = asyncio.Lock()
 
@@ -47,6 +48,11 @@ GVMC_STATUS_TEXT = "/gvrpg"
 MODLOG_CHANNEL = 1483351237394042910
 DATA_DIR = "/mnt/disk"
 BLACKLIST_FILE = f"{DATA_DIR}/blacklist.json"
+REGISTRATION_FILE = f"{DATA_DIR}/registrations.json"
+LICENSE_SUSPENDED_ROLE = 1492408999826555052
+REG_LOG_CHANNEL = 1442212602762760434
+
+os.makedirs(os.path.dirname(REGISTRATION_FILE), exist_ok=True)
 
 # Make sure the folder exists
 os.makedirs(os.path.dirname(BLACKLIST_FILE), exist_ok=True)
@@ -72,6 +78,7 @@ async def on_ready():
     )
     bot.add_view(LOAView(0, 0, 0))
     bot.add_view(EndView())
+    bot.add_view(RegistrationView(0))
     print(f"{bot.user} ready")
 
 @bot.event
@@ -492,6 +499,25 @@ async def save_blacklist(data):
 
         os.replace(temp_name, BLACKLIST_FILE)
 
+
+# -------- REGISTRATION STORAGE --------
+async def load_registrations():
+    if not os.path.exists(REGISTRATION_FILE):
+        with open(REGISTRATION_FILE, "w") as f:
+            json.dump({}, f)
+        return {}
+
+    with open(REGISTRATION_FILE, "r") as f:
+        return json.load(f)
+
+
+async def save_registrations(data):
+    with tempfile.NamedTemporaryFile("w", delete=False, dir=DATA_DIR) as tmp:
+        json.dump(data, tmp, indent=4)
+        temp_name = tmp.name
+
+    os.replace(temp_name, REGISTRATION_FILE)
+    
 # -------- UPDATE BLACKLIST MESSAGE --------
 async def update_blacklist_message(bot):
     channel = bot.get_channel(BLACKLIST_CHANNEL)
@@ -524,7 +550,18 @@ async def update_blacklist_message(bot):
 
     message = await channel.fetch_message(BLACKLIST_MESSAGE_ID)
     await message.edit(embed=embed)
-        
+
+# -------- BLOXLINK FETCH --------
+async def get_roblox_id(discord_id: int, guild_id: int):
+    url = f"https://api.blox.link/v4/public/guilds/{guild_id}/discord-to-roblox/{discord_id}"
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                return data.get("robloxID")
+            return None
+            
 # -------- STARTUP COMMAND --------
 @bot.tree.command(name="startup", description="Start a convoy session.")
 @app_commands.describe(reactions="Number of reactions required to release link")
@@ -717,6 +754,45 @@ async def setupblacklist(interaction: discord.Interaction):
         f"Blacklist message created. Message ID: {msg.id}",
         ephemeral=True
     )
+
+# -------- REGISTRATION VIEW --------
+class RegistrationView(discord.ui.View):
+    def __init__(self, user_id: int):
+        super().__init__(timeout=None)
+        self.user_id = user_id
+
+    @discord.ui.button(label="Registrations", style=discord.ButtonStyle.secondary, custom_id="view_regs")
+    async def view_regs(self, interaction: discord.Interaction, button: discord.ui.Button):
+        data = await load_registrations()
+        user_regs = data.get(str(self.user_id), [])
+
+        if not user_regs:
+            embed = discord.Embed(
+                description="No active registrations found.",
+                color=EMBED_COLOR
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
+        embed = discord.Embed(
+            title=f"{len(user_regs)} found.",
+            color=EMBED_COLOR
+        )
+
+        for reg in user_regs:
+            embed.add_field(
+                name="Vehicle",
+                value=(
+                    f"**Vehicle Brand** | {reg['brand']}\n"
+                    f"**Vehicle Color** | {reg['color']}\n"
+                    f"**Vehicle Plate** | {reg['plate']}\n"
+                    f"**Vehicle Year** | {reg['year']}"
+                ),
+                inline=False
+            )
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        
 # -------- LINK COMMAND --------
 class LinkView(ui.View):
     def __init__(self, url):
@@ -1078,6 +1154,45 @@ async def loa(interaction: discord.Interaction, reason: str, start_date: str, en
         except Exception as e:
             print("Failed to send LOA to staff channel:", e)
 
+# -------- REGISTER COMMAND --------
+@bot.tree.command(name="register", description="Register a vehicle")
+@app_commands.describe(
+    brand="Vehicle brand",
+    color="Vehicle color",
+    plate="Plate number",
+    year="Vehicle year"
+)
+async def register(interaction: discord.Interaction, brand: str, color: str, plate: str, year: str):
+    await interaction.response.defer(ephemeral=True)
+
+    data = await load_registrations()
+    user_id = str(interaction.user.id)
+
+    if user_id not in data:
+        data[user_id] = []
+
+    new_reg = {
+        "brand": brand,
+        "color": color,
+        "plate": plate,
+        "year": year
+    }
+
+    data[user_id].append(new_reg)
+    await save_registrations(data)
+
+    log_channel = bot.get_channel(REG_LOG_CHANNEL)
+    if log_channel:
+        embed = discord.Embed(title="New Registration", color=EMBED_COLOR)
+        embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
+        embed.add_field(name="Brand", value=brand)
+        embed.add_field(name="Color", value=color)
+        embed.add_field(name="Plate", value=plate)
+        embed.add_field(name="Year", value=year)
+        await log_channel.send(embed=embed)
+
+    await interaction.followup.send("Vehicle registered successfully.", ephemeral=True)
+    
 # -------- INFO COMMAND --------
 @bot.tree.command(name="botinfo", description="View the Bot's information")
 async def info(interaction: discord.Interaction):
@@ -1126,6 +1241,65 @@ async def info(interaction: discord.Interaction):
 
         await log_channel.send(embed=log_embed)
 
+# -------- PROFILE COMMAND --------
+@bot.tree.command(name="profile", description="View a civilian profile")
+@app_commands.describe(user="User to view")
+async def profile(interaction: discord.Interaction, user: discord.Member = None):
+    await interaction.response.defer()
+
+    target = user or interaction.user
+
+    roblox_id = await get_roblox_id(target.id, interaction.guild.id)
+
+    username = "Not Linked"
+    avatar_url = target.display_avatar.url
+    profile_url = None
+
+    if roblox_id:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"https://users.roblox.com/v1/users/{roblox_id}") as resp:
+                data = await resp.json()
+
+            username = data.get("name", "Unknown")
+
+            async with session.get(
+                f"https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds={roblox_id}&size=150x150&format=Png&isCircular=false"
+            ) as resp:
+                avatar_data = await resp.json()
+
+            avatar_url = avatar_data["data"][0]["imageUrl"]
+            profile_url = f"https://www.roblox.com/users/{roblox_id}/profile"
+
+    data = await load_registrations()
+    reg_count = len(data.get(str(target.id), []))
+
+    if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles):
+        license_status = "Suspended"
+    else:
+        license_status = "Active"
+
+    embed = discord.Embed(
+        title="Greenville Roleplay Global | Civilian Profile",
+        description=f"You are currently viewing {target.mention}'s profile.",
+        color=EMBED_COLOR
+    )
+
+    embed.set_thumbnail(url=avatar_url)
+
+    if profile_url:
+        embed.add_field(name="Roblox Username", value=f"[{username}]({profile_url})", inline=False)
+    else:
+        embed.add_field(name="Roblox Username", value="Not Linked", inline=False)
+
+    embed.add_field(name="Registration(s)", value=str(reg_count), inline=True)
+    embed.add_field(name="License Status", value=license_status, inline=True)
+
+    embed.set_footer(text="Greenville Roleplay Global", icon_url=FOOTER_ICON)
+
+    view = RegistrationView(target.id)
+
+    await interaction.followup.send(embed=embed, view=view)
+    
 # -------- MEMBERCOUNT COMMAND --------
 @bot.tree.command(name="membercount", description="Show total member count")
 async def membercount(interaction: discord.Interaction):
