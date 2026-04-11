@@ -830,8 +830,8 @@ class UnregisterSelect(discord.ui.Select):
 
         options = [
             discord.SelectOption(
-                label=f"{r['brand']} {r['model']}",
-                description=f"{r['color']} | {r['plate']} | {r['year']}",
+                label=f"{r.get('brand', 'Unknown')} {r.get('model', '')}".strip(),
+                description=f"{r.get('color','?')} | {r.get('plate','?')} | {r.get('year','?')}",
                 value=str(i)
             )
             for i, r in enumerate(registrations)
@@ -860,14 +860,10 @@ class UnregisterSelect(discord.ui.Select):
         data[self.user_id] = user_regs
         await save_registrations(data)
 
-        embed = discord.Embed(
-            title="Vehicle(s) Unregistered",
-            description="\n".join(
-                f"Removed: {r['brand']} {r['model']}"
-                for r in removed
-            ),
-            color=EMBED_COLOR
-        )
+        description="\n".join(
+    f"Removed: {r.get('brand','Unknown')} {r.get('model','')}".strip()
+    for r in removed
+),
 
         await interaction.response.edit_message(embed=embed, view=None)
 
