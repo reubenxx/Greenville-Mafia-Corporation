@@ -553,14 +553,28 @@ async def update_blacklist_message(bot):
 
 # -------- BLOXLINK FETCH --------
 async def get_roblox_id(discord_id: int, guild_id: int):
+    # Try Bloxlink first
     url = f"https://api.blox.link/v4/public/guilds/{guild_id}/discord-to-roblox/{discord_id}"
 
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as resp:
             if resp.status == 200:
                 data = await resp.json()
+                roblox_id = data.get("robloxID")
+
+                if roblox_id:
+                    return roblox_id
+
+    # ---- FALLBACK: GLOBAL LOOKUP ----
+    url = f"https://api.blox.link/v4/public/discord-to-roblox/{discord_id}"
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            if resp.status == 200:
+                data = await resp.json()
                 return data.get("robloxID")
-            return None
+
+    return None
             
 # -------- STARTUP COMMAND --------
 @bot.tree.command(name="startup", description="Start a convoy session.")
