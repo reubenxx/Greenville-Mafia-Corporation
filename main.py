@@ -1136,7 +1136,7 @@ async def end(interaction: discord.Interaction, host_note: str):
     )
     embed.set_image(url=END_BANNER)
     embed.set_footer(text="Greenville Roleplay Global", icon_url=FOOTER_ICON)
-    view = EndView()
+    view = EndView(startup_host.id if startup_host else None)
     await interaction.response.send_message("Convoy ended!", ephemeral=True)
     end_msg = await channel.send(embed=embed, view=view)
 
