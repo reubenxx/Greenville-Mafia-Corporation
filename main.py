@@ -1177,13 +1177,16 @@ async def end(interaction: discord.Interaction, host_note: str):
         )
         await modlog_channel.send(embed=log_embed)
 
-    # ---- Reset convoy state ----
-    startup_active = False
-    startup_host = None
-    startup_message = None
-    link_message = None
-    startup_reactors = set()
-    startup_time = None
+    # ---- Save host BEFORE reset (IMPORTANT FIX) ----
+_last_startup_host = startup_host
+
+# ---- Reset convoy state ----
+startup_active = False
+startup_host = _last_startup_host
+startup_message = None
+link_message = None
+startup_reactors = set()
+startup_time = None
 
 # -------- LOA COMMAND CONTINUED --------
 @bot.tree.command(name="loa", description="Submit a Leave of Absence")
