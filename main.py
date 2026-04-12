@@ -1110,6 +1110,7 @@ async def end(interaction: discord.Interaction, host_note: str):
         return
 
     global startup_active, startup_message, link_message, startup_time, startup_host, startup_reactors
+
     if not startup_active:
         await interaction.response.send_message("No active convoy.", ephemeral=True)
         return
@@ -1136,13 +1137,18 @@ async def end(interaction: discord.Interaction, host_note: str):
     )
     embed.set_image(url=END_BANNER)
     embed.set_footer(text="Greenville Roleplay Global", icon_url=FOOTER_ICON)
-    view = EndView(startup_host.id if startup_host else None)
+
+    # ✅ FIX: View must NOT take arguments
+    view = EndView()
+
     await interaction.response.send_message("Convoy ended!", ephemeral=True)
+
     end_msg = await channel.send(embed=embed, view=view)
 
     # ---- Purge the rest of the messages ----
     def check(msg):
         return not msg.pinned and msg.id != end_msg.id
+
     await channel.purge(check=check, limit=None)
 
     # ---- Session log (internal) ----
@@ -1177,17 +1183,12 @@ async def end(interaction: discord.Interaction, host_note: str):
         )
         await modlog_channel.send(embed=log_embed)
 
-    # ---- Save host BEFORE reset (IMPORTANT FIX) ----
-_last_startup_host = startup_host
-
-# ---- Reset convoy state ----
-startup_active = False
-startup_host = _last_startup_host
-startup_message = None
-link_message = None
-startup_reactors = set()
-startup_time = None
-
+    # ---- Reset convoy state (MUST stay inside function) ----
+    startup_active = False
+    startup_message = None
+    link_message = None
+    startup_reactors = set()
+    startup_time = None
 # -------- LOA COMMAND CONTINUED --------
 @bot.tree.command(name="loa", description="Submit a Leave of Absence")
 @app_commands.describe(
