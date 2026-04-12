@@ -1071,13 +1071,21 @@ class FeedbackModal(ui.Modal, title="Convoy Feedback"):
     feedback = ui.TextInput(label="Feedback", style=discord.TextStyle.paragraph)
 
     async def on_submit(self, interaction: discord.Interaction):
-        channel = bot.get_channel(FEEDBACK_CHANNEL)
-        embed = discord.Embed(title="Feedback Received", color=EMBED_COLOR)
-        embed.add_field(name="User", value=interaction.user.mention)
-        embed.add_field(name="Rating", value=self.rating.value)
-        embed.add_field(name="Feedback", value=self.feedback.value)
-        await channel.send(embed=embed)
-        await interaction.response.send_message("Feedback submitted.", ephemeral=True)
+    channel = bot.get_channel(FEEDBACK_CHANNEL)
+
+    embed = discord.Embed(
+        title="Convoy Feedback",
+        description=(
+            f"**Event Hoster** | {startup_host.mention if startup_host else 'Unknown'}\n"
+            f"**Rater** | {interaction.user.mention}\n"
+            f"**Rating** | {self.rating.value}\n"
+            f"**Feedback** | {self.feedback.value}"
+        ),
+        color=EMBED_COLOR
+    )
+
+    await channel.send(embed=embed)
+    await interaction.response.send_message("Feedback submitted.", ephemeral=True)
 
 
 class EndView(ui.View):
