@@ -1066,26 +1066,26 @@ class LOAView(ui.View):
         await interaction.message.edit(view=self)
 
 # -------- END COMMANDS --------
-class FeedbackModal(ui.Modal, title="Convoy Feedback"):
+class FeedbackModal(ui.Modal, title="Session Feedback"):
     rating = ui.TextInput(label="Rating (1-5)")
     feedback = ui.TextInput(label="Feedback", style=discord.TextStyle.paragraph)
 
     async def on_submit(self, interaction: discord.Interaction):
-    channel = bot.get_channel(FEEDBACK_CHANNEL)
+        channel = bot.get_channel(FEEDBACK_CHANNEL)
 
-    embed = discord.Embed(
-        title="Convoy Feedback",
-        description=(
-            f"**Event Hoster** | {startup_host.mention if startup_host else 'Unknown'}\n"
-            f"**Rater** | {interaction.user.mention}\n"
-            f"**Rating** | {self.rating.value}\n"
-            f"**Feedback** | {self.feedback.value}"
-        ),
-        color=EMBED_COLOR
-    )
+        embed = discord.Embed(
+            title="Convoy Feedback",
+            description=(
+                f"**Event Hoster** | {startup_host.mention if startup_host else 'Unknown'}\n"
+                f"**Rater** | {interaction.user.mention}\n"
+                f"**Rating** | {self.rating.value}\n"
+                f"**Feedback** | {self.feedback.value}"
+            ),
+            color=EMBED_COLOR
+        )
 
-    await channel.send(embed=embed)
-    await interaction.response.send_message("Feedback submitted.", ephemeral=True)
+        await channel.send(embed=embed)
+        await interaction.response.send_message("Feedback submitted.", ephemeral=True)
 
 
 class EndView(ui.View):
