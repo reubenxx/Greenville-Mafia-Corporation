@@ -909,7 +909,7 @@ class LinkView(ui.View):
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-@bot.tree.command(name="link", description="Release the private server link")
+@bot.tree.command(name="release", description="Release the private server link")
 @app_commands.describe(
     url="Private server link",
     session_type="Session type",
@@ -995,7 +995,7 @@ f"> <:dot:1491005539201843290> **Area of Roleplay** | {aorp}\n\n"
         log_embed.add_field(
             name="\u200b",
             value=(
-                f"**Command Executed** | /link\n"
+                f"**Command Executed** | /release\n"
                 f"**User** | {interaction.user.mention}\n"
                 f"**Content** | {url}\n"
                 f"**Time** | <t:{int(datetime.datetime.now(datetime.UTC).timestamp())}:F>\n"
