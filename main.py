@@ -910,7 +910,26 @@ class LinkView(ui.View):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="link", description="Release the private server link")
-async def link(interaction: discord.Interaction, url: str, session_type: str, additional_info: str = "N/A"):
+@app_commands.describe(
+    url="Private server link",
+    session_type="Session type",
+    additional_info="Additional information",
+    frp_speed="FRP Speed Limit (numbers only)",
+    peacetime="Peacetime Status"
+)
+@app_commands.choices(peacetime=[
+    app_commands.Choice(name="Strict", value="Strict"),
+    app_commands.Choice(name="Normal", value="Normal"),
+    app_commands.Choice(name="Off", value="Off")
+])
+async def link(
+    interaction: discord.Interaction,
+    url: str,
+    session_type: str,
+    additional_info: str,
+    frp_speed: int,
+    peacetime: app_commands.Choice[str]
+):
     member = interaction.guild.get_member(interaction.user.id)
     if not any(role.id in ALLOWED_ROLES for role in member.roles):
         await interaction.response.send_message("You are not authorized.", ephemeral=True)
