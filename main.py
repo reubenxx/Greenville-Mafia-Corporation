@@ -916,7 +916,7 @@ class LinkView(ui.View):
     additional_info="Additional information",
     frp_speed="FRP Speed Limit (numbers only)",
     peacetime="Peacetime Status",
-    AORP="Area of Roleplay"
+    aorp="Area of Roleplay"
 )
 @app_commands.choices(peacetime=[
     app_commands.Choice(name="Strict", value="Strict"),
@@ -930,7 +930,7 @@ async def link(
     additional_info: str,
     frp_speed: int,
     peacetime: app_commands.Choice[str],
-    AORP: str
+    aorp: str
 ):
     member = interaction.guild.get_member(interaction.user.id)
     if not any(role.id in ALLOWED_ROLES for role in member.roles):
@@ -961,7 +961,7 @@ f"> <:dot:1491005539201843290> **Host** | {startup_host.mention}\n"
 f"> <:dot:1491005539201843290> **Additional Information** | {additional_info}\n"
 f"> <:dot:1491005539201843290> **FRP Speed Limit** | {frp_speed}\n"
 f"> <:dot:1491005539201843290> **Peacetime Status** | {peacetime.value}\n"
-f"> <:dot:1491005539201843290> **Area of Roleplay** | {AORP}\n\n"
+f"> <:dot:1491005539201843290> **Area of Roleplay** | {aorp}\n\n"
             "> Join using the button beneath this embed. We hope you enjoy the session, leave feedback at the end!"
         ),
         color=EMBED_COLOR
