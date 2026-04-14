@@ -915,7 +915,8 @@ class LinkView(ui.View):
     session_type="Session type",
     additional_info="Additional information",
     frp_speed="FRP Speed Limit (numbers only)",
-    peacetime="Peacetime Status"
+    peacetime="Peacetime Status",
+    AORP="Area of Roleplay"
 )
 @app_commands.choices(peacetime=[
     app_commands.Choice(name="Strict", value="Strict"),
@@ -958,8 +959,8 @@ f"> <:dot:1491005539201843290> **Session Type** | {session_type}\n"
 f"> <:dot:1491005539201843290> **Host** | {startup_host.mention}\n"
 f"> <:dot:1491005539201843290> **Additional Information** | {additional_info}\n"
 f"> <:dot:1491005539201843290> **FRP Speed Limit** | {frp_speed}\n"
-f"> <:dot:1491005539201843290> **Peacetime Status** | {peacetime.value}\n\n"
-
+f"> <:dot:1491005539201843290> **Peacetime Status** | {peacetime.value}\n"
+f"> <:dot:1491005539201843290> **Area of Roleplay** | {AORP}\n\n"
             "> Join using the button beneath this embed. We hope you enjoy the session, leave feedback at the end!"
         ),
         color=EMBED_COLOR
