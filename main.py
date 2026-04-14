@@ -929,7 +929,8 @@ async def link(
     session_type: str,
     additional_info: str,
     frp_speed: int,
-    peacetime: app_commands.Choice[str]
+    peacetime: app_commands.Choice[str],
+    AORP: str
 ):
     member = interaction.guild.get_member(interaction.user.id)
     if not any(role.id in ALLOWED_ROLES for role in member.roles):
