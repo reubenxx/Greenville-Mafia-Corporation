@@ -1420,10 +1420,10 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
 
     roblox_id = await get_roblox_data(target.id, interaction.guild.id)
 
-print("ROBLOX_ID RETURNED:", roblox_id)
+    print("ROBLOX_ID RETURNED:", roblox_id)
 
-if not roblox_id:
-    print("NO ROBLOX LINK FOUND FOR USER:", target.id)
+    if not roblox_id:
+        print("NO ROBLOX LINK FOUND FOR USER:", target.id)
 
     print("STEP 2 - Roblox ID:", roblox_id)
 
@@ -1438,13 +1438,11 @@ if not roblox_id:
         try:
             async with aiohttp.ClientSession() as session:
 
-                # USER INFO
                 async with session.get(f"https://users.roblox.com/v1/users/{roblox_id}") as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         username = data.get("name")
 
-                # AVATAR
                 async with session.get(
                     "https://thumbnails.roblox.com/v1/users/avatar-headshot"
                     f"?userIds={roblox_id}&size=150x150&format=Png&isCircular=false"
@@ -1460,14 +1458,13 @@ if not roblox_id:
     data = await load_registrations()
     reg_count = len(data.get(str(target.id), []))
 
-    # -------- LICENSE STATUS --------
     license_status = (
         "Suspended"
         if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles)
         else "Active"
     )
 
-    # -------- BUILD EMBED (ONLY ONCE) --------
+    # -------- BUILD EMBED --------
     embed = discord.Embed(
         title="Greenville Roleplay Global | Civilian Profile",
         description=f"Profile for {target.mention}",
@@ -1476,11 +1473,10 @@ if not roblox_id:
 
     embed.set_thumbnail(url=avatar_url or target.display_avatar.url)
 
-    # -------- ROBLOX FIELD --------
     if roblox_id and username:
         embed.add_field(
             name="Roblox Username",
-            value=f"[{username}]({profile_url})",
+            value=f"[{username}](https://www.roblox.com/users/{roblox_id}/profile)",
             inline=False
         )
     else:
@@ -1497,7 +1493,6 @@ if not roblox_id:
 
     view = RegistrationView(target.id)
 
-    # -------- SINGLE OUTPUT ONLY --------
     await interaction.followup.send(embed=embed, view=view)
     
 # -------- MEMBERCOUNT COMMAND --------
