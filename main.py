@@ -57,7 +57,7 @@ os.makedirs(os.path.dirname(REGISTRATION_FILE), exist_ok=True)
 # Make sure the folder exists
 os.makedirs(os.path.dirname(BLACKLIST_FILE), exist_ok=True)
 
-FOOTER_ICON = "https://media.discordapp.net/attachments/1467783372469178442/1480467031571693710/image.png"
+FOOTER_ICON = "https://i.imgur.com/2Ksi84s.png"
 STARTUP_BANNER = "https://i.imgur.com/cpnzBpT.jpeg"
 LINK_BANNER = "https://i.imgur.com/5Eo9qNz.jpeg"
 END_BANNER = "https://i.imgur.com/FE8kfRq.jpeg"
