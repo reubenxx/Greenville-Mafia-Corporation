@@ -1404,13 +1404,15 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
 
     await interaction.response.defer()
 
+    print("🔥 PROFILE COMMAND IS RUNNING")
+
     target = user or interaction.user
 
-    print("\n[PROFILE] triggered:", target.id)
+    print("[PROFILE] Target:", target.id)
 
     # -------- ROBLOX ID --------
     roblox_id = await get_roblox_data(target.id, interaction.guild.id)
-    print("[PROFILE] roblox_id:", roblox_id)
+    print("[PROFILE] Roblox ID:", roblox_id)
 
     username = None
     avatar_url = None
@@ -1446,18 +1448,14 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
             print("[ROBLOX ERROR]", e)
 
     else:
-        print("[PROFILE] No Roblox ID found")
+        print("[PROFILE] No Roblox link found")
 
     # -------- REGISTRATIONS --------
     data = await load_registrations()
     reg_count = len(data.get(str(target.id), []))
 
     # -------- LICENSE STATUS --------
-    license_status = (
-        "Suspended"
-        if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles)
-        else "Active"
-    )
+    license_status = "Suspended" if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles) else "Active"
 
     # -------- EMBED --------
     embed = discord.Embed(
