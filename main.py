@@ -551,47 +551,40 @@ async def update_blacklist_message(bot):
     message = await channel.fetch_message(BLACKLIST_MESSAGE_ID)
     await message.edit(embed=embed)
 
-# -------- BLOXLINK FETCH --------
 async def get_roblox_data(discord_id: int, guild_id: int):
     async with aiohttp.ClientSession() as session:
 
-        # ---- BLOXLINK GUILD ----
+        # ---- GUILD LOOKUP ----
         try:
             url = f"https://api.blox.link/v4/public/guilds/{guild_id}/discord-to-roblox/{discord_id}"
             async with session.get(url) as resp:
+
+                text = await resp.text()
+                print("BLOXLINK GUILD STATUS:", resp.status)
+                print("BLOXLINK GUILD RAW:", text)
+
                 if resp.status == 200:
                     data = await resp.json()
+                    return data.get("robloxId") or data.get("robloxID")
 
-                    roblox_id = data.get("robloxId") or data.get("robloxID")
-                    if roblox_id:
-                        return int(roblox_id)
+        except Exception as e:
+            print("GUILD LOOKUP ERROR:", e)
 
-        except:
-            pass
-
-        # ---- BLOXLINK GLOBAL ----
+        # ---- GLOBAL LOOKUP ----
         try:
             url = f"https://api.blox.link/v4/public/discord-to-roblox/{discord_id}"
             async with session.get(url) as resp:
+
+                text = await resp.text()
+                print("BLOXLINK GLOBAL STATUS:", resp.status)
+                print("BLOXLINK GLOBAL RAW:", text)
+
                 if resp.status == 200:
                     data = await resp.json()
+                    return data.get("robloxId") or data.get("robloxID")
 
-                    roblox_id = data.get("robloxId") or data.get("robloxID")
-                    if roblox_id:
-                        return int(roblox_id)
-
-        except:
-            pass
-
-    return None
-    # ---- FALLBACK: GLOBAL LOOKUP ----
-    url = f"https://api.blox.link/v4/public/discord-to-roblox/{discord_id}"
-
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
-            if resp.status == 200:
-                data = await resp.json()
-                return data.get("robloxID")
+        except Exception as e:
+            print("GLOBAL LOOKUP ERROR:", e)
 
     return None
             
