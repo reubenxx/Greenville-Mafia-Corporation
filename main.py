@@ -1420,6 +1420,11 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
 
     roblox_id = await get_roblox_data(target.id, interaction.guild.id)
 
+print("ROBLOX_ID RETURNED:", roblox_id)
+
+if not roblox_id:
+    print("NO ROBLOX LINK FOUND FOR USER:", target.id)
+
     print("STEP 2 - Roblox ID:", roblox_id)
 
     username = None
