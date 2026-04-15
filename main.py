@@ -1412,10 +1412,10 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
 
     target = user or interaction.user
 
-    # ---- DEBUG START ----
-    print("STEP 1 - Starting profile command")
+    # ---- DEBUG ----
+    print("STEP 1 - Profile command triggered")
 
-    # ---- ROBLOX ID FETCH ----
+    # ---- FETCH ROBLOX ID ----
     roblox_id = await get_roblox_data(target.id, interaction.guild.id)
 
     print("STEP 2 - After API call")
@@ -1450,6 +1450,45 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
 
         except Exception as e:
             print("Roblox fetch error:", e)
+
+    # ---- EMBED BUILD ----
+    embed = discord.Embed(
+        title="Greenville Roleplay Global | Civilian Profile",
+        description=f"Profile for {target.mention}",
+        color=EMBED_COLOR
+    )
+
+    # Avatar (fallback to Discord avatar if Roblox missing)
+    embed.set_thumbnail(url=avatar_url or target.display_avatar.url)
+
+    # Roblox field (CLICKABLE BLUE LINK)
+    if username and roblox_id:
+        embed.add_field(
+            name="Roblox Username",
+            value=f"[{username}](https://www.roblox.com/users/{roblox_id}/profile)",
+            inline=False
+        )
+    else:
+        embed.add_field(
+            name="Roblox Username",
+            value="Not Linked",
+            inline=False
+        )
+
+    # Extra info
+    data = await load_registrations()
+    reg_count = len(data.get(str(target.id), []))
+
+    license_status = "Suspended" if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles) else "Active"
+
+    embed.add_field(name="Registrations", value=str(reg_count), inline=True)
+    embed.add_field(name="License Status", value=license_status, inline=True)
+
+    embed.set_footer(text="Greenville Roleplay Global", icon_url=FOOTER_ICON)
+
+    view = RegistrationView(target.id)
+
+    await interaction.followup.send(embed=embed, view=view)
 
     # ---- REGISTRATIONS ----
     data = await load_registrations()
