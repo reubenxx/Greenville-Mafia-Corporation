@@ -87,18 +87,17 @@ async def on_member_join(member):
     channel = bot.get_channel(WELCOME_CHANNEL)
     if channel:
         embed = discord.Embed(
-            title="<a:welcome:1483008041413509141> Welcome to __**Greenville Roleplay Global**__ <a:welcome:1483008041413509141>",
+            title="Welcome to __**Greenville Roleplay Global**__",
             description=(
-                "<a:gvmc_heart:1480637190685069472> **Welcome to __Greenville Roleplay Global!__**\n"
+                "<:yellowheart:1491007395546005514> **Welcome to __Greenville Roleplay Global!__**\n"
                 "We are honored to have you here with us! Before you venture off into **GVRPG**, please "
                 "**[verify](https://discord.com/channels/1441901639739904125/1471452917163884738)** "
                 "to gain full access to our server.\n\n"
-                "<a:pulsatingheart:1480637910347940064> We host daily Roleplays, Events, Occasional Giveaways "
+                "<:dmsarrow:1491008371682443325> We host daily Roleplays, Events, Occasional Giveaways "
                 "and other fun surprises! We look forward to seeing you participate in the full life of "
                 "__**Greenville Roleplay Global**__. If you require any form of assistance, please do not "
-                "hesitate to contact our lovely Staff Team "
+                "hesitate to contact our Staff Team "
                 "**[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**. "
-                "<a:pulsatingheart:1480637910347940064>"
             ),
             color=EMBED_COLOR
         )
@@ -366,9 +365,9 @@ async def on_presence_update(before: discord.Member, after: discord.Member):
                 embed = discord.Embed(
                     title="Greenville Roleplay Global | Server Contributor",
                     description=(
-                        f"> <a:gvmc_heart:1480637190685069472> | Thank you {after.mention} for becoming an official **Greenville Roleplay Global** contributor!\n"
+                        f"> <:yellowheart:1491007395546005514> | Thank you {after.mention} for becoming an official **Greenville Roleplay Global** contributor!\n"
                         f"> They have received the <@&{GVMC_CONTRIBUTOR_ROLE}> role which contains benefits such as image permissions and exclusive giveaways!\n\n"
-                        f"> <a:Animated_Arrow_Bluelite:1484055930919190589> | Would you like to receive the <@&{GVMC_CONTRIBUTOR_ROLE}> role?\n"
+                        f"> <:dmsarrow:1491008371682443325> Would you like to receive the <@&{GVMC_CONTRIBUTOR_ROLE}> role?\n"
                         "> Please put ``/gvrpg`` as your status and you will receive all the perks & role."
                     ),
                     color=EMBED_COLOR
