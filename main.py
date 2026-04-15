@@ -1410,13 +1410,15 @@ async def info(interaction: discord.Interaction):
 async def profile(interaction: discord.Interaction, user: discord.Member = None):
     await interaction.response.defer()
 
-    target = user or interaction.user
+target = user or interaction.user
 
-    # ---- ROBLOX ID FETCH ----
-    roblox_id = await get_roblox_data(target.id, interaction.guild.id)
+# ---- ROBLOX ID FETCH ----
+print("STEP 1 - Starting profile command")
 
-    # 🔥 DEBUG (CHECK TERMINAL)
-    print("ROBLOX_ID:", roblox_id)
+roblox_id = await get_roblox_data(target.id, interaction.guild.id)
+
+print("STEP 2 - After API call")
+print("ROBLOX_ID:", roblox_id)
 
     username = None
     avatar_url = None
