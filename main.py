@@ -552,39 +552,35 @@ async def update_blacklist_message(bot):
     await message.edit(embed=embed)
 
 async def get_roblox_data(discord_id: int, guild_id: int):
+    urls = [
+        f"https://api.blox.link/v4/public/guilds/{guild_id}/discord-to-roblox/{discord_id}",
+        f"https://api.blox.link/v4/public/discord-to-roblox/{discord_id}"
+    ]
+
     async with aiohttp.ClientSession() as session:
+        for url in urls:
+            try:
+                async with session.get(url, timeout=10) as resp:
+                    print(f"[BLOXLINK] {resp.status} -> {url}")
 
-        # ---- GUILD LOOKUP ----
-        try:
-            url = f"https://api.blox.link/v4/public/guilds/{guild_id}/discord-to-roblox/{discord_id}"
-            async with session.get(url) as resp:
+                    if resp.status != 200:
+                        continue
 
-                text = await resp.text()
-                print("BLOXLINK GUILD STATUS:", resp.status)
-                print("BLOXLINK GUILD RAW:", text)
-
-                if resp.status == 200:
                     data = await resp.json()
-                    return data.get("robloxId") or data.get("robloxID")
+                    print("[BLOXLINK RAW]", data)
 
-        except Exception as e:
-            print("GUILD LOOKUP ERROR:", e)
+                    roblox_id = (
+                        data.get("robloxId")
+                        or data.get("robloxID")
+                        or data.get("userId")
+                        or data.get("id")
+                    )
 
-        # ---- GLOBAL LOOKUP ----
-        try:
-            url = f"https://api.blox.link/v4/public/discord-to-roblox/{discord_id}"
-            async with session.get(url) as resp:
+                    if roblox_id:
+                        return int(roblox_id)
 
-                text = await resp.text()
-                print("BLOXLINK GLOBAL STATUS:", resp.status)
-                print("BLOXLINK GLOBAL RAW:", text)
-
-                if resp.status == 200:
-                    data = await resp.json()
-                    return data.get("robloxId") or data.get("robloxID")
-
-        except Exception as e:
-            print("GLOBAL LOOKUP ERROR:", e)
+            except Exception as e:
+                print("[BLOXLINK ERROR]", e)
 
     return None
             
@@ -1405,59 +1401,65 @@ async def info(interaction: discord.Interaction):
 @bot.tree.command(name="profile", description="View a civilian profile")
 @app_commands.describe(user="User to view")
 async def profile(interaction: discord.Interaction, user: discord.Member = None):
+
     await interaction.response.defer()
 
     target = user or interaction.user
 
-    print("STEP 1 - Profile triggered")
+    print("\n[PROFILE] triggered:", target.id)
 
+    # -------- ROBLOX ID --------
     roblox_id = await get_roblox_data(target.id, interaction.guild.id)
-
-    print("ROBLOX_ID RETURNED:", roblox_id)
-
-    if not roblox_id:
-        print("NO ROBLOX LINK FOUND FOR USER:", target.id)
-
-    print("STEP 2 - Roblox ID:", roblox_id)
+    print("[PROFILE] roblox_id:", roblox_id)
 
     username = None
     avatar_url = None
     profile_url = None
 
-    # -------- ROBLOX DATA FETCH --------
+    # -------- ROBLOX FETCH --------
     if roblox_id:
         profile_url = f"https://www.roblox.com/users/{roblox_id}/profile"
 
         try:
             async with aiohttp.ClientSession() as session:
 
+                # USER INFO
                 async with session.get(f"https://users.roblox.com/v1/users/{roblox_id}") as resp:
+                    print("[ROBLOX USER STATUS]", resp.status)
+
                     if resp.status == 200:
                         data = await resp.json()
                         username = data.get("name")
 
+                # AVATAR
                 async with session.get(
-                    "https://thumbnails.roblox.com/v1/users/avatar-headshot"
+                    f"https://thumbnails.roblox.com/v1/users/avatar-headshot"
                     f"?userIds={roblox_id}&size=150x150&format=Png&isCircular=false"
                 ) as resp:
+                    print("[ROBLOX AVATAR STATUS]", resp.status)
+
                     if resp.status == 200:
                         avatar_data = await resp.json()
                         avatar_url = avatar_data["data"][0]["imageUrl"]
 
         except Exception as e:
-            print("Roblox API error:", e)
+            print("[ROBLOX ERROR]", e)
+
+    else:
+        print("[PROFILE] No Roblox ID found")
 
     # -------- REGISTRATIONS --------
     data = await load_registrations()
     reg_count = len(data.get(str(target.id), []))
 
+    # -------- LICENSE STATUS --------
     license_status = (
         "Suspended"
         if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles)
         else "Active"
     )
 
-    # -------- BUILD EMBED --------
+    # -------- EMBED --------
     embed = discord.Embed(
         title="Greenville Roleplay Global | Civilian Profile",
         description=f"Profile for {target.mention}",
@@ -1466,10 +1468,11 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
 
     embed.set_thumbnail(url=avatar_url or target.display_avatar.url)
 
+    # -------- ROBLOX FIELD --------
     if roblox_id and username:
         embed.add_field(
             name="Roblox Username",
-            value=f"[{username}](https://www.roblox.com/users/{roblox_id}/profile)",
+            value=f"[{username}]({profile_url})",
             inline=False
         )
     else:
