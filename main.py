@@ -1299,29 +1299,29 @@ async def register(interaction: discord.Interaction, brand: str, model: str, col
         data[user_id] = []
 
     new_reg = {
-    "brand": brand,
-    "model": model,
-    "color": color,
-    "plate": plate,
-    "year": year
-}
+        "brand": brand,
+        "model": model,
+        "color": color,
+        "plate": plate,
+        "year": year
+    }
 
     data[user_id].append(new_reg)
     await save_registrations(data)
 
-log_channel = bot.get_channel(REG_LOG_CHANNEL)
+    # ✅ THIS MUST BE INSIDE THE FUNCTION
+    log_channel = bot.get_channel(REG_LOG_CHANNEL)
+    if log_channel:
+        embed = discord.Embed(title="New Registration", color=EMBED_COLOR)
+        embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
 
-if log_channel:
-    embed = discord.Embed(title="New Registration", color=EMBED_COLOR)
-    embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
+        embed.add_field(name="Brand", value=brand, inline=True)
+        embed.add_field(name="Model", value=model, inline=True)
+        embed.add_field(name="Color", value=color, inline=True)
+        embed.add_field(name="Plate", value=plate, inline=True)
+        embed.add_field(name="Year", value=year, inline=True)
 
-    embed.add_field(name="Brand", value=brand, inline=True)
-    embed.add_field(name="Model", value=model, inline=True)
-    embed.add_field(name="Color", value=color, inline=True)
-    embed.add_field(name="Plate", value=plate, inline=True)
-    embed.add_field(name="Year", value=year, inline=True)
-
-    await log_channel.send(embed=embed)
+        await log_channel.send(embed=embed)
 
     await interaction.followup.send("Vehicle registered successfully.", ephemeral=True)
 
