@@ -1404,7 +1404,6 @@ async def info(interaction: discord.Interaction):
 
         await log_channel.send(embed=log_embed)
 
-# -------- PROFILE COMMAND --------
 @bot.tree.command(name="profile", description="View a civilian profile")
 @app_commands.describe(user="User to view")
 async def profile(interaction: discord.Interaction, user: discord.Member = None):
@@ -1412,20 +1411,15 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
 
     target = user or interaction.user
 
-    # ---- DEBUG ----
-    print("STEP 1 - Profile command triggered")
+    print("STEP 1 - Profile triggered")
 
-    # ---- FETCH ROBLOX ID ----
     roblox_id = await get_roblox_data(target.id, interaction.guild.id)
 
-    print("STEP 2 - After API call")
-    print("ROBLOX_ID:", roblox_id)
+    print("STEP 2 - Roblox ID:", roblox_id)
 
     username = None
     avatar_url = None
-    profile_url = None
 
-    # ---- ROBLOX DATA ----
     if roblox_id:
         try:
             async with aiohttp.ClientSession() as session:
@@ -1443,26 +1437,28 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
                 ) as resp:
                     if resp.status == 200:
                         avatar_data = await resp.json()
-                        if avatar_data.get("data"):
-                            avatar_url = avatar_data["data"][0].get("imageUrl")
-
-                profile_url = f"https://www.roblox.com/users/{roblox_id}/profile"
+                        avatar_url = avatar_data["data"][0]["imageUrl"]
 
         except Exception as e:
-            print("Roblox fetch error:", e)
+            print("Roblox API error:", e)
 
-    # ---- EMBED BUILD ----
+    # ---- REGISTRATIONS ----
+    data = await load_registrations()
+    reg_count = len(data.get(str(target.id), []))
+
+    license_status = "Suspended" if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles) else "Active"
+
+    # ---- BUILD EMBED (ONLY ONCE) ----
     embed = discord.Embed(
         title="Greenville Roleplay Global | Civilian Profile",
         description=f"Profile for {target.mention}",
         color=EMBED_COLOR
     )
 
-    # Avatar (fallback to Discord avatar if Roblox missing)
     embed.set_thumbnail(url=avatar_url or target.display_avatar.url)
 
-    # Roblox field (CLICKABLE BLUE LINK)
-    if username and roblox_id:
+    # ---- ROBLOX FIELD (CLICKABLE LINK FIXED) ----
+    if roblox_id and username:
         embed.add_field(
             name="Roblox Username",
             value=f"[{username}](https://www.roblox.com/users/{roblox_id}/profile)",
@@ -1475,12 +1471,6 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
             inline=False
         )
 
-    # Extra info
-    data = await load_registrations()
-    reg_count = len(data.get(str(target.id), []))
-
-    license_status = "Suspended" if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles) else "Active"
-
     embed.add_field(name="Registrations", value=str(reg_count), inline=True)
     embed.add_field(name="License Status", value=license_status, inline=True)
 
@@ -1488,6 +1478,7 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
 
     view = RegistrationView(target.id)
 
+    # ---- ONLY ONE SEND (THIS FIXES DUPLICATION) ----
     await interaction.followup.send(embed=embed, view=view)
 
     # ---- REGISTRATIONS ----
