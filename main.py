@@ -561,8 +561,11 @@ async def get_roblox_data(discord_id: int, guild_id: int):
             async with session.get(url) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    if data.get("robloxID"):
-                        return data["robloxID"]
+
+                    roblox_id = data.get("robloxId") or data.get("robloxID")
+                    if roblox_id:
+                        return int(roblox_id)
+
         except:
             pass
 
@@ -572,13 +575,15 @@ async def get_roblox_data(discord_id: int, guild_id: int):
             async with session.get(url) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    if data.get("robloxID"):
-                        return data["robloxID"]
+
+                    roblox_id = data.get("robloxId") or data.get("robloxID")
+                    if roblox_id:
+                        return int(roblox_id)
+
         except:
             pass
 
     return None
-
     # ---- FALLBACK: GLOBAL LOOKUP ----
     url = f"https://api.blox.link/v4/public/discord-to-roblox/{discord_id}"
 
