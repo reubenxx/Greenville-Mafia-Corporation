@@ -757,6 +757,77 @@ async def delblacklist(interaction: discord.Interaction, number: int):
     await log_channel.send(f"<@&{BLACKLIST_PING_ROLE}>", embed=embed)
     await interaction.response.send_message("Blacklist removed.", ephemeral=True)
 
+#--------- Plate Finder Command ---------
+@bot.tree.command(name="platefinder", description="Find a registered vehicle by plate")
+@app_commands.describe(plate="License plate to search for")
+async def platefinder(interaction: discord.Interaction, plate: str):
+    await interaction.response.defer()
+
+    data = await load_registrations()
+    plate_search = plate.strip().lower()
+
+    matches = []
+
+    # -------- SEARCH ALL REGISTRATIONS --------
+    for user_id, registrations in data.items():
+        for reg in registrations:
+            reg_plate = str(reg.get("plate", "")).strip().lower()
+
+            if reg_plate == plate_search:
+                matches.append((int(user_id), reg))
+
+    # -------- NOT FOUND --------
+    if not matches:
+        embed = discord.Embed(
+            description=(
+                f"The License plate ({plate}) could not be found on an actively registered vehicle.\n"
+                "Please ensure the vehicle is registered under the **GVRPG** bot."
+            ),
+            color=EMBED_COLOR
+        )
+        await interaction.followup.send(embed=embed)
+        return
+
+    # -------- MULTIPLE MATCHES CHECK --------
+    suspicious = len(matches) > 1
+
+    embed = discord.Embed(
+        title="Plate Lookup Result",
+        color=EMBED_COLOR
+    )
+
+    # -------- BUILD RESULTS --------
+    for i, (owner_id, reg) in enumerate(matches, start=1):
+        member = interaction.guild.get_member(owner_id)
+        owner_mention = member.mention if member else f"<@{owner_id}>"
+
+        timestamp = reg.get("timestamp")
+        time_text = f"<t:{timestamp}:F>" if timestamp else "Unknown"
+
+        embed.add_field(
+            name=f"Match #{i}",
+            value=(
+                f"__**Vehicle Owner**__ | {owner_mention}\n"
+                f"**Brand** | {reg.get('brand', 'N/A')}\n"
+                f"**Model** | {reg.get('model', 'N/A')}\n"
+                f"**Color** | {reg.get('color', 'N/A')}\n"
+                f"**Year** | {reg.get('year', 'N/A')}\n"
+                f"**Registered On** | {time_text}"
+            ),
+            inline=False
+        )
+
+    # -------- SUSPICIOUS WARNING --------
+    if suspicious:
+        embed.description = (
+            "⚠️ **MULTIPLE VEHICLES FOUND WITH SAME PLATE**\n"
+            "This plate may be duplicated or fraudulently registered."
+        )
+
+    embed.set_footer(text="GVRPG Vehicle Database")
+
+    await interaction.followup.send(embed=embed)
+
 # -------- BLACKLIST START COMMAND --------
 @bot.tree.command(name="setupblacklist", description="Setup blacklist message")
 async def setupblacklist(interaction: discord.Interaction):
@@ -1306,6 +1377,7 @@ async def register(interaction: discord.Interaction, brand: str, model: str, col
         "color": color,
         "plate": plate,
         "year": year
+        "timestamp": int(datetime.datetime.now(datetime.UTC).timestamp())
     }
 
     data[user_id].append(new_reg)
