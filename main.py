@@ -568,15 +568,24 @@ async def get_roblox_data(discord_id: int, guild_id: int):
                     data = await resp.json()
                     print("[BLOXLINK RAW]", data)
 
-                    roblox_id = (
-                        data.get("robloxId")
-                        or data.get("robloxID")
-                        or data.get("userId")
-                        or data.get("id")
-                    )
+                    roblox_id = None
+
+                    if isinstance(data, dict):
+                        roblox_id = (
+                            data.get("robloxId")
+                            or data.get("robloxID")
+                            or data.get("userId")
+                            or data.get("id")
+                            or (data.get("user", {}).get("robloxId")
+                                if isinstance(data.get("user"), dict)
+                                else None)
+                        )
 
                     if roblox_id:
-                        return int(roblox_id)
+                        try:
+                            return int(roblox_id)
+                        except:
+                            return None
 
             except Exception as e:
                 print("[BLOXLINK ERROR]", e)
