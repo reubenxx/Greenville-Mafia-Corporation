@@ -1377,7 +1377,7 @@ async def register(interaction: discord.Interaction, brand: str, model: str, col
         "color": color,
         "plate": plate,
         "year": year,  # <-- Added missing comma here
-        "timestamp": int(datetime.datetime.now(datetime.timezone.utc).timestamp())  # <-- Corrected datetime.UTC to timezone.utc
+        "timestamp": int(datetime.datetime.now(datetime.timezone.utc).timestamp())       # <-- Corrected datetime.UTC to timezone.utc
     }
 
     data[user_id].append(new_reg)
