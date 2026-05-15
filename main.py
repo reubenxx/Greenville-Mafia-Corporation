@@ -1376,8 +1376,8 @@ async def register(interaction: discord.Interaction, brand: str, model: str, col
         "model": model,
         "color": color,
         "plate": plate,
-        "year": year
-        "timestamp": int(datetime.datetime.now(datetime.UTC).timestamp())
+        "year": year,  # <-- Added missing comma here
+        "timestamp": int(datetime.datetime.now(datetime.timezone.utc).timestamp())  # <-- Corrected datetime.UTC to timezone.utc
     }
 
     data[user_id].append(new_reg)
@@ -1385,6 +1385,7 @@ async def register(interaction: discord.Interaction, brand: str, model: str, col
 
     # ✅ THIS MUST BE INSIDE THE FUNCTION
     log_channel = bot.get_channel(REG_LOG_CHANNEL)
+
     if log_channel:
         embed = discord.Embed(title="New Registration", color=EMBED_COLOR)
         embed.set_author(name=str(interaction.user), icon_url=interaction.user.display_avatar.url)
