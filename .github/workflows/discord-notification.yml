@@ -14,43 +14,17 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Get Changed Files
-        id: files
-        run: |
-          # Get list of added, modified, and deleted files from the commit
-          ADDED=$(git diff-tree --no-commit-id --name-only -r --diff-filter=A ${{ github.sha }} | sed 's/^/+ /' || true)
-          MODIFIED=$(git diff-tree --no-commit-id --name-only -r --diff-filter=M ${{ github.sha }} | sed 's/^/! /' || true)
-          DELETED=$(git diff-tree --no-commit-id --name-only -r --diff-filter=D ${{ github.sha }} | sed 's/^/- /' || true)
-          
-          # Combine lists into a single string
-          DIFF_TEXT=""
-          if [ ! -z "$ADDED" ]; then DIFF_TEXT="$DIFF_TEXT$ADDED"$'\n'; fi
-          if [ ! -z "$MODIFIED" ]; then DIFF_TEXT="$DIFF_TEXT$MODIFIED"$'\n'; fi
-          if [ ! -z "$DELETED" ]; then DIFF_TEXT="$DIFF_TEXT$DELETED"; fi
-          
-          # Format string for GitHub Action output variables
-          EOF=$(dd if=/dev/urandom bs=15 count=1 2>/dev/null | base64 | tr -dc 'a-zA-Z0-9')
-          echo "diff_output<<$EOF" >> $GITHUB_OUTPUT
-          echo "$DIFF_TEXT" >> $GITHUB_OUTPUT
-          echo "$EOF" >> $GITHUB_OUTPUT
-
       - name: Send Custom Webhook Notification
-        run: |
-          # Escape quotes and backslashes so the JSON doesn't break
-          CLEAN_DIFF=$(echo "${{ steps.files.outputs.diff_output }}" | jq -aR .)
-          CLEAN_MSG=$(echo "${{ github.event.head_commit.message }}" | jq -aR .)
-          
-          curl -H "Content-Type: application/json" \
-          -X POST \
-          -d "{
-            \"embeds\": [{
-              \"title\": \"${{ github.repository }}\",
-              \"url\": \"${{ github.event.head_commit.url }}\",
-              \"color\": 1184274,
-              \"description\": \"🔨 **1 commit to main**\\n\\n\`\`\`diff\\n$(echo $CLEAN_DIFF | sed 's/^"//;s/"$//')\`\`\`\\n\\n$(echo $CLEAN_MSG | sed 's/^"//;s/"$//')\",
-              \"footer\": {
-                \"text\": \"\`${{ github.sha }}\` by ${{ github.actor }}\"
-              }
-            }]
-          }" \
-          https://discord.com/api/webhooks/1505177047897604187/SYfdS7cgpvW0HAWfNE0Tu4NTYz6KvAO-rZMttA58dUMrGJOlVuCezXj3jzwsburzkwOQ
+        uses: rjstone/discord-webhook-notify@v1.0.4
+        with:
+          severity: info
+          username: "Novex"
+          avatar_url: "https://imgur.com" # Optional: Link your custom avatar icon here
+          color: "#2f3136"
+          details: |
+            **1 commit to [${{ github.repository }}](https://github.com{{ github.repository }})**
+          text: |
+            ```diff
+            ${{ github.event.head_commit.message }}
+            ```
+          webhookUrl: "https://discord.com/api/webhooks/1505177047897604187/SYfdS7cgpvW0HAWfNE0Tu4NTYz6KvAO-rZMttA58dUMrGJOlVuCezXj3jzwsburzkwOQ"
