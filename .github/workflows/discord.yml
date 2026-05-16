@@ -1,18 +1,14 @@
 name: Discord Push Logger
-
 on:
   push:
-
 jobs:
   webhook:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 2
-
       - name: Send Discord Embed
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
@@ -22,37 +18,24 @@ jobs:
           COMMIT_ID="${{ github.sha }}"
           AUTHOR="${{ github.actor }}"
           REPO="${{ github.repository }}"
-
           NOW=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
-
           # get changed files
           FILES=$(git diff --name-only HEAD^ HEAD)
-
           FIRST_FILE=$(echo "$FILES" | head -n 1)
-
           if [ -z "$FIRST_FILE" ]; then
             FIRST_FILE="Repository"
           fi
-
           URL="${COMMIT_URL}"
-
           # ONLY clean +/- diff lines
           DIFF=$(git diff HEAD^ HEAD --unified=0 \
-
             | grep -E '^[+-]' \
             | grep -vE '^(---|\+\+\+)' \
             | head -c 3500)
-
           if [ -z "$DIFF" ]; then
             DIFF="+ No code changes detected"
           fi
-
           DIFF_ESCAPED=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
           MSG_ESCAPED=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
-
-          # Clean horizontal dividers
-          DIVIDER="━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
           JSON=$(jq -n \
             --arg repo "$REPO" \
             --arg url "$URL" \
@@ -62,21 +45,25 @@ jobs:
             --arg msg "$MSG_ESCAPED" \
             --arg file "$FIRST_FILE" \
             --arg time "$NOW" \
-            --arg div "$DIVIDER" \
             '{
               username: "Global | Code Editor",
-              embeds: [{
-                color: 0,
-                author: { name: $repo },
-                title: $file,
-                url: $url,
-                description: ($div + "\n```diff\n" + $diff + "\n```\n" + $div + "\n```text\n" + $msg + "\n```\n" + $div),
-                footer: {
-                  text: ("Commit by " + $author + " • • " + $time)
+              embeds: [
+                {
+                  color: 0,
+                  author: { name: $repo },
+                  title: $file,
+                  url: $url,
+                  description: "```diff\n\($diff)\n```"
+                },
+                {
+                  color: 0,
+                  description: "```text\n\($msg)\n```",
+                  footer: {
+                    text: ("Commit by " + $author + " • • " + $time)
+                  }
                 }
-              }]
+              ]
             }')
-
           curl -H "Content-Type: application/json" \
             -X POST \
             -d "$JSON" \
