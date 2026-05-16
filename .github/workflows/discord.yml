@@ -19,24 +19,32 @@ jobs:
           AUTHOR="${{ github.actor }}"
           REPO="${{ github.repository }}"
           NOW=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
           # get changed files
           FILES=$(git diff --name-only HEAD^ HEAD)
           FIRST_FILE=$(echo "$FILES" | head -n 1)
           if [ -z "$FIRST_FILE" ]; then
             FIRST_FILE="Repository"
           fi
+          
           URL="${COMMIT_URL}"
+          
           # ONLY clean +/- diff lines
           DIFF=$(git diff HEAD^ HEAD --unified=0 \
+
             | grep -E '^[+-]' \
             | grep -vE '^(---|\+\+\+)' \
             | head -c 3500)
           if [ -z "$DIFF" ]; then
             DIFF="+ No code changes detected"
           fi
+          
           DIFF_ESCAPED=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
           MSG_ESCAPED=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
-          DIVIDER="────────────────────────────────────────────────────────────────────────────────"
+          
+          # This defines the native markdown code block divider
+          DIVIDER_BLOCK="\`\`\`diff\n---\n\`\`\`"
+          
           JSON=$(jq -n \
             --arg repo "$REPO" \
             --arg url "$URL" \
@@ -46,21 +54,24 @@ jobs:
             --arg msg "$MSG_ESCAPED" \
             --arg file "$FIRST_FILE" \
             --arg time "$NOW" \
-            --arg divider "$DIVIDER" \
+            --arg divider "$DIVIDER_BLOCK" \
             '{
               username: "Global | Code Editor",
               embeds: [{
-                color: 0,
-                author: { name: $repo },
+                color: 2021264,
+                author: { 
+                  name: $repo,
+                  icon_url: "https://githubassets.com"
+                },
                 title: $file,
                 url: $url,
-                description:
-                  ("```diff\n" + $diff + "\n```\n" + $divider + "\n```text\n" + $msg + "\n```"),
+                description: ("```diff\n" + $diff + "\n```\n" + $divider + "\n```text\n" + $msg + "\n```"),
                 footer: {
-                  text: ("Commit by " + $author + " • • " + $time)
+                  text: ($id + " by " + $author + " • " + $time)
                 }
               }]
             }')
+            
           curl -H "Content-Type: application/json" \
             -X POST \
             -d "$JSON" \
