@@ -48,7 +48,7 @@ jobs:
                 },
                 title: $msg,
                 description:
-                  ("```diff\n" + $diff + "\n```"),
+                  ("```diff\n" + $diff + "\n```\n\n```text\nCommit Message:\n" + $msg + "\n```"),
                 footer: {
                   text: ($id + " by " + $author)
                 },
