@@ -50,7 +50,7 @@ jobs:
           DIFF_ESCAPED=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
           MSG_ESCAPED=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
 
-          # Define clean horizontal dividers
+          # Clean horizontal dividers
           DIVIDER="━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
           JSON=$(jq -n \
@@ -70,8 +70,7 @@ jobs:
                 author: { name: $repo },
                 title: $file,
                 url: $url,
-                description:
-                  "\($div)\n```diff\n\($diff)\n```\n\($div)\n```text\n\($msg)\n```\n\($div)",
+                description: ($div + "\n```diff\n" + $diff + "\n```\n" + $div + "\n```text\n" + $msg + "\n```\n" + $div),
                 footer: {
                   text: ("Commit by " + $author + " • • " + $time)
                 }
