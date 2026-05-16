@@ -26,37 +26,32 @@ jobs:
           AUTHOR="${{ github.actor }}"
           REPO="${{ github.repository }}"
 
-          echo "Commit ID: $COMMIT_ID"
-          echo "Author: $AUTHOR"
-          echo "Repo: $REPO"
-
           FILE_LINK="https://github.com/${REPO}/commit/${COMMIT_ID}"
           NOW=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
-          echo "Generating diff..."
+          echo "Commit: $COMMIT_ID"
+          echo "Author: $AUTHOR"
 
-          # ✅ Reliable CI-safe diff
-          DIFF=$(git diff-tree -p "$COMMIT_ID" --unified=0 \
+          # ✅ SAFE + ALWAYS WORKS METHOD
+          DIFF=$(git show "$COMMIT_ID" \
             | grep -E '^[+-]' \
             | grep -vE '^(---|\+\+\+)' \
             | head -c 3500 || true)
-
-          echo "Raw diff length: $(echo "$DIFF" | wc -c)"
 
           if [ -z "$DIFF" ]; then
             DIFF="+ No code changes detected"
           fi
 
+          echo "Diff size: $(echo "$DIFF" | wc -c)"
+
           ADDED=$(echo "$DIFF" | grep '^+' | grep -v '^+++' | wc -l | tr -d ' ')
           REMOVED=$(echo "$DIFF" | grep '^-' | grep -v '^---' | wc -l | tr -d ' ')
 
-          echo "Lines added: $ADDED"
-          echo "Lines removed: $REMOVED"
+          echo "Added: $ADDED"
+          echo "Removed: $REMOVED"
 
           DIFF_ESCAPED=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
           MSG_ESCAPED=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
-
-          echo "Building JSON payload..."
 
           JSON=$(jq -n \
             --arg author "$AUTHOR" \
@@ -93,11 +88,18 @@ jobs:
               }]
             }')
 
+          echo "Payload size:"
+          echo "$JSON" | wc -c
+
           echo "Sending to Discord..."
 
-          curl -v -H "Content-Type: application/json" \
+          RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
+            -H "Content-Type: application/json" \
             -X POST \
             -d "$JSON" \
-            "$WEBHOOK"
+            "$WEBHOOK")
+
+          echo "Discord response:"
+          echo "$RESPONSE"
 
           echo "================ DEBUG END ================"
