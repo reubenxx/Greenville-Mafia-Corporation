@@ -12,8 +12,6 @@ import aiohttp
 
 blacklist_lock = asyncio.Lock()
 
-Hidddddddd
-
 TOKEN = os.getenv("TOKEN")
 
 intents = discord.Intents.all()
