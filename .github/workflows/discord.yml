@@ -23,7 +23,10 @@ jobs:
           AUTHOR="${{ github.actor }}"
           REPO="${{ github.repository }}"
 
-          DIFF=$(git diff HEAD^ HEAD | head -c 3500)
+          DIFF=$(git diff --unified=0 HEAD^ HEAD \
+            | grep -E '^\+|^\-' \
+            | grep -vE '^\+\+\+|^\-\-\-' \
+            | head -c 3500)
 
           if [ -z "$DIFF" ]; then
             DIFF="+ No code changes detected"
