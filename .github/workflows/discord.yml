@@ -11,24 +11,22 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Send Discord Embed
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           COMMIT_MSG="${{ github.event.head_commit.message }}"
-          COMMIT_URL="${{ github.event.head_commit.url }}"
           COMMIT_ID="${{ github.sha }}"
           AUTHOR="${{ github.actor }}"
           REPO="${{ github.repository }}"
 
-          FILES_CHANGED=$(git diff --name-only HEAD^ HEAD | tr '\n' ', ')
+          FILE_LINK="https://github.com/${REPO}/commit/${COMMIT_ID}"
+          NOW=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
-          ADDED=$(git diff HEAD^ HEAD --unified=0 | grep '^+' | grep -v '^\+\+\+' | wc -l)
-          REMOVED=$(git diff HEAD^ HEAD --unified=0 | grep '^-' | grep -v '^---' | wc -l)
-
-          DIFF=$(git diff HEAD^ HEAD --unified=0 \
+          # safe diff (works even if HEAD^ doesn't exist properly)
+          DIFF=$(git diff --unified=0 $COMMIT_ID^ $COMMIT_ID 2>/dev/null \
             | grep -E '^[+-]' \
             | grep -vE '^(---|\+\+\+)' \
             | head -c 3500)
@@ -37,20 +35,17 @@ jobs:
             DIFF="+ No code changes detected"
           fi
 
-          FILE_LINK="https://github.com/${REPO}/commit/${COMMIT_ID}"
-
-          NOW=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          ADDED=$(echo "$DIFF" | grep '^+' | wc -l)
+          REMOVED=$(echo "$DIFF" | grep '^-' | wc -l)
 
           DIFF_ESCAPED=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
           MSG_ESCAPED=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
 
           JSON=$(jq -n \
-            --arg repo "$REPO" \
             --arg author "$AUTHOR" \
             --arg msg "$MSG_ESCAPED" \
             --arg diff "$DIFF_ESCAPED" \
-            --arg file "$FILE_LINK" \
-            --arg files "$FILES_CHANGED" \
+            --arg url "$FILE_LINK" \
             --arg added "$ADDED" \
             --arg removed "$REMOVED" \
             --arg time "$NOW" \
@@ -58,9 +53,10 @@ jobs:
             '{
               username: "Global | Code Editor",
               embeds: [{
-                color: 0,
+                title: ($author + " committed changes"),
+                url: $url,
                 description:
-                  "**\($author)** has committed to [changed files](\($file))\n" +
+                  "**Committed to:** " + $url + "\n\n" +
 
                   "-------------------------------------------------------------------------------------------\n" +
                   "**Lines Added** - \($added)\n" +
@@ -70,18 +66,17 @@ jobs:
                   "```diff\n\($diff)\n```\n\n" +
 
                   "-------------------------------------------------------------------------------------------\n" +
+
                   "```text\n\($msg)\n```\n\n" +
 
                   "-------------------------------------------------------------------------------------------",
                 footer: {
-                  text: ($author + " • " + $time)
-                },
-                url: $file
+                  text: ($author + " • " + $time + " • " + $id)
+                }
               }]
             }')
 
-          curl \
-            -H "Content-Type: application/json" \
+          curl -H "Content-Type: application/json" \
             -X POST \
             -d "$JSON" \
             "$WEBHOOK"
