@@ -12,7 +12,7 @@ import aiohttp
 
 blacklist_lock = asyncio.Lock()
 
-Hi
+Hid
 
 TOKEN = os.getenv("TOKEN")
 
