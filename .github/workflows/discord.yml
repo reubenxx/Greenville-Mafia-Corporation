@@ -25,8 +25,8 @@ jobs:
           FILE_LINK="https://github.com/${REPO}/commit/${COMMIT_ID}"
           NOW=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
-          # safe diff (works even if HEAD^ doesn't exist properly)
-          DIFF=$(git diff --unified=0 $COMMIT_ID^ $COMMIT_ID 2>/dev/null \
+          # ✅ FIX: use git show (always reliable)
+          DIFF=$(git show $COMMIT_ID --unified=0 \
             | grep -E '^[+-]' \
             | grep -vE '^(---|\+\+\+)' \
             | head -c 3500)
@@ -35,8 +35,8 @@ jobs:
             DIFF="+ No code changes detected"
           fi
 
-          ADDED=$(echo "$DIFF" | grep '^+' | wc -l)
-          REMOVED=$(echo "$DIFF" | grep '^-' | wc -l)
+          ADDED=$(echo "$DIFF" | grep '^+' | grep -v '^+++' | wc -l)
+          REMOVED=$(echo "$DIFF" | grep '^-' | grep -v '^---' | wc -l)
 
           DIFF_ESCAPED=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
           MSG_ESCAPED=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
@@ -76,7 +76,7 @@ jobs:
               }]
             }')
 
-          curl -H "Content-Type: application/json" \
+          curl -s -H "Content-Type: application/json" \
             -X POST \
             -d "$JSON" \
             "$WEBHOOK"
