@@ -23,6 +23,8 @@ jobs:
           AUTHOR="${{ github.actor }}"
           REPO="${{ github.repository }}"
 
+          NOW=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
           # get changed files
           FILES=$(git diff --name-only HEAD^ HEAD)
 
@@ -32,7 +34,6 @@ jobs:
             FIRST_FILE="Repository"
           fi
 
-          # keep commit URL as fallback link
           URL="${COMMIT_URL}"
 
           # ONLY clean +/- diff lines
@@ -56,6 +57,7 @@ jobs:
             --arg diff "$DIFF_ESCAPED" \
             --arg msg "$MSG_ESCAPED" \
             --arg file "$FIRST_FILE" \
+            --arg time "$NOW" \
             '{
               username: "Global | Code Editor",
               embeds: [{
@@ -66,7 +68,7 @@ jobs:
                 description:
                   "```diff\n\($diff)\n```\n\n```text\n\($msg)\n```",
                 footer: {
-                  text: ($id + " by " + $author)
+                  text: ("Commit by " + $author + " • • " + $time)
                 }
               }]
             }')
