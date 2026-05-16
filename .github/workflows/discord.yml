@@ -13,36 +13,43 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Send Discord Embed
+      - name: Send Discord Embed (DEBUG MODE)
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
-          set -e
+          set +e
 
-          echo "================ DEBUG START ================"
+          echo "================ START DEBUG ================"
+
+          echo "Checking webhook..."
+          if [ -z "$WEBHOOK" ]; then
+            echo "❌ WEBHOOK IS EMPTY (SECRET NOT SET)"
+            exit 1
+          fi
 
           COMMIT_MSG="${{ github.event.head_commit.message }}"
           COMMIT_ID="${{ github.sha }}"
           AUTHOR="${{ github.actor }}"
           REPO="${{ github.repository }}"
 
-          FILE_LINK="https://github.com/${REPO}/commit/${COMMIT_ID}"
-          NOW=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
-
           echo "Commit: $COMMIT_ID"
           echo "Author: $AUTHOR"
 
-          # ✅ SAFE DIFF METHOD (always works in Actions)
+          FILE_LINK="https://github.com/${REPO}/commit/${COMMIT_ID}"
+          NOW=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          echo "Generating diff..."
+
           DIFF=$(git show "$COMMIT_ID" \
             | grep -E '^[+-]' \
             | grep -vE '^(---|\+\+\+)' \
-            | head -c 3500 || true)
+            | head -c 3500)
+
+          echo "Raw diff length: ${#DIFF}"
 
           if [ -z "$DIFF" ]; then
             DIFF="+ No code changes detected"
           fi
-
-          echo "Diff size: $(echo "$DIFF" | wc -c)"
 
           ADDED=$(echo "$DIFF" | grep '^+' | grep -v '^+++' | wc -l | tr -d ' ')
           REMOVED=$(echo "$DIFF" | grep '^-' | grep -v '^---' | wc -l | tr -d ' ')
@@ -50,7 +57,6 @@ jobs:
           echo "Added: $ADDED"
           echo "Removed: $REMOVED"
 
-          # escape backticks only (safe minimal escaping)
           DIFF_ESCAPED=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
           MSG_ESCAPED=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
 
@@ -72,19 +78,13 @@ jobs:
                 url: $url,
                 description:
                   "**Committed to:** \($url)\n\n" +
-
-                  "-------------------------------------------------------------------------------------------\n" +
+                  "-----------------------------\n" +
                   "**Lines Added** - \($added)\n" +
                   "**Lines Removed** - \($removed)\n" +
-                  "-------------------------------------------------------------------------------------------\n\n" +
-
+                  "-----------------------------\n\n" +
                   "```diff\n\($diff)\n```\n\n" +
-
-                  "-------------------------------------------------------------------------------------------\n" +
-
-                  "```text\n\($msg)\n```\n\n" +
-
-                  "-------------------------------------------------------------------------------------------",
+                  "-----------------------------\n" +
+                  "```text\n\($msg)\n```",
                 footer: {
                   text: ($author + " • " + $time + " • " + $id)
                 }
@@ -101,7 +101,8 @@ jobs:
             -d "$JSON" \
             "$WEBHOOK")
 
-          echo "Discord response:"
+          echo "================ DISCORD RESPONSE ================"
           echo "$RESPONSE"
+          echo "================ END DEBUG ================"
 
-          echo "================ DEBUG END ================"
+          set -e
