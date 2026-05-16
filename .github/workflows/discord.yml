@@ -17,29 +17,46 @@ jobs:
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
+          set -e
+
+          echo "================ DEBUG START ================"
+
           COMMIT_MSG="${{ github.event.head_commit.message }}"
           COMMIT_ID="${{ github.sha }}"
           AUTHOR="${{ github.actor }}"
           REPO="${{ github.repository }}"
 
+          echo "Commit ID: $COMMIT_ID"
+          echo "Author: $AUTHOR"
+          echo "Repo: $REPO"
+
           FILE_LINK="https://github.com/${REPO}/commit/${COMMIT_ID}"
           NOW=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
-          # ✅ FIX: use git show (always reliable)
-          DIFF=$(git show $COMMIT_ID --unified=0 \
+          echo "Generating diff..."
+
+          # ✅ Reliable CI-safe diff
+          DIFF=$(git diff-tree -p "$COMMIT_ID" --unified=0 \
             | grep -E '^[+-]' \
             | grep -vE '^(---|\+\+\+)' \
-            | head -c 3500)
+            | head -c 3500 || true)
+
+          echo "Raw diff length: $(echo "$DIFF" | wc -c)"
 
           if [ -z "$DIFF" ]; then
             DIFF="+ No code changes detected"
           fi
 
-          ADDED=$(echo "$DIFF" | grep '^+' | grep -v '^+++' | wc -l)
-          REMOVED=$(echo "$DIFF" | grep '^-' | grep -v '^---' | wc -l)
+          ADDED=$(echo "$DIFF" | grep '^+' | grep -v '^+++' | wc -l | tr -d ' ')
+          REMOVED=$(echo "$DIFF" | grep '^-' | grep -v '^---' | wc -l | tr -d ' ')
+
+          echo "Lines added: $ADDED"
+          echo "Lines removed: $REMOVED"
 
           DIFF_ESCAPED=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
           MSG_ESCAPED=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
+
+          echo "Building JSON payload..."
 
           JSON=$(jq -n \
             --arg author "$AUTHOR" \
@@ -76,7 +93,11 @@ jobs:
               }]
             }')
 
-          curl -s -H "Content-Type: application/json" \
+          echo "Sending to Discord..."
+
+          curl -v -H "Content-Type: application/json" \
             -X POST \
             -d "$JSON" \
             "$WEBHOOK"
+
+          echo "================ DEBUG END ================"
