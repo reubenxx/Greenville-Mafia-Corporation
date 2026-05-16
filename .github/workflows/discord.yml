@@ -52,14 +52,20 @@ jobs:
                 author: { name: $repo },
                 title: $file,
                 url: $url,
-                description:
-                  "```diff\n\($diff)\n```\n─────────────────────────\n```text\n\($msg)\n```",
-                footer: {
-                  text: ("Commit by " + $author + " • • " + $time)
-                }
-              }]
-            }')
-          curl -H "Content-Type: application/json" \
-            -X POST \
-            -d "$JSON" \
-            "$WEBHOOK"
+                fields: [
+                  {
+                    name: "\u200b",
+                    value: "```diff\n\($diff)\n```",
+                    inline: false
+                  },
+                  {
+                    name: "\u200b",
+                    value: "\u200b",
+                    inline: false
+                  },
+                  {
+                    name: "\u200b",
+                    value: "```text\n\($msg)\n```",
+                    inline: false
+                  }
+                ],
