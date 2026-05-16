@@ -11,52 +11,67 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 2
 
       - name: Send Discord Embed
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
-          set +e
-
           COMMIT_MSG="${{ github.event.head_commit.message }}"
+          COMMIT_URL="${{ github.event.head_commit.url }}"
           COMMIT_ID="${{ github.sha }}"
           AUTHOR="${{ github.actor }}"
           REPO="${{ github.repository }}"
 
-          FILES_CHANGED=$(git diff-tree --no-commit-id --name-only -r "$COMMIT_ID")
+          # get changed files
+          FILES=$(git diff --name-only HEAD^ HEAD)
 
-          FIRST_FILE=$(echo "$FILES_CHANGED" | head -n 1)
+          FIRST_FILE=$(echo "$FILES" | head -n 1)
 
-          # extract folder path (or repo root if none)
-          FOLDER_PATH=$(dirname "$FIRST_FILE")
-          if [ "$FOLDER_PATH" = "." ]; then
-            FOLDER_URL="https://github.com/${REPO}"
-          else
-            FOLDER_URL="https://github.com/${REPO}/tree/main/${FOLDER_PATH}"
+          if [ -z "$FIRST_FILE" ]; then
+            FIRST_FILE="Repository"
           fi
 
-          NOW=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          # keep commit URL as fallback link
+          URL="${COMMIT_URL}"
 
-          DIFF=$(git show "$COMMIT_ID" \
+          # ONLY clean +/- diff lines
+          DIFF=$(git diff HEAD^ HEAD --unified=0 \
             | grep -E '^[+-]' \
             | grep -vE '^(---|\+\+\+)' \
-            | head -c 3500 || true)
+            | head -c 3500)
 
           if [ -z "$DIFF" ]; then
             DIFF="+ No code changes detected"
           fi
 
-          ADDED=$(echo "$DIFF" | grep '^+' | grep -v '^+++' | wc -l | tr -d ' ')
-          REMOVED=$(echo "$DIFF" | grep '^-' | grep -v '^---' | wc -l | tr -d ' ')
+          DIFF_ESCAPED=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
+          MSG_ESCAPED=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
 
-          DIFF=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
-          COMMIT_MSG=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
+          JSON=$(jq -n \
+            --arg repo "$REPO" \
+            --arg url "$URL" \
+            --arg author "$AUTHOR" \
+            --arg id "${COMMIT_ID:0:7}" \
+            --arg diff "$DIFF_ESCAPED" \
+            --arg msg "$MSG_ESCAPED" \
+            --arg file "$FIRST_FILE" \
+            '{
+              username: "Global | Code Editor",
+              embeds: [{
+                color: 0,
+                author: { name: $repo },
+                title: $file,
+                url: $url,
+                description:
+                  "```diff\n\($diff)\n```\n\n```text\n\($msg)\n```",
+                footer: {
+                  text: ($id + " by " + $author)
+                }
+              }]
+            }')
 
-          DESCRIPTION="**Committed to:** ${FOLDER_URL}
-
-**Lines Added** - ${ADDED}
-**Lines Removed** - ${REMOVED}
-
-```diff
-${DIFF}
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d "$JSON" \
+            "$WEBHOOK"
