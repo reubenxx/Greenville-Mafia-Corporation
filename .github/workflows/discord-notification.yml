@@ -1,0 +1,36 @@
+name: Custom Discord Notification
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Custom Webhook Notification
+        run: |
+          curl -H "Content-Type: application/json" \
+          -X POST \
+          -d '{
+            "embeds": [{
+              "title": "⚙️ New Code Update Pushed",
+              "color": 3066993,
+              "description": "**Commit Message:**\n${{ github.event.head_commit.message }}",
+              "fields": [
+                {
+                  "name": "Branch",
+                  "value": "`main`",
+                  "inline": true
+                },
+                {
+                  "name": "Updated By",
+                  "value": "${{ github.actor }}",
+                  "inline": true
+                }
+              ],
+              "url": "${{ github.event.head_commit.url }}"
+            }]
+          }' \
+          https://discord.com/api/webhooks/1505177047897604187/SYfdS7cgpvW0HAWfNE0Tu4NTYz6KvAO-rZMttA58dUMrGJOlVuCezXj3jzwsburzkwOQ
