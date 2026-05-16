@@ -28,7 +28,6 @@ jobs:
           URL="${COMMIT_URL}"
           # ONLY clean +/- diff lines
           DIFF=$(git diff HEAD^ HEAD --unified=0 \
-
             | grep -E '^[+-]' \
             | grep -vE '^(---|\+\+\+)' \
             | head -c 3500)
@@ -37,6 +36,7 @@ jobs:
           fi
           DIFF_ESCAPED=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
           MSG_ESCAPED=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
+          DIVIDER="────────────────────────────────────────────────────────────────────────────────"
           JSON=$(jq -n \
             --arg repo "$REPO" \
             --arg url "$URL" \
@@ -46,6 +46,7 @@ jobs:
             --arg msg "$MSG_ESCAPED" \
             --arg file "$FIRST_FILE" \
             --arg time "$NOW" \
+            --arg divider "$DIVIDER" \
             '{
               username: "Global | Code Editor",
               embeds: [{
@@ -54,7 +55,7 @@ jobs:
                 title: $file,
                 url: $url,
                 description:
-                  ("```diff\n" + $diff + "\n```\n" + "```diff\n---\n```" + "\n```text\n" + $msg + "\n```"),
+                  ("```diff\n" + $diff + "\n```\n" + $divider + "\n```text\n" + $msg + "\n```"),
                 footer: {
                   text: ("Commit by " + $author + " • • " + $time)
                 }
