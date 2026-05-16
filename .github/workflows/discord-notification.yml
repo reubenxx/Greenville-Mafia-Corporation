@@ -1,71 +1,71 @@
-name: Discord Commit Logger
+name: Discord Push Logger
 
 on:
   push:
 
 jobs:
-  discord:
+  webhook:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Send Commit Embed
+      - name: Send Discord Embed
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
-          COMMITS='${{ toJson(github.event.commits) }}'
-          REPO='${{ github.repository }}'
-          BRANCH='${{ github.ref_name }}'
-          ACTOR='${{ github.actor }}'
+          DIFF=""
 
-          EMBEDS="[]"
+          while read file; do
+            [ -z "$file" ] && continue
+            DIFF="${DIFF}+ ${file}\n"
+          done < <(jq -r '.commits[].added[]?' "$GITHUB_EVENT_PATH")
 
-          for row in $(echo "$COMMITS" | jq -r '.[] | @base64'); do
-            _jq() {
-              echo ${row} | base64 --decode | jq -r ${1}
-            }
+          while read file; do
+            [ -z "$file" ] && continue
+            DIFF="${DIFF}+ ${file}\n"
+          done < <(jq -r '.commits[].modified[]?' "$GITHUB_EVENT_PATH")
 
-            MESSAGE=$(_jq '.message')
-            URL=$(_jq '.url')
-            ID=$(_jq '.id[:7]')
+          while read file; do
+            [ -z "$file" ] && continue
+            DIFF="${DIFF}- ${file}\n"
+          done < <(jq -r '.commits[].removed[]?' "$GITHUB_EVENT_PATH")
 
-            ADDED=$(_jq '.added[]?' 2>/dev/null)
-            REMOVED=$(_jq '.removed[]?' 2>/dev/null)
-            MODIFIED=$(_jq '.modified[]?' 2>/dev/null)
+          COMMIT_MSG=$(jq -r '.head_commit.message' "$GITHUB_EVENT_PATH")
+          COMMIT_URL=$(jq -r '.head_commit.url' "$GITHUB_EVENT_PATH")
+          AUTHOR=$(jq -r '.sender.login' "$GITHUB_EVENT_PATH")
+          REPO=$(jq -r '.repository.full_name' "$GITHUB_EVENT_PATH")
+          SHORT_SHA=$(jq -r '.after' "$GITHUB_EVENT_PATH" | cut -c1-7)
 
-            FILES=""
-
-            if [ ! -z "$ADDED" ]; then
-              while read line; do
-                [ -z "$line" ] && continue
-                FILES+="🟩 ${line}\\n"
-              done <<< "$ADDED"
-            fi
-
-            if [ ! -z "$MODIFIED" ]; then
-              while read line; do
-                [ -z "$line" ] && continue
-                FILES+="🟩 ${line}\\n"
-              done <<< "$MODIFIED"
-            fi
-
-            if [ ! -z "$REMOVED" ]; then
-              while read line; do
-                [ -z "$line" ] && continue
-                FILES+="🟥 ${line}\\n"
-              done <<< "$REMOVED"
-            fi
-
-            PAYLOAD=$(jq -n \
-              --arg repo "$REPO" \
-              --arg branch "$BRANCH" \
-              --arg actor "$ACTOR" \
-              --arg msg "$MESSAGE" \
-              --arg url "$URL" \
-              --arg id "$ID" \
-              --arg files "$FILES" \
-              '{
-                username: "GitHub",
-                avatar_url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
-                embeds: [
+          PAYLOAD=$(jq -n \
+            --arg repo "$REPO" \
+            --arg msg "$COMMIT_MSG" \
+            --arg url "$COMMIT_URL" \
+            --arg author "$AUTHOR" \
+            --arg diff "$DIFF" \
+            --arg sha "$SHORT_SHA" \
+            '{
+              username: "Global | Code Editor",
+              embeds: [{
+                color: 5814783,
+                author: {
+                  name: $repo
+                },
+                description:
+                  ("```diff\n" + $diff + "```"),
+                fields: [
                   {
-          done
+                    name: "main",
+                    value: $msg
+                  }
+                ],
+                footer: {
+                  text: ($sha + " by " + $author)
+                },
+                url: $url
+              }]
+            }')
+
+          curl \
+            -H "Content-Type: application/json" \
+            -X POST \
+            -d "$PAYLOAD" \
+            "$WEBHOOK"
