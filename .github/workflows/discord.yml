@@ -47,22 +47,17 @@ jobs:
             --arg time "$NOW" \
             '{
               username: "Global | Code Editor",
-              embeds: [
-                {
-                  color: 0,
-                  author: { name: $repo },
-                  title: $file,
-                  url: $url,
-                  description: "```diff\n\($diff)\n```"
-                },
-                {
-                  color: 0,
-                  description: "```text\n\($msg)\n```",
-                  footer: {
-                    text: ("Commit by " + $author + " • • " + $time)
-                  }
+              embeds: [{
+                color: 0,
+                author: { name: $repo },
+                title: $file,
+                url: $url,
+                description:
+                  "```diff\n\($diff)\n```\n─────────────────────────\n```text\n\($msg)\n```",
+                footer: {
+                  text: ("Commit by " + $author + " • • " + $time)
                 }
-              ]
+              }]
             }')
           curl -H "Content-Type: application/json" \
             -X POST \
