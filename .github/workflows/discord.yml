@@ -23,22 +23,28 @@ jobs:
           AUTHOR="${{ github.actor }}"
           REPO="${{ github.repository }}"
 
-          DIFF=$(git diff --unified=0 HEAD^ HEAD \
-            | grep -E '^\+|^\-' \
-            | grep -vE '^\+\+\+|^\-\-\-' \
+          # ONLY clean +/- diff lines
+          DIFF=$(git diff HEAD^ HEAD --unified=0 \
+            | grep -E '^[+-]' \
+            | grep -vE '^(---|\+\+\+)' \
             | head -c 3500)
 
+          # fallback
           if [ -z "$DIFF" ]; then
             DIFF="+ No code changes detected"
           fi
 
+          # escape backticks safely (prevents Discord breaking into multiple blocks)
+          DIFF_ESCAPED=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
+          MSG_ESCAPED=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
+
           JSON=$(jq -n \
             --arg repo "$REPO" \
-            --arg msg "$COMMIT_MSG" \
             --arg url "$COMMIT_URL" \
             --arg author "$AUTHOR" \
-            --arg diff "$DIFF" \
             --arg id "${COMMIT_ID:0:7}" \
+            --arg diff "$DIFF_ESCAPED" \
+            --arg msg "$MSG_ESCAPED" \
             '{
               username: "Global | Code Editor",
               embeds: [{
@@ -46,7 +52,7 @@ jobs:
                 author: { name: $repo },
                 title: $msg,
                 description:
-                  ("```diff\n" + $diff + "\n```\n\n```text\n" + $msg + "\n```"),
+                  "```diff\n\($diff)\n```\n\n```text\n\($msg)\n```",
                 footer: {
                   text: ($id + " by " + $author)
                 },
@@ -54,8 +60,7 @@ jobs:
               }]
             }')
 
-          curl \
-            -H "Content-Type: application/json" \
+          curl -H "Content-Type: application/json" \
             -X POST \
             -d "$JSON" \
             "$WEBHOOK"
