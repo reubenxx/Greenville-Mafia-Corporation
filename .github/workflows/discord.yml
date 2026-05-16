@@ -25,6 +25,7 @@ jobs:
 
           NOW=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
+          # get changed files
           FILES=$(git diff --name-only HEAD^ HEAD)
           FIRST_FILE=$(echo "$FILES" | head -n 1)
 
@@ -34,6 +35,7 @@ jobs:
 
           URL="${COMMIT_URL}"
 
+          # ONLY clean +/- diff lines
           DIFF=$(git diff HEAD^ HEAD --unified=0 \
             | grep -E '^[+-]' \
             | grep -vE '^(---|\+\+\+)' \
@@ -65,18 +67,18 @@ jobs:
                 url: $url,
 
                 description:
-                  "────────────────────────────────────────────\n\n" +
+                  "────────────────────────────\n" +
 
                   "```diff\n\($diff)\n```\n\n" +
 
-                  "────────────────────────────────────────────\n\n" +
+                  "────────────────────────────\n\n" +
 
                   "```text\n\($msg)\n```\n\n" +
 
-                  "────────────────────────────────────────────",
+                  "────────────────────────────",
 
                 footer: {
-                  text: ("Commit by " + $author + " • • " + $time + " UTC")
+                  text: ("Commit by " + $author + " • • " + $time)
                 }
               }]
             }')
