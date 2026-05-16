@@ -8,6 +8,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
       - name: Send Discord Embed
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
@@ -18,23 +23,11 @@ jobs:
           AUTHOR="${{ github.actor }}"
           REPO="${{ github.repository }}"
 
-          ADDED=$(jq -r '.head_commit.added[]?' "$GITHUB_EVENT_PATH")
-          MODIFIED=$(jq -r '.head_commit.modified[]?' "$GITHUB_EVENT_PATH")
-          REMOVED=$(jq -r '.head_commit.removed[]?' "$GITHUB_EVENT_PATH")
+          DIFF=$(git diff HEAD^ HEAD | head -c 3500)
 
-          DIFF=""
-
-          for file in $ADDED; do
-            DIFF="${DIFF}+ ${file}\n"
-          done
-
-          for file in $MODIFIED; do
-            DIFF="${DIFF}+ ${file}\n"
-          done
-
-          for file in $REMOVED; do
-            DIFF="${DIFF}- ${file}\n"
-          done
+          if [ -z "$DIFF" ]; then
+            DIFF="+ No code changes detected"
+          fi
 
           JSON=$(jq -n \
             --arg repo "$REPO" \
@@ -50,14 +43,9 @@ jobs:
                 author: {
                   name: $repo
                 },
+                title: $msg,
                 description:
-                  ("1 commit pushed\n```diff\n" + $diff + "```"),
-                fields: [
-                  {
-                    name: "main",
-                    value: $msg
-                  }
-                ],
+                  ("```diff\n" + $diff + "\n```"),
                 footer: {
                   text: ($id + " by " + $author)
                 },
@@ -65,7 +53,8 @@ jobs:
               }]
             }')
 
-          curl -H "Content-Type: application/json" \
-               -X POST \
-               -d "$JSON" \
-               "$WEBHOOK"
+          curl \
+            -H "Content-Type: application/json" \
+            -X POST \
+            -d "$JSON" \
+            "$WEBHOOK"
