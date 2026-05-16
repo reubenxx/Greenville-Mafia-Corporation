@@ -43,12 +43,10 @@ jobs:
               username: "Global | Code Editor",
               embeds: [{
                 color: 0,
-                author: {
-                  name: $repo
-                },
+                author: { name: $repo },
                 title: $msg,
                 description:
-                  ("```diff\n" + $diff + "\n```\n\n```text\nCommit Message:\n" + $msg + "\n```"),
+                  ("```diff\n" + $diff + "\n```\n\n```text\n" + $msg + "\n```"),
                 footer: {
                   text: ($id + " by " + $author)
                 },
