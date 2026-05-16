@@ -19,8 +19,6 @@ jobs:
         run: |
           set +e
 
-          echo "================ DEBUG START ================"
-
           COMMIT_MSG="${{ github.event.head_commit.message }}"
           COMMIT_ID="${{ github.sha }}"
           AUTHOR="${{ github.actor }}"
@@ -29,10 +27,7 @@ jobs:
           FILE_LINK="https://github.com/${REPO}/commit/${COMMIT_ID}"
           NOW=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
 
-          echo "Commit: $COMMIT_ID"
-          echo "Author: $AUTHOR"
-
-          # SAFE DIFF (reliable in GitHub Actions)
+          # reliable diff
           DIFF=$(git show "$COMMIT_ID" \
             | grep -E '^[+-]' \
             | grep -vE '^(---|\+\+\+)' \
@@ -45,18 +40,14 @@ jobs:
           ADDED=$(echo "$DIFF" | grep '^+' | grep -v '^+++' | wc -l | tr -d ' ')
           REMOVED=$(echo "$DIFF" | grep '^-' | grep -v '^---' | wc -l | tr -d ' ')
 
-          echo "Added: $ADDED"
-          echo "Removed: $REMOVED"
-
-          # escape backticks only
+          # safe escaping
           DIFF=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
           COMMIT_MSG=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
 
-          # BUILD DESCRIPTION SAFELY (NO YAML BREAKERS, NO jq CONCAT ISSUES)
           DESCRIPTION="**Committed to:** ${FILE_LINK}
 
-Lines Added - ${ADDED}
-Lines Removed - ${REMOVED}
+**Lines Added** - ${ADDED}
+**Lines Removed** - ${REMOVED}
 
 ```diff
 ${DIFF}
