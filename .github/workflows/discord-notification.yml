@@ -39,8 +39,6 @@ jobs:
           [ ! -z "$ADDED_FILES" ] && DIFF_CONTENT="$DIFF_CONTENT$ADDED_FILES"$'\n'
           [ ! -z "$MODIFIED_FILES" ] && DIFF_CONTENT="$DIFF_CONTENT$MODIFIED_FILES"$'\n'
           [ ! -z "$DELETED_FILES" ] && DIFF_CONTENT="$DIFF_CONTENT$DELETED_FILES"
-          # Trim trailing spacing
-          DIFF_CONTENT=$(echo "$DIFF_CONTENT" | sed -e :a -e '/^\n*$/{$d;N;ba Driscoll}')
 
           # Escape quotes and backslashes to make safe for raw JSON
           CLEAN_DIFF=$(echo "$DIFF_CONTENT" | jq -R -s .)
