@@ -1,87 +1,71 @@
-name: Custom Discord Notification
+name: Discord Commit Logger
 
 on:
   push:
-    branches:
-      - main
 
 jobs:
-  notify:
+  discord:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Parse Git Diff Files
-        id: parse_diff
+      - name: Send Commit Embed
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
-          # Extract specific file lists per state
-          ADDED_FILES=$(git diff-tree --no-commit-id --name-only -r --diff-filter=A ${{ github.sha }} | sed 's/^/+ /' || true)
-          MODIFIED_FILES=$(git diff-tree --no-commit-id --name-only -r --diff-filter=M ${{ github.sha }} | sed 's/^/! /' || true)
-          DELETED_FILES=$(git diff-tree --no-commit-id --name-only -r --diff-filter=D ${{ github.sha }} | sed 's/^/- /' || true)
-          
-          # Initialize variables for status summary
-          A_COUNT=$(git diff-tree --no-commit-id --name-only -r --diff-filter=A ${{ github.sha }} | wc -l | xargs)
-          M_COUNT=$(git diff-tree --no-commit-id --name-only -r --diff-filter=M ${{ github.sha }} | wc -l | xargs)
-          D_COUNT=$(git diff-tree --no-commit-id --name-only -r --diff-filter=D ${{ github.sha }} | wc -l | xargs)
-          
-          SUMMARY_TEXT=""
-          [ "$A_COUNT" -gt 0 ] && SUMMARY_TEXT="$SUMMARY_TEXT, Added $A_COUNT files"
-          [ "$M_COUNT" -gt 0 ] && SUMMARY_TEXT="$SUMMARY_TEXT, Modified $M_COUNT files"
-          [ "$D_COUNT" -gt 0 ] && SUMMARY_TEXT="$SUMMARY_TEXT, Removed $D_COUNT files"
-          # Clean up prefix commas
-          SUMMARY_TEXT=$(echo "$SUMMARY_TEXT" | sed 's/^, //')
-          
-          # Combine lists into one string
-          DIFF_CONTENT=""
-          [ ! -z "$ADDED_FILES" ] && DIFF_CONTENT="$DIFF_CONTENT$ADDED_FILES"$'\n'
-          [ ! -z "$MODIFIED_FILES" ] && DIFF_CONTENT="$DIFF_CONTENT$MODIFIED_FILES"$'\n'
-          [ ! -z "$DELETED_FILES" ] && DIFF_CONTENT="$DIFF_CONTENT$DELETED_FILES"
+          COMMITS='${{ toJson(github.event.commits) }}'
+          REPO='${{ github.repository }}'
+          BRANCH='${{ github.ref_name }}'
+          ACTOR='${{ github.actor }}'
 
-          # Escape quotes and backslashes to make safe for raw JSON
-          CLEAN_DIFF=$(echo "$DIFF_CONTENT" | jq -R -s .)
-          CLEAN_MSG=$(echo "${{ github.event.head_commit.message }}" | jq -R -s .)
-          CLEAN_SUMM=$(echo "$SUMMARY_TEXT" | jq -R -s .)
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          EMBEDS="[]"
 
-          echo "diff_block=$CLEAN_DIFF" >> $GITHUB_OUTPUT
-          echo "commit_msg=$CLEAN_MSG" >> $GITHUB_OUTPUT
-          echo "summary_stats=$CLEAN_SUMM" >> $GITHUB_OUTPUT
-          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          for row in $(echo "$COMMITS" | jq -r '.[] | @base64'); do
+            _jq() {
+              echo ${row} | base64 --decode | jq -r ${1}
+            }
 
-      - name: Deploy Payload to Discord Webhook
-        run: |
-          # Pull sanitised text back into shell variables cleanly
-          DIFF_RAW=${{ steps.parse_diff.outputs.diff_block }}
-          MSG_RAW=${{ steps.parse_diff.outputs.commit_msg }}
-          SUMM_RAW=${{ steps.parse_diff.outputs.summary_stats }}
-          
-          # Strip enclosing outer string quotes added by jq parser
-          DIFF_FINAL=$(echo "$DIFF_RAW" | sed 's/^"//;s/"$//')
-          MSG_FINAL=$(echo "$MSG_RAW" | sed 's/^"//;s/"$//')
-          SUMM_FINAL=$(echo "$SUMM_RAW" | sed 's/^"//;s/"$//')
-          
-          # Format final request template payload
-          PAYLOAD=$(jq -n \
-            --arg username "Global Bot | Code Editor" \
-            --arg title "${{ github.repository }}" \
-            --arg url "${{ github.event.head_commit.url }}" \
-            --arg sha_short "${{ steps.parse_diff.outputs.short_sha }}" \
-            --arg actor "${{ github.actor }}" \
-            --arg desc "GitHub **1 commit to main** — $SUMM_FINAL\n\n\`\`\`diff\n$DIFF_FINAL\`\`\`\n\n\`\`\`\n$MSG_FINAL\`\`\`\n\n[\`$sha_short\`]($url) by $actor" \
-            '{
-              username: $username,
-              embeds: [{
-                title: $title,
-                url: $url,
-                color: 1910316,
-                description: $desc
-              }]
-            }')
+            MESSAGE=$(_jq '.message')
+            URL=$(_jq '.url')
+            ID=$(_jq '.id[:7]')
 
-          curl -H "Content-Type: application/json" \
-               -X POST \
-               -d "$PAYLOAD" \
-               https://discord.com/api/webhooks/1505177047897604187/SYfdS7cgpvW0HAWfNE0Tu4NTYz6KvAO-rZMttA58dUMrGJOlVuCezXj3jzwsburzkwOQ
+            ADDED=$(_jq '.added[]?' 2>/dev/null)
+            REMOVED=$(_jq '.removed[]?' 2>/dev/null)
+            MODIFIED=$(_jq '.modified[]?' 2>/dev/null)
+
+            FILES=""
+
+            if [ ! -z "$ADDED" ]; then
+              while read line; do
+                [ -z "$line" ] && continue
+                FILES+="🟩 ${line}\\n"
+              done <<< "$ADDED"
+            fi
+
+            if [ ! -z "$MODIFIED" ]; then
+              while read line; do
+                [ -z "$line" ] && continue
+                FILES+="🟩 ${line}\\n"
+              done <<< "$MODIFIED"
+            fi
+
+            if [ ! -z "$REMOVED" ]; then
+              while read line; do
+                [ -z "$line" ] && continue
+                FILES+="🟥 ${line}\\n"
+              done <<< "$REMOVED"
+            fi
+
+            PAYLOAD=$(jq -n \
+              --arg repo "$REPO" \
+              --arg branch "$BRANCH" \
+              --arg actor "$ACTOR" \
+              --arg msg "$MESSAGE" \
+              --arg url "$URL" \
+              --arg id "$ID" \
+              --arg files "$FILES" \
+              '{
+                username: "GitHub",
+                avatar_url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+                embeds: [
+                  {
+          done
