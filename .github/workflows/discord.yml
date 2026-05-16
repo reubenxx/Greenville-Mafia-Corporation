@@ -32,7 +32,7 @@ jobs:
           echo "Commit: $COMMIT_ID"
           echo "Author: $AUTHOR"
 
-          # ✅ SAFE + ALWAYS WORKS METHOD
+          # ✅ SAFE DIFF METHOD (always works in Actions)
           DIFF=$(git show "$COMMIT_ID" \
             | grep -E '^[+-]' \
             | grep -vE '^(---|\+\+\+)' \
@@ -50,8 +50,11 @@ jobs:
           echo "Added: $ADDED"
           echo "Removed: $REMOVED"
 
+          # escape backticks only (safe minimal escaping)
           DIFF_ESCAPED=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
           MSG_ESCAPED=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
+
+          echo "Building JSON..."
 
           JSON=$(jq -n \
             --arg author "$AUTHOR" \
@@ -68,7 +71,7 @@ jobs:
                 title: ($author + " committed changes"),
                 url: $url,
                 description:
-                  "**Committed to:** " + $url + "\n\n" +
+                  "**Committed to:** \($url)\n\n" +
 
                   "-------------------------------------------------------------------------------------------\n" +
                   "**Lines Added** - \($added)\n" +
@@ -88,8 +91,7 @@ jobs:
               }]
             }')
 
-          echo "Payload size:"
-          echo "$JSON" | wc -c
+          echo "Payload size: $(echo "$JSON" | wc -c)"
 
           echo "Sending to Discord..."
 
