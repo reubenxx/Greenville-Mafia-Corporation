@@ -43,7 +43,7 @@ jobs:
             --arg diff "$DIFF" \
             --arg sha "$SHORT_SHA" \
             '{
-              username: "Global | Code Editor",
+              username: "GitHub",
               embeds: [{
                 color: 5814783,
                 author: {
