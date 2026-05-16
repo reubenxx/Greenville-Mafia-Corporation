@@ -13,39 +13,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Send Discord Embed (DEBUG MODE)
+      - name: Send Discord Embed
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           set +e
-
-          echo "================ START DEBUG ================"
-
-          echo "Checking webhook..."
-          if [ -z "$WEBHOOK" ]; then
-            echo "❌ WEBHOOK IS EMPTY (SECRET NOT SET)"
-            exit 1
-          fi
 
           COMMIT_MSG="${{ github.event.head_commit.message }}"
           COMMIT_ID="${{ github.sha }}"
           AUTHOR="${{ github.actor }}"
           REPO="${{ github.repository }}"
 
-          echo "Commit: $COMMIT_ID"
-          echo "Author: $AUTHOR"
-
           FILE_LINK="https://github.com/${REPO}/commit/${COMMIT_ID}"
           NOW=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
-
-          echo "Generating diff..."
 
           DIFF=$(git show "$COMMIT_ID" \
             | grep -E '^[+-]' \
             | grep -vE '^(---|\+\+\+)' \
             | head -c 3500)
-
-          echo "Raw diff length: ${#DIFF}"
 
           if [ -z "$DIFF" ]; then
             DIFF="+ No code changes detected"
@@ -54,55 +39,54 @@ jobs:
           ADDED=$(echo "$DIFF" | grep '^+' | grep -v '^+++' | wc -l | tr -d ' ')
           REMOVED=$(echo "$DIFF" | grep '^-' | grep -v '^---' | wc -l | tr -d ' ')
 
-          echo "Added: $ADDED"
-          echo "Removed: $REMOVED"
+          # escape safely
+          DIFF=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
+          COMMIT_MSG=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
 
-          DIFF_ESCAPED=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
-          MSG_ESCAPED=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
+          # ✅ BUILD DESCRIPTION OUTSIDE jq (IMPORTANT FIX)
+          DESCRIPTION="**Committed to:** ${FILE_LINK}
 
-          echo "Building JSON..."
+-----------------------------
+**Lines Added** - ${ADDED}
+**Lines Removed** - ${REMOVED}
+-----------------------------
+
+\`\`\`diff
+${DIFF}
+\`\`\`
+
+-----------------------------
+
+\`\`\`text
+${COMMIT_MSG}
+\`\`\`"
 
           JSON=$(jq -n \
             --arg author "$AUTHOR" \
-            --arg msg "$MSG_ESCAPED" \
-            --arg diff "$DIFF_ESCAPED" \
             --arg url "$FILE_LINK" \
-            --arg added "$ADDED" \
-            --arg removed "$REMOVED" \
             --arg time "$NOW" \
             --arg id "${COMMIT_ID:0:7}" \
+            --arg desc "$DESCRIPTION" \
             '{
               username: "Global | Code Editor",
               embeds: [{
                 title: ($author + " committed changes"),
                 url: $url,
-                description:
-                  "**Committed to:** \($url)\n\n" +
-                  "-----------------------------\n" +
-                  "**Lines Added** - \($added)\n" +
-                  "**Lines Removed** - \($removed)\n" +
-                  "-----------------------------\n\n" +
-                  "```diff\n\($diff)\n```\n\n" +
-                  "-----------------------------\n" +
-                  "```text\n\($msg)\n```",
+                description: $desc,
                 footer: {
                   text: ($author + " • " + $time + " • " + $id)
                 }
               }]
             }')
 
-          echo "Payload size: $(echo "$JSON" | wc -c)"
+          echo "Sending..."
 
-          echo "Sending to Discord..."
-
-          RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" \
+          RESPONSE=$(curl -s -w "\nHTTP:%{http_code}" \
             -H "Content-Type: application/json" \
             -X POST \
             -d "$JSON" \
             "$WEBHOOK")
 
-          echo "================ DISCORD RESPONSE ================"
           echo "$RESPONSE"
-          echo "================ END DEBUG ================"
 
           set -e
