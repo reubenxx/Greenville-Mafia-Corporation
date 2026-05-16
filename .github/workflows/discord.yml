@@ -27,6 +27,7 @@ jobs:
 
           # get changed files
           FILES=$(git diff --name-only HEAD^ HEAD)
+
           FIRST_FILE=$(echo "$FILES" | head -n 1)
 
           if [ -z "$FIRST_FILE" ]; then
@@ -67,15 +68,13 @@ jobs:
                 url: $url,
 
                 description:
-                  "────────────────────────────\n" +
+                  "────────────────────────────\n\n" +
 
                   "```diff\n\($diff)\n```\n\n" +
 
                   "────────────────────────────\n\n" +
 
-                  "```text\n\($msg)\n```\n\n" +
-
-                  "────────────────────────────",
+                  "```text\n\($msg)\n```",
 
                 footer: {
                   text: ("Commit by " + $author + " • • " + $time)
