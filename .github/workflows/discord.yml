@@ -23,44 +23,65 @@ jobs:
           AUTHOR="${{ github.actor }}"
           REPO="${{ github.repository }}"
 
-          # ONLY clean +/- diff lines
+          FILES_CHANGED=$(git diff --name-only HEAD^ HEAD | tr '\n' ', ')
+
+          ADDED=$(git diff HEAD^ HEAD --unified=0 | grep '^+' | grep -v '^\+\+\+' | wc -l)
+          REMOVED=$(git diff HEAD^ HEAD --unified=0 | grep '^-' | grep -v '^---' | wc -l)
+
           DIFF=$(git diff HEAD^ HEAD --unified=0 \
             | grep -E '^[+-]' \
             | grep -vE '^(---|\+\+\+)' \
             | head -c 3500)
 
-          # fallback
           if [ -z "$DIFF" ]; then
             DIFF="+ No code changes detected"
           fi
 
-          # escape backticks safely (prevents Discord breaking into multiple blocks)
+          FILE_LINK="https://github.com/${REPO}/commit/${COMMIT_ID}"
+
+          NOW=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
           DIFF_ESCAPED=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
           MSG_ESCAPED=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
 
           JSON=$(jq -n \
             --arg repo "$REPO" \
-            --arg url "$COMMIT_URL" \
             --arg author "$AUTHOR" \
-            --arg id "${COMMIT_ID:0:7}" \
-            --arg diff "$DIFF_ESCAPED" \
             --arg msg "$MSG_ESCAPED" \
+            --arg diff "$DIFF_ESCAPED" \
+            --arg file "$FILE_LINK" \
+            --arg files "$FILES_CHANGED" \
+            --arg added "$ADDED" \
+            --arg removed "$REMOVED" \
+            --arg time "$NOW" \
+            --arg id "${COMMIT_ID:0:7}" \
             '{
               username: "Global | Code Editor",
               embeds: [{
                 color: 0,
-                author: { name: $repo },
-                title: $msg,
                 description:
-                  "```diff\n\($diff)\n```\n\n```text\n\($msg)\n```",
+                  "**\($author)** has committed to [changed files](\($file))\n" +
+
+                  "-------------------------------------------------------------------------------------------\n" +
+                  "**Lines Added** - \($added)\n" +
+                  "**Lines Removed** - \($removed)\n" +
+                  "-------------------------------------------------------------------------------------------\n\n" +
+
+                  "```diff\n\($diff)\n```\n\n" +
+
+                  "-------------------------------------------------------------------------------------------\n" +
+                  "```text\n\($msg)\n```\n\n" +
+
+                  "-------------------------------------------------------------------------------------------",
                 footer: {
-                  text: ($id + " by " + $author)
+                  text: ($author + " • " + $time)
                 },
-                url: $url
+                url: $file
               }]
             }')
 
-          curl -H "Content-Type: application/json" \
+          curl \
+            -H "Content-Type: application/json" \
             -X POST \
             -d "$JSON" \
             "$WEBHOOK"
