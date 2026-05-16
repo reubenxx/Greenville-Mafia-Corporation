@@ -14,17 +14,76 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Send Custom Webhook Notification
-        uses: rjstone/discord-webhook-notify@v1.0.4
-        with:
-          severity: info
-          username: "Novex"
-          avatar_url: "https://imgur.com" # Optional: Link your custom avatar icon here
-          color: "#2f3136"
-          details: |
-            **1 commit to [${{ github.repository }}](https://github.com{{ github.repository }})**
-          text: |
-            ```diff
-            ${{ github.event.head_commit.message }}
-            ```
-          webhookUrl: "https://discord.com/api/webhooks/1505177047897604187/SYfdS7cgpvW0HAWfNE0Tu4NTYz6KvAO-rZMttA58dUMrGJOlVuCezXj3jzwsburzkwOQ"
+      - name: Parse Git Diff Files
+        id: parse_diff
+        run: |
+          # Extract specific file lists per state
+          ADDED_FILES=$(git diff-tree --no-commit-id --name-only -r --diff-filter=A ${{ github.sha }} | sed 's/^/+ /' || true)
+          MODIFIED_FILES=$(git diff-tree --no-commit-id --name-only -r --diff-filter=M ${{ github.sha }} | sed 's/^/! /' || true)
+          DELETED_FILES=$(git diff-tree --no-commit-id --name-only -r --diff-filter=D ${{ github.sha }} | sed 's/^/- /' || true)
+          
+          # Initialize variables for status summary
+          A_COUNT=$(git diff-tree --no-commit-id --name-only -r --diff-filter=A ${{ github.sha }} | wc -l | xargs)
+          M_COUNT=$(git diff-tree --no-commit-id --name-only -r --diff-filter=M ${{ github.sha }} | wc -l | xargs)
+          D_COUNT=$(git diff-tree --no-commit-id --name-only -r --diff-filter=D ${{ github.sha }} | wc -l | xargs)
+          
+          SUMMARY_TEXT=""
+          [ "$A_COUNT" -gt 0 ] && SUMMARY_TEXT="$SUMMARY_TEXT, Added $A_COUNT files"
+          [ "$M_COUNT" -gt 0 ] && SUMMARY_TEXT="$SUMMARY_TEXT, Modified $M_COUNT files"
+          [ "$D_COUNT" -gt 0 ] && SUMMARY_TEXT="$SUMMARY_TEXT, Removed $D_COUNT files"
+          # Clean up prefix commas
+          SUMMARY_TEXT=$(echo "$SUMMARY_TEXT" | sed 's/^, //')
+          
+          # Combine lists into one string
+          DIFF_CONTENT=""
+          [ ! -z "$ADDED_FILES" ] && DIFF_CONTENT="$DIFF_CONTENT$ADDED_FILES"$'\n'
+          [ ! -z "$MODIFIED_FILES" ] && DIFF_CONTENT="$DIFF_CONTENT$MODIFIED_FILES"$'\n'
+          [ ! -z "$DELETED_FILES" ] && DIFF_CONTENT="$DIFF_CONTENT$DELETED_FILES"
+          # Trim trailing spacing
+          DIFF_CONTENT=$(echo "$DIFF_CONTENT" | sed -e :a -e '/^\n*$/{$d;N;ba Driscoll}')
+
+          # Escape quotes and backslashes to make safe for raw JSON
+          CLEAN_DIFF=$(echo "$DIFF_CONTENT" | jq -R -s .)
+          CLEAN_MSG=$(echo "${{ github.event.head_commit.message }}" | jq -R -s .)
+          CLEAN_SUMM=$(echo "$SUMMARY_TEXT" | jq -R -s .)
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+
+          echo "diff_block=$CLEAN_DIFF" >> $GITHUB_OUTPUT
+          echo "commit_msg=$CLEAN_MSG" >> $GITHUB_OUTPUT
+          echo "summary_stats=$CLEAN_SUMM" >> $GITHUB_OUTPUT
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Deploy Payload to Discord Webhook
+        run: |
+          # Pull sanitised text back into shell variables cleanly
+          DIFF_RAW=${{ steps.parse_diff.outputs.diff_block }}
+          MSG_RAW=${{ steps.parse_diff.outputs.commit_msg }}
+          SUMM_RAW=${{ steps.parse_diff.outputs.summary_stats }}
+          
+          # Strip enclosing outer string quotes added by jq parser
+          DIFF_FINAL=$(echo "$DIFF_RAW" | sed 's/^"//;s/"$//')
+          MSG_FINAL=$(echo "$MSG_RAW" | sed 's/^"//;s/"$//')
+          SUMM_FINAL=$(echo "$SUMM_RAW" | sed 's/^"//;s/"$//')
+          
+          # Format final request template payload
+          PAYLOAD=$(jq -n \
+            --arg username "Global Bot | Code Editor" \
+            --arg title "${{ github.repository }}" \
+            --arg url "${{ github.event.head_commit.url }}" \
+            --arg sha_short "${{ steps.parse_diff.outputs.short_sha }}" \
+            --arg actor "${{ github.actor }}" \
+            --arg desc "GitHub **1 commit to main** — $SUMM_FINAL\n\n\`\`\`diff\n$DIFF_FINAL\`\`\`\n\n\`\`\`\n$MSG_FINAL\`\`\`\n\n[\`$sha_short\`]($url) by $actor" \
+            '{
+              username: $username,
+              embeds: [{
+                title: $title,
+                url: $url,
+                color: 1910316,
+                description: $desc
+              }]
+            }')
+
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "$PAYLOAD" \
+               https://discord.com/api/webhooks/1505177047897604187/SYfdS7cgpvW0HAWfNE0Tu4NTYz6KvAO-rZMttA58dUMrGJOlVuCezXj3jzwsburzkwOQ
