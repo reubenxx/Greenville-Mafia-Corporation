@@ -44,7 +44,7 @@ jobs:
             --arg diff "$DIFF" \
             --arg id "${COMMIT_ID:0:7}" \
             '{
-              username: "GitHub",
+              username: "Global | Code Editor",
               embeds: [{
                 color: 65280,
                 author: {
