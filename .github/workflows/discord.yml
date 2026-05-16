@@ -55,7 +55,7 @@ jobs:
                 title: $file,
                 url: $url,
                 description:
-                  ("```diff\n" + $diff + "\n```\n" + $divider + "\n```text\n" + $msg + "\n```"),
+                  ("```diff\n" + $diff + "\n```\n```\n" + $divider + "\n```\n```text\n" + $msg + "\n```"),
                 footer: {
                   text: ("Commit by " + $author + " • • " + $time)
                 }
