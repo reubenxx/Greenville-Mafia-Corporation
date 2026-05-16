@@ -42,7 +42,7 @@ jobs:
             '{
               username: "Global | Code Editor",
               embeds: [{
-                color: 65280,
+                color: 0,
                 author: {
                   name: $repo
                 },
