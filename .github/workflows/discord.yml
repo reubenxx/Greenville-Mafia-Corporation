@@ -23,56 +23,55 @@ jobs:
           AUTHOR="${{ github.actor }}"
           REPO="${{ github.repository }}"
 
-          ADDED=$(git diff --unified=0 HEAD^ HEAD \
-            | grep '^+' \
-            | grep -v '^+++' \
-            | sed 's/^/+ /' \
-            | head -c 1500)
+          # get changed files
+          FILES=$(git diff --name-only HEAD^ HEAD)
 
-          REMOVED=$(git diff --unified=0 HEAD^ HEAD \
-            | grep '^-' \
-            | grep -v '^---' \
-            | sed 's/^/- /' \
-            | head -c 1500)
+          FIRST_FILE=$(echo "$FILES" | head -n 1)
 
-          DIFF="${ADDED}
-${REMOVED}"
+          if [ -z "$FIRST_FILE" ]; then
+            FIRST_FILE="Repository"
+          fi
+
+          # keep commit URL as fallback link
+          URL="${COMMIT_URL}"
+
+          # ONLY clean +/- diff lines
+          DIFF=$(git diff HEAD^ HEAD --unified=0 \
+            | grep -E '^[+-]' \
+            | grep -vE '^(---|\+\+\+)' \
+            | head -c 3500)
 
           if [ -z "$DIFF" ]; then
             DIFF="+ No code changes detected"
           fi
 
-          DESCRIPTION="```diff
-${DIFF}
-
-────────────────
-
-Commit Message: ${COMMIT_MSG}
-```"
+          DIFF_ESCAPED=$(printf "%s" "$DIFF" | sed 's/`/\\`/g')
+          MSG_ESCAPED=$(printf "%s" "$COMMIT_MSG" | sed 's/`/\\`/g')
 
           JSON=$(jq -n \
             --arg repo "$REPO" \
-            --arg desc "$DESCRIPTION" \
-            --arg url "$COMMIT_URL" \
+            --arg url "$URL" \
             --arg author "$AUTHOR" \
             --arg id "${COMMIT_ID:0:7}" \
+            --arg diff "$DIFF_ESCAPED" \
+            --arg msg "$MSG_ESCAPED" \
+            --arg file "$FIRST_FILE" \
             '{
               username: "Global | Code Editor",
               embeds: [{
                 color: 0,
-                author: {
-                  name: $repo
-                },
-                description: $desc,
+                author: { name: $repo },
+                title: $file,
+                url: $url,
+                description:
+                  "```diff\n\($diff)\n```\n\n```text\n\($msg)\n```",
                 footer: {
                   text: ($id + " by " + $author)
-                },
-                url: $url
+                }
               }]
             }')
 
-          curl \
-            -H "Content-Type: application/json" \
+          curl -H "Content-Type: application/json" \
             -X POST \
             -d "$JSON" \
             "$WEBHOOK"
