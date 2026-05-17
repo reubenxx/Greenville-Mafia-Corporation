@@ -23,13 +23,6 @@ jobs:
           AUTHOR="${{ github.actor }}"
           REPO="${{ github.repository }}"
 
-          CHANGES=$(git diff --unified=0 HEAD^ HEAD \
-            | grep -E '^\+|^\-' \
-            | grep -vE '^\+\+\+|^\-\-\-' \
-            | sed 's/^+//g' \
-            | sed 's/^-//g' \
-            | head -c 1500)
-
           ADDED=$(git diff --unified=0 HEAD^ HEAD \
             | grep '^+' \
             | grep -v '^+++' \
@@ -49,12 +42,19 @@ ${REMOVED}"
             DIFF="+ No code changes detected"
           fi
 
+          DESCRIPTION="```diff
+${DIFF}
+
+────────────────
+
+Commit Message: ${COMMIT_MSG}
+```"
+
           JSON=$(jq -n \
             --arg repo "$REPO" \
-            --arg msg "$COMMIT_MSG" \
+            --arg desc "$DESCRIPTION" \
             --arg url "$COMMIT_URL" \
             --arg author "$AUTHOR" \
-            --arg diff "$DIFF" \
             --arg id "${COMMIT_ID:0:7}" \
             '{
               username: "Global | Code Editor",
@@ -63,16 +63,7 @@ ${REMOVED}"
                 author: {
                   name: $repo
                 },
-                description:
-                  (
-                    "```diff\n"
-                    + $diff +
-                    "\n```\n"
-                    + "────────────────\n"
-                    + "```txt\n"
-                    + $msg +
-                    "\n```"
-                  ),
+                description: $desc,
                 footer: {
                   text: ($id + " by " + $author)
                 },
