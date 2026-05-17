@@ -23,19 +23,15 @@ jobs:
           AUTHOR="${{ github.actor }}"
           REPO="${{ github.repository }}"
 
-          # get changed files
           FILES=$(git diff --name-only HEAD^ HEAD)
-
           FIRST_FILE=$(echo "$FILES" | head -n 1)
 
           if [ -z "$FIRST_FILE" ]; then
             FIRST_FILE="Repository"
           fi
 
-          # keep commit URL as fallback link
           URL="${COMMIT_URL}"
 
-          # ONLY clean +/- diff lines
           DIFF=$(git diff HEAD^ HEAD --unified=0 \
             | grep -E '^[+-]' \
             | grep -vE '^(---|\+\+\+)' \
@@ -61,12 +57,25 @@ jobs:
               embeds: [{
                 color: 0,
                 author: { name: $repo },
+
                 title: $file,
                 url: $url,
-                description:
-                  "```diff\n\($diff)\n```\n\n```text\n\($msg)\n```",
+
+                fields: [
+                  {
+                    name: "📊 Code Changes",
+                    value: ("```diff\n" + $diff + "\n```"),
+                    inline: false
+                  },
+                  {
+                    name: "💬 Commit Message",
+                    value: ("```text\n" + $msg + "\n```"),
+                    inline: false
+                  }
+                ],
+
                 footer: {
-                  text: ($id + " by " + $author)
+                  text: ("Commit by " + $author + " • • " + $id)
                 }
               }]
             }')
