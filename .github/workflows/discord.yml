@@ -63,12 +63,12 @@ jobs:
 
                 fields: [
                   {
-                    name: "📊 Code Changes",
+                    name: "<:code:1505368821714784316> Code Changes",
                     value: ("```diff\n" + $diff + "\n```"),
                     inline: false
                   },
                   {
-                    name: "💬 Commit Message",
+                    name: "<:message:1505369221021044958> Commit Message",
                     value: ("```text\n" + $msg + "\n```"),
                     inline: false
                   }
