@@ -949,11 +949,6 @@ class GeneralSupportModal(ui.Modal, title="General Support"):
             reason=f"General Support ticket created by {interaction.user} ({interaction.user.id})"
         )
 
-        await ticket_channel.send(
-            f"{member.mention} <@&1474123995375992873>",
-            allowed_mentions=discord.AllowedMentions(users=True, roles=True)
-        )
-
         additional_details = self.additional_details.value.strip() or "None provided"
         embed = discord.Embed(
             title="**Welcome to General Support**",
@@ -967,7 +962,12 @@ class GeneralSupportModal(ui.Modal, title="General Support"):
             color=0xEECB69
         )
 
-        await ticket_channel.send(embed=embed, view=GeneralSupportTicketView())
+        await ticket_channel.send(
+            content=f"{member.mention} <@&1474123995375992873>",
+            embed=embed,
+            view=GeneralSupportTicketView(),
+            allowed_mentions=discord.AllowedMentions(users=True, roles=True)
+        )
         await interaction.followup.send(f"Ticket created: {ticket_channel.mention}", ephemeral=True)
 
 
