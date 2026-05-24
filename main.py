@@ -879,6 +879,19 @@ async def setupblacklist(interaction: discord.Interaction):
     )
 
 # -------- TICKET PANEL --------
+class GeneralSupportTicketView(ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @ui.button(
+        label="Close",
+        style=discord.ButtonStyle.danger,
+        custom_id="ticket:general_support:close"
+    )
+    async def close_ticket(self, interaction: discord.Interaction, button: ui.Button):
+        await interaction.response.defer(ephemeral=True)
+
+
 class GeneralSupportModal(ui.Modal, title="General Support"):
     reason = ui.TextInput(
         label="What is the reason for this ticket?",
@@ -897,6 +910,65 @@ class GeneralSupportModal(ui.Modal, title="General Support"):
 
     def __init__(self):
         super().__init__(custom_id="ticket_modal:general_support")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
+        guild = interaction.guild
+        if guild is None:
+            await interaction.followup.send("This can only be used in a server.", ephemeral=True)
+            return
+
+        category = guild.get_channel(1443979964482584688)
+        support_role = guild.get_role(1474123995375992873)
+        member = guild.get_member(interaction.user.id)
+
+        if category is None or support_role is None or member is None:
+            await interaction.followup.send("Unable to create ticket. Please contact staff.", ephemeral=True)
+            return
+
+        channel_name = f"support-{interaction.user.name}".lower()
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            member: discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=True,
+                read_message_history=True
+            ),
+            support_role: discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=True,
+                read_message_history=True
+            )
+        }
+
+        ticket_channel = await guild.create_text_channel(
+            channel_name,
+            category=category,
+            overwrites=overwrites,
+            reason=f"General Support ticket created by {interaction.user} ({interaction.user.id})"
+        )
+
+        await ticket_channel.send(
+            f"{member.mention} <@&1474123995375992873>",
+            allowed_mentions=discord.AllowedMentions(users=True, roles=True)
+        )
+
+        additional_details = self.additional_details.value.strip() or "None provided"
+        embed = discord.Embed(
+            title="**Welcome to General Support**",
+            description=(
+                "<:dasharrow:1496224193531084852> Welcome to the **General Support Ticket**. Please await a member of the **Global staff team** to assist you. You may use this ticket for **giveaway claims, general questions, server-wide issues and appeals**. We kindly ask that you refrain from pinging **staff members** and wait patiently.\n\n"
+                "> <:dmsarrow:1491008371682443325> If you have not received a response within **72 hours**, please close this ticket and open a new one.\n\n"
+                f"**User:** {member.mention}\n"
+                f"**Assistance Requested:** {self.reason.value}\n"
+                f"**Additional Information:** {additional_details}"
+            ),
+            color=0xEECB69
+        )
+
+        await ticket_channel.send(embed=embed, view=GeneralSupportTicketView())
+        await interaction.followup.send(f"Ticket created: {ticket_channel.mention}", ephemeral=True)
 
 
 class PartnershipRequestModal(ui.Modal, title="Partnership Request"):
