@@ -1045,11 +1045,6 @@ class PartnershipRequestModal(ui.Modal, title="Partnership Request"):
             reason=f"Partnership Request ticket created by {interaction.user} ({interaction.user.id})"
         )
 
-        await ticket_channel.send(
-            f"{member.mention} <@&1474123995375992873>",
-            allowed_mentions=discord.AllowedMentions(users=True, roles=True)
-        )
-
         embed = discord.Embed(
             title="****Welcome to Partnership Requests****",
             description=(
@@ -1063,7 +1058,12 @@ class PartnershipRequestModal(ui.Modal, title="Partnership Request"):
             color=0xEECB69
         )
 
-        await ticket_channel.send(embed=embed, view=PartnershipTicketView())
+        await ticket_channel.send(
+            content=f"{member.mention} <@&1486271938631434363>",
+            embed=embed,
+            view=PartnershipTicketView(),
+            allowed_mentions=discord.AllowedMentions(users=True, roles=True)
+        )
         await interaction.followup.send(f"Ticket created: {ticket_channel.mention}", ephemeral=True)
 
 
