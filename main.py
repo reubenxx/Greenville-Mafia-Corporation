@@ -99,6 +99,7 @@ async def on_ready():
     bot.add_view(LOAView(0, 0, 0))
     bot.add_view(EndView())
     bot.add_view(RegistrationView(0))
+    bot.add_view(TicketPanelView())
 
     print(f"{bot.user} ready")
 
@@ -876,6 +877,68 @@ async def setupblacklist(interaction: discord.Interaction):
         f"Blacklist message created. Message ID: {msg.id}",
         ephemeral=True
     )
+
+# -------- TICKET PANEL --------
+class TicketPanelView(ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @ui.select(
+        placeholder="Select a support option...",
+        min_values=1,
+        max_values=1,
+        custom_id="ticket_panel_select",
+        options=[
+            discord.SelectOption(
+                label="General Support",
+                emoji=discord.PartialEmoji.from_str("<:1_:1497905729305186375>")
+            ),
+            discord.SelectOption(
+                label="Partnership Request",
+                emoji=discord.PartialEmoji.from_str("<:2_:1497905850596069497>")
+            ),
+            discord.SelectOption(
+                label="Staff Report",
+                emoji=discord.PartialEmoji.from_str("<:3_:1497905775979270224>")
+            ),
+            discord.SelectOption(
+                label="Civilian Report",
+                emoji=discord.PartialEmoji.from_str("<:4_:1497905846368075936>")
+            )
+        ]
+    )
+    async def select_ticket_type(self, interaction: discord.Interaction, select: ui.Select):
+        await interaction.response.defer(ephemeral=True)
+
+
+@bot.tree.command(name="ticketpanel", description="Send the support ticket panel")
+async def ticketpanel(interaction: discord.Interaction):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message(
+            "You do not have permission to use this command.",
+            ephemeral=True
+        )
+        return
+
+    embed = discord.Embed(
+        title="Greenville Roleplay Global | Support Panel",
+        description=(
+            "Welcome to the __Greenville Roleplay Global Support Panel__! All support inquiries will be processed here. Please select the options from the dropdown below which best describes your need.\n\n"
+            "`General Support`\n"
+            "<:dot:1491005539201843290> Please select this option if you have general server concerns or questions. Additionally, if no other option describes your issue, select this. Do **not** use this for partnership requests.\n\n"
+            "`Partnership Request`\n"
+            "<:dot:1491005539201843290> Please select this option if you would like to request a partnership. Ensure you have read our requirements and blacklisted servers before continuing.\n\n"
+            "`Staff Report`\n"
+            "<:dot:1491005539201843290> Please select this option if you believe one of our **staff member(s)** may be in violation of the guidelines. Ensure you have proof upon proposal. Insufficient proof may lead to dismissal of the case.\n\n"
+            "`Civilian Report`\n"
+            "<:dot:1491005539201843290> Please select this option if you believe a **civilian(s)** may be in violation of our guidelines. You must have proof upon proposal, insufficient or absent proof may result in a dismissal.\n\n"
+            "-# > Please be respectful to our staff members at all times. Tickets may take anywhere from __24-72__ to be processed, please be patient."
+        ),
+        color=0xEECB69
+    )
+    embed.set_image(url="https://i.imgur.com/FsQIqHn.jpeg")
+
+    await interaction.response.send_message(embed=embed, view=TicketPanelView())
 
 # -------- REGISTRATION VIEW --------
 class RegistrationView(discord.ui.View):
