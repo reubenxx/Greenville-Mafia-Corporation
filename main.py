@@ -57,7 +57,7 @@ os.makedirs(os.path.dirname(REGISTRATION_FILE), exist_ok=True)
 # Make sure the folder exists
 os.makedirs(os.path.dirname(BLACKLIST_FILE), exist_ok=True)
 
-FOOTER_ICON = "https://i.imgur.com/2Ksi84s.png"
+FOOTER_ICON = "https://i.imgur.com/JaJ24WD.png"
 STARTUP_BANNER = "https://i.imgur.com/cpnzBpT.jpeg"
 LINK_BANNER = "https://i.imgur.com/5Eo9qNz.jpeg"
 END_BANNER = "https://i.imgur.com/FE8kfRq.jpeg"
@@ -66,19 +66,40 @@ WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/148
 EMBED_COLOR=0xEECB69
 bot_start_time = datetime.datetime.now(datetime.UTC)
 
+DATA_FILE = "roblox_links.json"
+
+def load_data():
+    if not os.path.exists(DATA_FILE):
+        return {}
+    with open(DATA_FILE, "r") as f:
+        return json.load(f)
+
+def save_data(data):
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
 # -------- EVENTS --------
 @bot.event
 async def on_ready():
-    await bot.tree.sync()
+
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} command(s)")
+
+    except Exception as e:
+        print(e)
+
     await bot.change_presence(
         activity=discord.Activity(
             type=discord.ActivityType.watching,
             name="Watching over 'Greenville Roleplay Global'"
         )
     )
+
     bot.add_view(LOAView(0, 0, 0))
     bot.add_view(EndView())
     bot.add_view(RegistrationView(0))
+
     print(f"{bot.user} ready")
 
 @bot.event
@@ -1430,6 +1451,194 @@ async def unregister(interaction: discord.Interaction):
         view=view,
         ephemeral=True
     )
+
+@bot.tree.command(name="verifyall", description="Verify all users whose nickname matches a Roblox account")
+async def verifyall(interaction: discord.Interaction):
+
+    # admin only
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message(
+            "❌ You do not have permission to use this command.",
+            ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+
+    guild = interaction.guild
+
+    if guild is None:
+        await interaction.followup.send(
+            "❌ This command can only be used in a server."
+        )
+        return
+
+    db = load_data()
+
+    verified_count = 0
+
+    async with aiohttp.ClientSession() as session:
+
+        for member in guild.members:
+
+            # skip bots
+            if member.bot:
+                continue
+
+            # skip already verified
+            if str(member.id) in db:
+                continue
+
+            nickname = member.nick or member.name
+
+            try:
+
+                async with session.post(
+                    "https://users.roblox.com/v1/usernames/users",
+                    json={
+                        "usernames": [nickname],
+                        "excludeBannedUsers": True
+                    }
+                ) as resp:
+
+                    data = await resp.json()
+
+                    if not data.get("data"):
+                        continue
+
+                    user = data["data"][0]
+
+                    roblox_id = user["id"]
+                    username = user["name"]
+
+                    # save verification
+                    db[str(member.id)] = {
+                        "roblox_id": roblox_id,
+                        "username": username
+                    }
+
+                    verified_count += 1
+
+                # prevent rate limits
+                await asyncio.sleep(0.35)
+
+            except Exception as e:
+                print(f"[VERIFYALL ERROR] {member.id}: {e}")
+
+    save_data(db)
+
+    await interaction.followup.send(
+        f"✅ Verified {verified_count} users successfully."
+    )
+
+@bot.tree.command(name="verifyuser", description="Manually verify a user")
+@app_commands.describe(
+    member="Discord user to verify",
+    robloxname="Roblox username"
+)
+async def verifyuser(
+    interaction: discord.Interaction,
+    member: discord.Member,
+    robloxname: str
+):
+
+    # admin only
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message(
+            "❌ You do not have permission to use this command.",
+            ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+
+    async with aiohttp.ClientSession() as session:
+
+        try:
+
+            async with session.post(
+                "https://users.roblox.com/v1/usernames/users",
+                json={
+                    "usernames": [robloxname],
+                    "excludeBannedUsers": True
+                }
+            ) as resp:
+
+                data = await resp.json()
+
+                if not data.get("data"):
+                    await interaction.followup.send(
+                        "❌ Roblox user not found."
+                    )
+                    return
+
+                user = data["data"][0]
+
+                roblox_id = user["id"]
+                username = user["name"]
+
+        except Exception as e:
+            await interaction.followup.send(
+                f"❌ Error: {e}"
+            )
+            return
+
+    db = load_data()
+
+    db[str(member.id)] = {
+        "roblox_id": roblox_id,
+        "username": username
+    }
+
+    save_data(db)
+
+    await interaction.followup.send(
+        f"✅ Successfully verified {member.mention} as **{username}**"
+    )
+
+@bot.tree.command(name="verify", description="Link your Roblox account")
+@app_commands.describe(robloxname="Your Roblox username")
+async def verify(interaction: discord.Interaction, robloxname: str):
+
+    await interaction.response.defer(ephemeral=True)
+
+    # OPTIONAL SAFETY: must match nickname (prevents random linking abuse)
+    nickname = interaction.user.nick or interaction.user.name
+
+    async with aiohttp.ClientSession() as session:
+
+        async with session.post(
+            "https://users.roblox.com/v1/usernames/users",
+            json={"usernames": [robloxname], "excludeBannedUsers": True}
+        ) as resp:
+
+            data = await resp.json()
+
+            if not data.get("data"):
+                await interaction.followup.send("User could not be fetched. Please ensure you are verified via bloxlink before contiuing.")
+                return
+
+            user = data["data"][0]
+            roblox_id = user["id"]
+            username = user["name"]
+
+        # 🔒 BASIC ANTI-IMPERSONATION CHECK
+        if robloxname.lower() != nickname.lower():
+            await interaction.followup.send(
+                "Your Discord username must match your Roblox username. Please verify via bloxlink before continuing."
+            )
+            return
+
+    db = load_data()
+
+    db[str(interaction.user.id)] = {
+        "roblox_id": roblox_id,
+        "username": username
+    }
+
+    save_data(db)
+
+    await interaction.followup.send(f"✅ Verified as **{username}**")
     
 # -------- INFO COMMAND --------
 @bot.tree.command(name="botinfo", description="View the Bot's information")
@@ -1491,13 +1700,20 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
 
     print("[PROFILE] Target:", target.id)
 
-    # -------- ROBLOX ID --------
-    roblox_id = await get_roblox_data(target.id, interaction.guild.id)
-    print("[PROFILE] Roblox ID:", roblox_id)
+    # -------- ROBLOX FROM YOUR DATABASE (NO BLOXLINK) --------
+    db = load_data()
+    user_data = db.get(str(target.id))
 
+    roblox_id = None
     username = None
-    avatar_url = None
     profile_url = None
+    avatar_url = None
+
+    if user_data:
+        roblox_id = user_data.get("roblox_id")
+        username = user_data.get("username")
+
+    print("[PROFILE] Roblox ID:", roblox_id)
 
     # -------- ROBLOX FETCH --------
     if roblox_id:
@@ -1506,15 +1722,13 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
         try:
             async with aiohttp.ClientSession() as session:
 
-                # USER INFO
                 async with session.get(f"https://users.roblox.com/v1/users/{roblox_id}") as resp:
                     print("[ROBLOX USER STATUS]", resp.status)
 
                     if resp.status == 200:
                         data = await resp.json()
-                        username = data.get("name")
+                        username = data.get("name", username)
 
-                # AVATAR
                 async with session.get(
                     f"https://thumbnails.roblox.com/v1/users/avatar-headshot"
                     f"?userIds={roblox_id}&size=150x150&format=Png&isCircular=false"
@@ -1547,7 +1761,6 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
 
     embed.set_thumbnail(url=avatar_url or target.display_avatar.url)
 
-    # -------- ROBLOX FIELD --------
     if roblox_id and username:
         embed.add_field(
             name="Roblox Username",
