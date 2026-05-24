@@ -905,6 +905,19 @@ class PartnershipTicketView(ui.View):
         await interaction.response.defer(ephemeral=True)
 
 
+class StaffReportTicketView(ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @ui.button(
+        label="Close",
+        style=discord.ButtonStyle.danger,
+        custom_id="ticket:staff_report:close"
+    )
+    async def close_ticket(self, interaction: discord.Interaction, button: ui.Button):
+        await interaction.response.defer(ephemeral=True)
+
+
 class GeneralSupportModal(ui.Modal, title="General Support"):
     reason = ui.TextInput(
         label="What is the reason for this ticket?",
@@ -1085,6 +1098,65 @@ class StaffReportModal(ui.Modal, title="Staff Report"):
 
     def __init__(self):
         super().__init__(custom_id="ticket_modal:staff_report")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
+        guild = interaction.guild
+        if guild is None:
+            await interaction.followup.send("This can only be used in a server.", ephemeral=True)
+            return
+
+        category = guild.get_channel(1443979964482584688)
+        high_rank_role = guild.get_role(1474121009656500225)
+        member = guild.get_member(interaction.user.id)
+
+        if category is None or high_rank_role is None or member is None:
+            await interaction.followup.send("Unable to create ticket. Please contact staff.", ephemeral=True)
+            return
+
+        channel_name = f"staffreport-{interaction.user.name}".lower()
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            member: discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=True,
+                read_message_history=True
+            ),
+            high_rank_role: discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=True,
+                read_message_history=True
+            )
+        }
+
+        ticket_channel = await guild.create_text_channel(
+            channel_name,
+            category=category,
+            overwrites=overwrites,
+            reason=f"Staff Report ticket created by {interaction.user} ({interaction.user.id})"
+        )
+
+        additional_information = self.additional_information.value.strip() or "None provided"
+        embed = discord.Embed(
+            title="****Welcome to Staff Report****",
+            description=(
+                "<:dasharrow:1496224193531084852> Welcome to the **Staff Report Ticket**. Please await a member of the **Global High Ranking Team** to assist you. You may use this ticket solely for **reporting staff members**. We kindly ask that you refrain from pinging **High Ranking members** and wait patiently. During this time, please explain **in detail** the situation and any valid proof.\n\n"
+                "> <:dmsarrow:1491008371682443325> If you have not received a response within **72 hours**, please close this ticket and open a new one.\n\n"
+                f"**User:** {member.mention}\n"
+                f"**Reporting Member(s):** {self.staff_members.value}\n"
+                f"**Additional Information:** {additional_information}"
+            ),
+            color=0xEECB69
+        )
+
+        await ticket_channel.send(
+            content=f"{member.mention} <@&1474121009656500225>",
+            embed=embed,
+            view=StaffReportTicketView(),
+            allowed_mentions=discord.AllowedMentions(users=True, roles=True)
+        )
+        await interaction.followup.send(f"Ticket created: {ticket_channel.mention}", ephemeral=True)
 
 
 class CivilianReportModal(ui.Modal, title="Civilian Report"):
