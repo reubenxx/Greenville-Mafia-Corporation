@@ -892,6 +892,19 @@ class GeneralSupportTicketView(ui.View):
         await interaction.response.defer(ephemeral=True)
 
 
+class PartnershipTicketView(ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @ui.button(
+        label="Close",
+        style=discord.ButtonStyle.danger,
+        custom_id="ticket:partnership_request:close"
+    )
+    async def close_ticket(self, interaction: discord.Interaction, button: ui.Button):
+        await interaction.response.defer(ephemeral=True)
+
+
 class GeneralSupportModal(ui.Modal, title="General Support"):
     reason = ui.TextInput(
         label="What is the reason for this ticket?",
@@ -993,6 +1006,65 @@ class PartnershipRequestModal(ui.Modal, title="Partnership Request"):
 
     def __init__(self):
         super().__init__(custom_id="ticket_modal:partnership_request")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
+        guild = interaction.guild
+        if guild is None:
+            await interaction.followup.send("This can only be used in a server.", ephemeral=True)
+            return
+
+        category = guild.get_channel(1443979964482584688)
+        support_role = guild.get_role(1474123995375992873)
+        member = guild.get_member(interaction.user.id)
+
+        if category is None or support_role is None or member is None:
+            await interaction.followup.send("Unable to create ticket. Please contact staff.", ephemeral=True)
+            return
+
+        channel_name = f"partnership-{interaction.user.name}".lower()
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(view_channel=False),
+            member: discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=True,
+                read_message_history=True
+            ),
+            support_role: discord.PermissionOverwrite(
+                view_channel=True,
+                send_messages=True,
+                read_message_history=True
+            )
+        }
+
+        ticket_channel = await guild.create_text_channel(
+            channel_name,
+            category=category,
+            overwrites=overwrites,
+            reason=f"Partnership Request ticket created by {interaction.user} ({interaction.user.id})"
+        )
+
+        await ticket_channel.send(
+            f"{member.mention} <@&1474123995375992873>",
+            allowed_mentions=discord.AllowedMentions(users=True, roles=True)
+        )
+
+        embed = discord.Embed(
+            title="****Welcome to Partnership Requests****",
+            description=(
+                "<:dasharrow:1496224193531084852> Welcome to the **Partnership Request Ticket**. Please await a member of the **Global staff team** to assist you. You may use this ticket solely for **partnership requests**. We kindly ask that you refrain from pinging **staff members** and wait patiently.\n\n"
+                "> <:dmsarrow:1491008371682443325> If you have not received a response within **72 hours**, please close this ticket and open a new one.\n\n"
+                f"**User:** {member.mention}\n"
+                f"**Server Name:** {self.server_name.value}\n"
+                f"**Server Membercount:** {self.server_membercount.value}\n"
+                f"**Agreeance to requirements:** {self.requirements_agreement.value}"
+            ),
+            color=0xEECB69
+        )
+
+        await ticket_channel.send(embed=embed, view=PartnershipTicketView())
+        await interaction.followup.send(f"Ticket created: {ticket_channel.mention}", ephemeral=True)
 
 
 class StaffReportModal(ui.Modal, title="Staff Report"):
