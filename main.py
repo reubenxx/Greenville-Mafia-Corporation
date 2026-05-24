@@ -879,6 +879,90 @@ async def setupblacklist(interaction: discord.Interaction):
     )
 
 # -------- TICKET PANEL --------
+class GeneralSupportModal(ui.Modal, title="General Support"):
+    reason = ui.TextInput(
+        label="What is the reason for this ticket?",
+        custom_id="ticket_modal:general_support:reason",
+        style=discord.TextStyle.paragraph,
+        placeholder="Type reason here...",
+        required=True
+    )
+    additional_details = ui.TextInput(
+        label="Additional Details",
+        custom_id="ticket_modal:general_support:additional_details",
+        style=discord.TextStyle.paragraph,
+        placeholder="Type additional details here...",
+        required=False
+    )
+
+    def __init__(self):
+        super().__init__(custom_id="ticket_modal:general_support")
+
+
+class PartnershipRequestModal(ui.Modal, title="Partnership Request"):
+    server_name = ui.TextInput(
+        label="Server Name",
+        custom_id="ticket_modal:partnership_request:server_name",
+        placeholder="Type server name here...",
+        required=True
+    )
+    server_membercount = ui.TextInput(
+        label="Server Membercount",
+        custom_id="ticket_modal:partnership_request:server_membercount",
+        placeholder="Type server membercount here...",
+        required=True
+    )
+    requirements_agreement = ui.TextInput(
+        label="Do you agree to our requirements?",
+        custom_id="ticket_modal:partnership_request:requirements_agreement",
+        placeholder="Type Yes or No",
+        required=True
+    )
+
+    def __init__(self):
+        super().__init__(custom_id="ticket_modal:partnership_request")
+
+
+class StaffReportModal(ui.Modal, title="Staff Report"):
+    staff_members = ui.TextInput(
+        label="Staff Member(s)",
+        custom_id="ticket_modal:staff_report:staff_members",
+        style=discord.TextStyle.paragraph,
+        placeholder="Type the username(s) of the staff member(s) being reported...",
+        required=True
+    )
+    additional_information = ui.TextInput(
+        label="Additional Information",
+        custom_id="ticket_modal:staff_report:additional_information",
+        style=discord.TextStyle.paragraph,
+        placeholder="Type additional information here...",
+        required=False
+    )
+
+    def __init__(self):
+        super().__init__(custom_id="ticket_modal:staff_report")
+
+
+class CivilianReportModal(ui.Modal, title="Civilian Report"):
+    civilian_members = ui.TextInput(
+        label="Civilian Member(s)",
+        custom_id="ticket_modal:civilian_report:civilian_members",
+        style=discord.TextStyle.paragraph,
+        placeholder="Type the username(s) of the civilian(s) being reported...",
+        required=True
+    )
+    additional_information = ui.TextInput(
+        label="Additional Information",
+        custom_id="ticket_modal:civilian_report:additional_information",
+        style=discord.TextStyle.paragraph,
+        placeholder="Type any additional information here...",
+        required=False
+    )
+
+    def __init__(self):
+        super().__init__(custom_id="ticket_modal:civilian_report")
+
+
 class TicketPanelView(ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -887,7 +971,7 @@ class TicketPanelView(ui.View):
         placeholder="Select a support option...",
         min_values=1,
         max_values=1,
-        custom_id="ticket_panel_select",
+        custom_id="ticket_panel:dropdown:category",
         options=[
             discord.SelectOption(
                 label="General Support",
@@ -908,7 +992,16 @@ class TicketPanelView(ui.View):
         ]
     )
     async def select_ticket_type(self, interaction: discord.Interaction, select: ui.Select):
-        await interaction.response.defer(ephemeral=True)
+        selected_option = select.values[0]
+
+        if selected_option == "General Support":
+            await interaction.response.send_modal(GeneralSupportModal())
+        elif selected_option == "Partnership Request":
+            await interaction.response.send_modal(PartnershipRequestModal())
+        elif selected_option == "Staff Report":
+            await interaction.response.send_modal(StaffReportModal())
+        elif selected_option == "Civilian Report":
+            await interaction.response.send_modal(CivilianReportModal())
 
 
 @bot.tree.command(name="ticketpanel", description="Send the support ticket panel")
