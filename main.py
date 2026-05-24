@@ -938,7 +938,8 @@ async def ticketpanel(interaction: discord.Interaction):
     )
     embed.set_image(url="https://i.imgur.com/FsQIqHn.jpeg")
 
-    await interaction.response.send_message(embed=embed, view=TicketPanelView())
+    await interaction.response.send_message("Support panel sent.", ephemeral=True)
+    await interaction.channel.send(embed=embed, view=TicketPanelView())
 
 # -------- REGISTRATION VIEW --------
 class RegistrationView(discord.ui.View):
