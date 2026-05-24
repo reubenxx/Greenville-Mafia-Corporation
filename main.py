@@ -2140,5 +2140,9 @@ async def kill(interaction: discord.Interaction):
     await interaction.response.send_message("The bot has restarted.", ephemeral=True)
     sys.exit()
 
-# -------- RUN BOT --------
-bot.run(TOKEN)
+def main():
+    bot.run(TOKEN)
+
+
+if __name__ == "__main__":
+    main()
