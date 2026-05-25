@@ -9,6 +9,7 @@ import asyncio
 import tempfile
 import shutil
 import aiohttp
+import io
 
 blacklist_lock = asyncio.Lock()
 
@@ -100,6 +101,10 @@ async def on_ready():
     bot.add_view(EndView())
     bot.add_view(RegistrationView(0))
     bot.add_view(TicketPanelView())
+    bot.add_view(GeneralSupportTicketView())
+    bot.add_view(PartnershipTicketView())
+    bot.add_view(StaffReportTicketView())
+    bot.add_view(CivilianReportTicketView())
 
     print(f"{bot.user} ready")
 
@@ -878,6 +883,183 @@ async def setupblacklist(interaction: discord.Interaction):
         ephemeral=True
     )
 
+# -------- TICKET CLOSE (shared) --------
+TICKET_CLOSE_STAFF_ROLE_ID = 1474123995375992873
+
+
+def get_ticket_opener(channel: discord.TextChannel):
+    for target, overwrite in channel.overwrites.items():
+        if isinstance(target, discord.Member) and overwrite.view_channel is True:
+            return target
+    return None
+
+
+def can_close_ticket(interaction: discord.Interaction) -> bool:
+    if interaction.guild is None or not isinstance(interaction.channel, discord.TextChannel):
+        return False
+    member = interaction.user
+    if not isinstance(member, discord.Member):
+        return False
+    if any(role.id == TICKET_CLOSE_STAFF_ROLE_ID for role in member.roles):
+        return True
+    opener = get_ticket_opener(interaction.channel)
+    return opener is not None and opener.id == member.id
+
+
+async def build_ticket_transcript(channel: discord.TextChannel) -> str:
+    lines = []
+    async for message in channel.history(limit=None, oldest_first=True):
+        content = message.content
+        if not content:
+            if message.attachments:
+                content = "[Attachment]"
+            elif message.embeds:
+                content = "[Embed]"
+            else:
+                content = ""
+        timestamp = message.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        username = message.author.display_name if message.author else "Unknown"
+        lines.append(f"[{timestamp}] {username}: {content}")
+    return "\n".join(lines) if lines else "(No messages)"
+
+
+async def handle_ticket_close_request(interaction: discord.Interaction):
+    if not can_close_ticket(interaction):
+        await interaction.response.send_message(
+            "You do not have permission to close this ticket.",
+            ephemeral=True,
+        )
+        return
+
+    embed = discord.Embed(
+        title="Close Ticket",
+        description="Are you sure you want to close this ticket?",
+        color=EMBED_COLOR,
+    )
+    await interaction.response.send_message(
+        embed=embed,
+        view=TicketConfirmCloseView(),
+        ephemeral=True,
+    )
+
+
+class TicketConfirmCloseView(ui.View):
+    def __init__(self):
+        super().__init__(timeout=120)
+
+    @ui.button(label="Confirm Close", style=discord.ButtonStyle.danger)
+    async def confirm_close(self, interaction: discord.Interaction, button: ui.Button):
+        if not can_close_ticket(interaction):
+            await interaction.response.send_message(
+                "You do not have permission to close this ticket.",
+                ephemeral=True,
+            )
+            return
+
+        channel = interaction.channel
+        if not isinstance(channel, discord.TextChannel):
+            await interaction.response.send_message(
+                "This can only be used in a ticket channel.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer()
+
+        closer = interaction.user
+        opener = get_ticket_opener(channel)
+
+        await channel.send("> Ticket closing in 3 seconds - generating transcript")
+        await asyncio.sleep(3)
+
+        transcript = await build_ticket_transcript(channel)
+        filename = f"{channel.name}-transcript.txt"
+
+        if opener is not None:
+            try:
+                transcript_file = discord.File(
+                    io.BytesIO(transcript.encode("utf-8")),
+                    filename=filename,
+                )
+                await opener.send(
+                    f"Your ticket `{channel.name}` was closed by {closer.display_name}. Transcript is attached.",
+                    file=transcript_file,
+                )
+            except discord.HTTPException:
+                pass
+
+        await channel.delete(reason=f"Ticket closed by {closer} ({closer.id})")
+
+
+@bot.tree.command(name="add", description="Add a member to this ticket")
+@app_commands.describe(user="The member to add to the ticket")
+async def add(interaction: discord.Interaction, user: discord.Member):
+    member = interaction.guild.get_member(interaction.user.id)
+    if member is None or not any(role.id == TICKET_CLOSE_STAFF_ROLE_ID for role in member.roles):
+        await interaction.response.send_message(
+            "You do not have permission to use this command.",
+            ephemeral=True,
+        )
+        return
+
+    channel = interaction.channel
+    if not isinstance(channel, discord.TextChannel) or channel.category_id != 1443979964482584688:
+        await interaction.response.send_message(
+            "This command can only be used in ticket channels.",
+            ephemeral=True,
+        )
+        return
+
+    await channel.set_permissions(
+        user,
+        overwrite=discord.PermissionOverwrite(
+            view_channel=True,
+            send_messages=True,
+            read_message_history=True,
+        ),
+        reason=f"Added to ticket by {interaction.user} ({interaction.user.id})",
+    )
+
+    await interaction.response.send_message(
+        f"> {interaction.user.mention} has added {user.mention} to this ticket. "
+        "Please run `/remove` if you would like to remove them."
+    )
+
+
+@bot.tree.command(name="remove", description="Remove a member from this ticket")
+@app_commands.describe(user="The member to remove from the ticket")
+async def remove(interaction: discord.Interaction, user: discord.Member):
+    member = interaction.guild.get_member(interaction.user.id)
+    if member is None or not any(role.id == TICKET_CLOSE_STAFF_ROLE_ID for role in member.roles):
+        await interaction.response.send_message(
+            "You do not have permission to use this command.",
+            ephemeral=True,
+        )
+        return
+
+    channel = interaction.channel
+    if not isinstance(channel, discord.TextChannel) or channel.category_id != 1443979964482584688:
+        await interaction.response.send_message(
+            "This command can only be used in ticket channels.",
+            ephemeral=True,
+        )
+        return
+
+    await channel.set_permissions(
+        user,
+        overwrite=discord.PermissionOverwrite(
+            view_channel=False,
+            send_messages=False,
+            read_message_history=False,
+        ),
+        reason=f"Removed from ticket by {interaction.user} ({interaction.user.id})",
+    )
+
+    await interaction.response.send_message(
+        f"> {interaction.user.mention} has removed {user.mention} from this ticket."
+    )
+
+
 # -------- TICKET PANEL --------
 class GeneralSupportTicketView(ui.View):
     def __init__(self):
@@ -889,7 +1071,7 @@ class GeneralSupportTicketView(ui.View):
         custom_id="ticket:general_support:close"
     )
     async def close_ticket(self, interaction: discord.Interaction, button: ui.Button):
-        await interaction.response.defer(ephemeral=True)
+        await handle_ticket_close_request(interaction)
 
 
 class PartnershipTicketView(ui.View):
@@ -902,7 +1084,7 @@ class PartnershipTicketView(ui.View):
         custom_id="ticket:partnership_request:close"
     )
     async def close_ticket(self, interaction: discord.Interaction, button: ui.Button):
-        await interaction.response.defer(ephemeral=True)
+        await handle_ticket_close_request(interaction)
 
 
 class StaffReportTicketView(ui.View):
@@ -915,7 +1097,7 @@ class StaffReportTicketView(ui.View):
         custom_id="ticket:staff_report:close"
     )
     async def close_ticket(self, interaction: discord.Interaction, button: ui.Button):
-        await interaction.response.defer(ephemeral=True)
+        await handle_ticket_close_request(interaction)
 
 
 class GeneralSupportModal(ui.Modal, title="General Support"):
@@ -1169,7 +1351,7 @@ class CivilianReportTicketView(ui.View):
         custom_id="ticket:civilian_report:close"
     )
     async def close_ticket(self, interaction: discord.Interaction, button: ui.Button):
-        await interaction.response.defer(ephemeral=True)
+        await handle_ticket_close_request(interaction)
 
 
 class CivilianReportModal(ui.Modal, title="Civilian Report"):
@@ -2290,3 +2472,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
