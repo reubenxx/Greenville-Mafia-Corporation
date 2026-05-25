@@ -2380,7 +2380,10 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
     license_status = "Suspended" if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles) else "Active"
 
     # -------- EMBED --------
-    roblox_display = username if (roblox_id and username) else "Not Linked"
+    if roblox_id and username:
+        roblox_display = f"[{username}]({profile_url})"
+    else:
+        roblox_display = "Not Linked"
 
     embed = discord.Embed(
         title="Greenville Roleplay Global | Civilian Profile",
@@ -2394,10 +2397,7 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
         color=EMBED_COLOR
     )
 
-    if avatar_url:
-        embed.set_image(url=avatar_url)
-    else:
-        embed.set_thumbnail(url=target.display_avatar.url)
+    embed.set_thumbnail(url=avatar_url or target.display_avatar.url)
 
     embed.set_footer(text="Greenville Roleplay Global", icon_url=FOOTER_ICON)
 
@@ -2460,6 +2460,11 @@ async def kill(interaction: discord.Interaction):
         return
     await interaction.response.send_message("The bot has restarted.", ephemeral=True)
     sys.exit()
+
+import economy
+
+economy.setup(bot, EMBED_COLOR)
+
 
 def main():
     bot.run(TOKEN)
