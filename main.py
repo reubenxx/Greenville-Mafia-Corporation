@@ -2357,8 +2357,8 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
                         username = data.get("name", username)
 
                 async with session.get(
-                    f"https://thumbnails.roblox.com/v1/users/avatar-headshot"
-                    f"?userIds={roblox_id}&size=150x150&format=Png&isCircular=false"
+                    f"https://thumbnails.roblox.com/v1/users/avatar"
+                    f"?userIds={roblox_id}&size=420x420&format=Png&isCircular=false"
                 ) as resp:
                     print("[ROBLOX AVATAR STATUS]", resp.status)
 
@@ -2380,29 +2380,24 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
     license_status = "Suspended" if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles) else "Active"
 
     # -------- EMBED --------
+    roblox_display = username if (roblox_id and username) else "Not Linked"
+
     embed = discord.Embed(
         title="Greenville Roleplay Global | Civilian Profile",
-        description=f"Profile for {target.mention}",
+        description=(
+            f"> You are currently viewing {target.display_name}'s profile.\n\n"
+            f"> <:roblox:1502473899349377045> Roblox Profile: {roblox_display}\n"
+            f"> <:licence:1508378444684197991> License Status: {license_status}\n"
+            f"> <:registration:1508379502319767653> Registration(s): `{reg_count}`\n\n"
+            f"-# ><:dmsarrow:1491008371682443325> To **register a vehicle**, use `/register`"
+        ),
         color=EMBED_COLOR
     )
 
-    embed.set_thumbnail(url=avatar_url or target.display_avatar.url)
-
-    if roblox_id and username:
-        embed.add_field(
-            name="Roblox Username",
-            value=f"[{username}]({profile_url})",
-            inline=False
-        )
+    if avatar_url:
+        embed.set_image(url=avatar_url)
     else:
-        embed.add_field(
-            name="Roblox Username",
-            value="Not Linked",
-            inline=False
-        )
-
-    embed.add_field(name="Registrations", value=str(reg_count), inline=True)
-    embed.add_field(name="License Status", value=license_status, inline=True)
+        embed.set_thumbnail(url=target.display_avatar.url)
 
     embed.set_footer(text="Greenville Roleplay Global", icon_url=FOOTER_ICON)
 
@@ -2472,4 +2467,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
