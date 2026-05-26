@@ -105,6 +105,7 @@ async def on_ready():
     bot.add_view(PartnershipTicketView())
     bot.add_view(StaffReportTicketView())
     bot.add_view(CivilianReportTicketView())
+    early_access.register_persistent_views(bot)
 
     print(f"{bot.user} ready")
 
@@ -1933,6 +1934,8 @@ async def end(interaction: discord.Interaction, host_note: str):
     link_message = None
     startup_reactors = set()
     startup_time = None
+    startup_host = None
+    await early_access.reset_on_convoy_end(bot)
 # -------- LOA COMMAND CONTINUED --------
 @bot.tree.command(name="loa", description="Submit a Leave of Absence")
 @app_commands.describe(
@@ -2462,8 +2465,17 @@ async def kill(interaction: discord.Interaction):
     sys.exit()
 
 import economy
+import early_access
 
 economy.setup(bot, EMBED_COLOR)
+early_access.setup(
+    bot,
+    EMBED_COLOR,
+    FOOTER_ICON,
+    DATA_DIR,
+    get_convoy_active=lambda: startup_active,
+    get_convoy_host=lambda: startup_host,
+)
 
 
 def main():
