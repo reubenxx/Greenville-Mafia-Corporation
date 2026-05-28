@@ -1,4 +1,4 @@
-import discord
+port discord
 from discord.ext import commands
 from discord import app_commands, ui
 import datetime
@@ -1488,7 +1488,7 @@ class PartnershipRequestModal(ui.Modal, title="Partnership Request"):
         )
 
         await ticket_channel.send(
-            content=f"{member.mention} <@&1486271938631434363>",
+            content=f"{member.mention} <@&1474123995375992873>",
             embed=embed,
             view=PartnershipTicketView(),
             allowed_mentions=discord.AllowedMentions(users=True, roles=True)
@@ -1733,7 +1733,7 @@ async def ticketpanel(interaction: discord.Interaction):
         ),
         color=0xEECB69
     )
-    embed.set_image(url="https://i.imgur.com/FsQIqHn.jpeg")
+    embed.set_image(url="https://i.imgur.com/255bhKc.png")
 
     await interaction.response.send_message("Support panel sent.", ephemeral=True)
     await interaction.channel.send(embed=embed, view=TicketPanelView())
