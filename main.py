@@ -115,9 +115,9 @@ async def _find_existing_status_message(channel: discord.TextChannel):
                 continue
             if msg.embeds:
                 embed = msg.embeds[0]
-                if getattr(embed, "title", None) == "Greenville Roleplay Global | Ticket Panel Status":
+                if getattr(embed, "title", None) == "Greenville Roleplay Global | Ticket System Infrastructure Status":
                     return msg
-            if isinstance(msg.content, str) and msg.content.startswith("Greenville Roleplay Global | Ticket Panel Status"):
+            if isinstance(msg.content, str) and msg.content.startswith("Greenville Roleplay Global | Ticket System Infrastructure Status"):
                 return msg
     except Exception as e:
         print(f"Error searching status messages: {e}")
@@ -125,22 +125,55 @@ async def _find_existing_status_message(channel: discord.TextChannel):
 
 
 def _build_status_embed(panel_exists: bool, ts: int, reason: str | None, footer_icon: str | None) -> discord.Embed:
-    description = "Status:\n"
+    description = (
+        "SYSTEM INFRASTRUCTURE STATUS\n\n"
+        "Current System State:\n"
+    )
+
     if panel_exists:
         description += "🟢 All services running as expected.\n\n"
     else:
         description += "🔴 Services may not be running as expected.\n\n"
-    description += f"Last Check: <t:{ts}:R>"
+
+    description += (
+        f"Last Health Check:\n<t:{ts}:R>\n\n"
+        "---\n"
+        "OVERVIEW\n\n"
+        "This panel provides a real-time status overview of the Greenville Roleplay Global ticketing infrastructure.\n\n"
+        "All core systems are continuously monitored to ensure stability, uptime reliability, and proper ticket routing functionality across all support categories.\n\n"
+        "---\n"
+        "MONITORED COMPONENTS\n\n"
+        "• Ticket panel interface\n"
+        "• Modal interaction processing\n"
+        "• Permission validation system\n"
+        "• Channel creation and categorisation\n"
+        "• Support routing and role access control\n\n"
+        "Each component is actively monitored to ensure uninterrupted service availability.\n\n"
+        "---\n"
+        "SYSTEM MONITORING BEHAVIOUR\n\n"
+        "• Status updates refresh every 60 seconds\n"
+        "• System heartbeat is continuously tracked\n"
+        "• Persistent message is edited in-place (no duplicates created)\n"
+        "• Failure detection threshold: 5 minutes of inactivity\n\n"
+        "---\n"
+        "SERVICE RELIABILITY NOTICE\n\n"
+        "This system is designed for high reliability support operations. Temporary interruptions may indicate deployment, hosting delays, or backend service instability.\n\n"
+        "All anomalies are automatically flagged through status degradation.\n\n"
+    )
+
     if not panel_exists:
-        description += "\n\n"
-        description += f"-# {reason or 'If the last check exceeds 5 minutes, the ticket system may be inoperative.'}"
+        description += (
+            "---\n"
+            "INOPERATIVE WARNING\n\n"
+            "-# If the last check exceeds 5 minutes, the ticket system may be inoperative and requires administrative attention."
+        )
 
     embed = discord.Embed(
-        title="Greenville Roleplay Global | Ticket Panel Status",
+        title="Greenville Roleplay Global | Ticket System Infrastructure Status",
         description=description,
         color=0xFFFFFF,
     )
-    embed.set_footer(text="Ticket Management Systems", icon_url=footer_icon)
+    embed.set_footer(text="Ticket Management Systems • Infrastructure Monitoring & Uptime Control", icon_url=footer_icon)
     return embed
 
 
