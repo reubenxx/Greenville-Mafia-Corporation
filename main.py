@@ -52,6 +52,9 @@ BLACKLIST_FILE = f"{DATA_DIR}/blacklist.json"
 REGISTRATION_FILE = f"{DATA_DIR}/registrations.json"
 LICENSE_SUSPENDED_ROLE = 1492408999826555052
 REG_LOG_CHANNEL = 1442212602762760434
+# --- Ticket system status monitor ---
+STATUS_CHANNEL_ID = 1443980437184577556
+STATUS_FILE = f"{DATA_DIR}/ticket_status.json"
 
 os.makedirs(os.path.dirname(REGISTRATION_FILE), exist_ok=True)
 
@@ -78,6 +81,167 @@ def load_data():
 def save_data(data):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=4)
+
+
+def _load_status_file():
+    try:
+        if not os.path.exists(STATUS_FILE):
+            return None
+        with open(STATUS_FILE, "r") as f:
+            d = json.load(f)
+            return d.get("status_message_id")
+    except Exception:
+        return None
+
+
+def _save_status_file(message_id: int):
+    try:
+        os.makedirs(os.path.dirname(STATUS_FILE), exist_ok=True)
+        with open(STATUS_FILE, "w") as f:
+            json.dump({"status_message_id": int(message_id)}, f)
+    except Exception as e:
+        print(f"Failed to save status file: {e}")
+
+
+async def _find_existing_status_message(channel: discord.TextChannel):
+    if channel is None:
+        return None
+    try:
+        async for msg in channel.history(limit=200):
+            if msg.author == bot.user and isinstance(msg.content, str):
+                if msg.content.startswith("Greenville Roleplay Global | Ticket System Status"):
+                    return msg
+    except Exception as e:
+        print(f"Error searching status messages: {e}")
+    return None
+
+
+def _format_status_content(panel_exists: bool, ts: int) -> str:
+    if panel_exists:
+        status_line = "Status:\n🟢 All services running as expected.\n"
+        foot = "-# If the last check exceeds 5 minutes, the ticket system may be inoperative."
+    else:
+        status_line = "Status:\n🔴 Services may not be running as expected.\n"
+        foot = "-# The ticket panel could not be detected. The ticket system may currently be inoperative."
+
+    return (
+        "Greenville Roleplay Global | Ticket System Status\n\n"
+        f"{status_line}\n"
+        f"Last Check: <t:{ts}:R>\n\n"
+        f"{foot}"
+    )
+
+
+async def _ticket_panel_exists() -> bool:
+    """Detect whether an active ticket panel exists in the configured channel.
+
+    Criteria: a message by this bot in the channel that contains a select with custom_id 'ticket_panel:dropdown:category'.
+    """
+    channel = bot.get_channel(STATUS_CHANNEL_ID)
+    if channel is None:
+        return False
+    try:
+        async for msg in channel.history(limit=200):
+            if msg.author != bot.user:
+                continue
+            # Inspect components for a select with the expected custom_id
+            for row in getattr(msg, "components", []):
+                for comp in getattr(row, "children", []):
+                    try:
+                        if getattr(comp, "custom_id", None) == "ticket_panel:dropdown:category":
+                            return True
+                    except Exception:
+                        continue
+        return False
+    except Exception as e:
+        print(f"Error checking ticket panel existence: {e}")
+        return False
+
+
+async def _ensure_status_message():
+    """Ensure a single persistent status message exists and return it."""
+    channel = bot.get_channel(STATUS_CHANNEL_ID)
+    if channel is None:
+        print("Status channel not found")
+        return None
+
+    # 1) Try persisted id
+    persisted_id = _load_status_file()
+    if persisted_id:
+        try:
+            msg = await channel.fetch_message(persisted_id)
+            return msg
+        except Exception:
+            # missing or deleted
+            pass
+
+    # 2) Try to find an existing status message in history
+    msg = await _find_existing_status_message(channel)
+    if msg:
+        _save_status_file(msg.id)
+        return msg
+
+    # 3) Create a new one (plain text)
+    ts = int(datetime.datetime.now(datetime.UTC).timestamp())
+    content = _format_status_content(False, ts)
+    try:
+        new_msg = await channel.send(content)
+        _save_status_file(new_msg.id)
+        return new_msg
+    except Exception as e:
+        print(f"Failed to create status message: {e}")
+        return None
+
+
+async def _start_ticket_status_monitor():
+    # Ensure message exists first
+    status_msg = await _ensure_status_message()
+    if status_msg is None:
+        print("Ticket status monitor could not create status message; aborting monitor.")
+        return
+
+    while True:
+        try:
+            panel_exists = await _ticket_panel_exists()
+            ts = int(datetime.datetime.now(datetime.UTC).timestamp())
+
+            # Ensure the status message still exists and is the one we expect
+            persisted_id = _load_status_file()
+            if persisted_id != status_msg.id:
+                # Try to fetch persisted
+                try:
+                    status_msg = await bot.get_channel(STATUS_CHANNEL_ID).fetch_message(persisted_id)
+                except Exception:
+                    # persisted missing; verify our current message still exists
+                    try:
+                        status_msg = await bot.get_channel(STATUS_CHANNEL_ID).fetch_message(status_msg.id)
+                    except Exception:
+                        # both gone — try to find or recreate
+                        status_msg = await _ensure_status_message()
+
+            # If message somehow deleted, _ensure_status_message will recreate and save
+            if status_msg is None:
+                status_msg = await _ensure_status_message()
+                if status_msg is None:
+                    await asyncio.sleep(60)
+                    continue
+
+            content = _format_status_content(panel_exists, ts)
+
+            # Only edit if content changed to reduce API calls
+            if status_msg.content != content:
+                try:
+                    await status_msg.edit(content=content)
+                except discord.NotFound:
+                    # message deleted between checks — recreate
+                    status_msg = await _ensure_status_message()
+                except Exception as e:
+                    print(f"Failed to edit status message: {e}")
+
+        except Exception as e:
+            print(f"Ticket status monitor loop error: {e}")
+
+        await asyncio.sleep(60)
 
 # -------- EVENTS --------
 @bot.event
@@ -108,6 +272,11 @@ async def on_ready():
     early_access.register_persistent_views(bot)
 
     print(f"{bot.user} ready")
+    try:
+        bot.loop.create_task(_start_ticket_status_monitor())
+        print("Ticket status monitor started")
+    except Exception as e:
+        print(f"Failed to start ticket status monitor: {e}")
 
 @bot.event
 async def on_member_join(member):
