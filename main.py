@@ -87,24 +87,23 @@ def save_data(data):
         json.dump(data, f, indent=4)
 
 
-def _load_status_file():
+def _load_status_data() -> dict:
     try:
         if not os.path.exists(STATUS_FILE):
-            return None
+            return {}
         with open(STATUS_FILE, "r") as f:
-            d = json.load(f)
-            return d.get("status_message_id")
+            return json.load(f)
     except Exception:
-        return None
+        return {}
 
 
-def _save_status_file(message_id: int):
+def _save_status_data(data: dict) -> None:
     try:
         os.makedirs(os.path.dirname(STATUS_FILE), exist_ok=True)
         with open(STATUS_FILE, "w") as f:
-            json.dump({"status_message_id": int(message_id)}, f)
+            json.dump(data, f)
     except Exception as e:
-        print(f"Failed to save status file: {e}")
+        print(f"Failed to save status data: {e}")
 
 
 async def _find_existing_status_message(channel: discord.TextChannel):
@@ -114,36 +113,25 @@ async def _find_existing_status_message(channel: discord.TextChannel):
         async for msg in channel.history(limit=200):
             if msg.author != bot.user:
                 continue
-            if msg.embeds:
-                embed = msg.embeds[0]
-                if getattr(embed, "title", None) == STATUS_MESSAGE_TITLE:
-                    return msg
+            if isinstance(msg.content, str) and msg.content.startswith("Greenville Roleplay Global | Ticket Panel Status"):
+                return msg
     except Exception as e:
         print(f"Error searching status messages: {e}")
     return None
 
 
-def _build_status_embed(panel_exists: bool, ts: int, reason: str | None, footer_icon: str | None) -> discord.Embed:
-    description = "Status:\n"
+def _format_status_text(panel_exists: bool, ts: int, reason: str | None) -> str:
+    text = "Greenville Roleplay Global | Ticket Panel Status\n\n"
+    text += "Status:\n"
     if panel_exists:
-        description += "🟢 All services running as expected.\n\n"
+        text += "🟢 All services running as expected.\n\n"
     else:
-        description += "🔴 Services may not be running as expected.\n\n"
-    description += f"Last Check: <t:{ts}:R>"
-
+        text += "🔴 Services may not be running as expected.\n\n"
+    text += f"Last Check: <t:{ts}:R>"
     if not panel_exists:
-        if reason:
-            description += f"\n\n-# {reason}"
-        else:
-            description += "\n\n-# If the last check exceeds 5 minutes, the ticket system may be inoperative."
-
-    embed = discord.Embed(
-        title=STATUS_MESSAGE_TITLE,
-        description=description,
-        color=0xFFFFFF,
-    )
-    embed.set_footer(text="Ticket Management Systems", icon_url=footer_icon)
-    return embed
+        text += "\n\n"
+        text += f"-# {reason or 'If the last check exceeds 5 minutes, the ticket system may be inoperative.'}"
+    return text
 
 
 async def _ticket_panel_exists() -> bool:
@@ -173,7 +161,8 @@ async def _ensure_status_message():
         print("Status channel not found")
         return None
 
-    persisted_id = _load_status_file()
+    status_data = _load_status_data()
+    persisted_id = status_data.get("status_message_id")
     if persisted_id:
         try:
             msg = await channel.fetch_message(persisted_id)
@@ -183,30 +172,76 @@ async def _ensure_status_message():
 
     msg = await _find_existing_status_message(channel)
     if msg:
-        _save_status_file(msg.id)
+        status_data["status_message_id"] = msg.id
+        _save_status_data(status_data)
         return msg
 
     ts = int(time.time())
-    footer_icon = channel.guild.icon.url if channel.guild and channel.guild.icon else None
-    embed = _build_status_embed(
+    content = _format_status_text(
         panel_exists=False,
         ts=ts,
         reason="The ticket panel could not be detected. The ticket system may currently be inoperative.",
-        footer_icon=footer_icon,
     )
 
     try:
-        new_msg = await channel.send(embed=embed)
-        _save_status_file(new_msg.id)
+        new_msg = await channel.send(content)
+        status_data.update({
+            "status_message_id": new_msg.id,
+            "last_heartbeat_ts": ts,
+            "operational": False,
+        })
+        _save_status_data(status_data)
         return new_msg
     except Exception as e:
         print(f"Failed to create status message: {e}")
         return None
 
 
-async def _start_ticket_status_monitor():
-    global last_heartbeat_ts
+async def _update_status_message(status_msg: discord.Message) -> discord.Message | None:
+    panel_exists = await _ticket_panel_exists()
+    ts = int(time.time())
+    reason = None
+    operational = False
+    if panel_exists:
+        operational = True
+    else:
+        reason = "The ticket panel could not be detected. The ticket system may currently be inoperative."
 
+    content = _format_status_text(panel_exists=panel_exists, ts=ts, reason=reason)
+
+    try:
+        await status_msg.edit(content=content)
+    except discord.NotFound:
+        status_msg = await _ensure_status_message()
+        if status_msg is None:
+            return None
+        await status_msg.edit(content=content)
+    except Exception as e:
+        print(f"Failed to edit status message: {e}")
+        return None
+
+    status_data = {
+        "status_message_id": status_msg.id,
+        "last_heartbeat_ts": ts,
+        "operational": operational,
+    }
+    _save_status_data(status_data)
+    return status_msg
+
+
+status_monitor_task = None
+status_monitor_started = False
+
+
+async def _start_status_monitor_task():
+    global status_monitor_started, status_monitor_task
+    if status_monitor_started:
+        return
+    status_monitor_started = True
+    status_monitor_task = asyncio.create_task(_start_ticket_status_monitor())
+
+
+async def _start_ticket_status_monitor():
     status_msg = await _ensure_status_message()
     if status_msg is None:
         print("Ticket status monitor could not create status message; aborting monitor.")
@@ -214,44 +249,47 @@ async def _start_ticket_status_monitor():
 
     while True:
         try:
-            panel_exists = await _ticket_panel_exists()
-            ts = int(time.time())
-
-            persisted_id = _load_status_file()
-            if persisted_id != status_msg.id:
-                try:
-                    status_msg = await bot.get_channel(STATUS_CHANNEL_ID).fetch_message(persisted_id)
-                except Exception:
-                    try:
-                        status_msg = await bot.get_channel(STATUS_CHANNEL_ID).fetch_message(status_msg.id)
-                    except Exception:
-                        status_msg = await _ensure_status_message()
-
-            if status_msg is None:
-                status_msg = await _ensure_status_message()
-                if status_msg is None:
-                    await asyncio.sleep(60)
-                    continue
-
-            reason = None
-            if not panel_exists:
-                reason = "The ticket panel could not be detected. The ticket system may currently be inoperative."
-
-            footer_icon = status_msg.channel.guild.icon.url if status_msg.channel.guild and status_msg.channel.guild.icon else None
-            embed = _build_status_embed(panel_exists=panel_exists, ts=ts, reason=reason, footer_icon=footer_icon)
-
-            try:
-                await status_msg.edit(embed=embed)
-            except discord.NotFound:
-                status_msg = await _ensure_status_message()
-            except Exception as e:
-                print(f"Failed to edit status message: {e}")
-
-            last_heartbeat_ts = ts
+            status_msg = await _update_status_message(status_msg) or status_msg
         except Exception as e:
             print(f"Ticket status monitor loop error: {e}")
-
         await asyncio.sleep(60)
+
+
+@bot.tree.command(name="ticket-status", description="Create or update the ticket panel status message")
+async def ticket_status(interaction: discord.Interaction):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message(
+            "You do not have permission to use this command.",
+            ephemeral=True,
+        )
+        return
+
+    status_msg = await _ensure_status_message()
+    if status_msg is None:
+        await interaction.response.send_message(
+            "Unable to initialize the ticket status message.",
+            ephemeral=True,
+        )
+        return
+
+    status_msg = await _update_status_message(status_msg)
+    await _start_status_monitor_task()
+
+    await interaction.response.send_message(
+        "Ticket status monitor initialized.",
+        ephemeral=True,
+    )
+
+
+def _persisted_status_exists() -> bool:
+    data = _load_status_data()
+    return bool(data.get("status_message_id"))
+
+
+async def _maybe_resume_status_monitor():
+    if _persisted_status_exists():
+        await _start_status_monitor_task()
+
 
 # -------- EVENTS --------
 @bot.event
@@ -283,10 +321,10 @@ async def on_ready():
 
     print(f"{bot.user} ready")
     try:
-        bot.loop.create_task(_start_ticket_status_monitor())
-        print("Ticket status monitor started")
+        await _maybe_resume_status_monitor()
+        print("Ticket status monitor resumed if persisted")
     except Exception as e:
-        print(f"Failed to start ticket status monitor: {e}")
+        print(f"Failed to resume ticket status monitor: {e}")
 
 @bot.event
 async def on_member_join(member):
