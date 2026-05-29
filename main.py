@@ -47,23 +47,32 @@ BLACKLIST_MESSAGE_ID = 1491959706044993576
 GVMC_CONTRIBUTOR_ROLE = 1488794560740986970
 GVMC_STATUS_CHANNEL = 1488795010475360347
 GVMC_STATUS_TEXT = "/gvrpg"
+# -------- PERSISTENT STORAGE PATHS --------
+BASE_DATA_PATH = "/mnt/disk/data"
+ECONOMY_DATA_PATH = f"{BASE_DATA_PATH}/economy"
+PROFILES_DATA_PATH = f"{BASE_DATA_PATH}/profiles"
+SYSTEMS_DATA_PATH = f"{BASE_DATA_PATH}/systems"
+LOGS_DATA_PATH = f"{BASE_DATA_PATH}/logs"
+
+# Create all required directories
+for dir_path in [ECONOMY_DATA_PATH, PROFILES_DATA_PATH, SYSTEMS_DATA_PATH, LOGS_DATA_PATH]:
+    os.makedirs(dir_path, exist_ok=True)
+
+# File paths organized by category
+BLACKLIST_FILE = f"{SYSTEMS_DATA_PATH}/blacklist.json"
+REGISTRATION_FILE = f"{PROFILES_DATA_PATH}/registrations.json"
+ROBLOX_LINKS_FILE = f"{PROFILES_DATA_PATH}/roblox_links.json"
+STATUS_FILE = f"{SYSTEMS_DATA_PATH}/ticket_status.json"
+
+# --- Channel IDs ---
 MODLOG_CHANNEL = 1483351237394042910
-DATA_DIR = "/mnt/disk"
-BLACKLIST_FILE = f"{DATA_DIR}/blacklist.json"
-REGISTRATION_FILE = f"{DATA_DIR}/registrations.json"
 LICENSE_SUSPENDED_ROLE = 1492408999826555052
 REG_LOG_CHANNEL = 1442212602762760434
 # --- Ticket system status monitor ---
 STATUS_CHANNEL_ID = 1443980437184577556
-STATUS_FILE = f"{DATA_DIR}/ticket_status.json"
 STATUS_MESSAGE_TITLE = "Greenville Roleplay Global | Ticket Panel Status"
 STATUS_HEARTBEAT_TIMEOUT = 300
 last_heartbeat_ts = 0
-
-os.makedirs(os.path.dirname(REGISTRATION_FILE), exist_ok=True)
-
-# Make sure the folder exists
-os.makedirs(os.path.dirname(BLACKLIST_FILE), exist_ok=True)
 
 FOOTER_ICON = "https://i.imgur.com/JaJ24WD.png"
 STARTUP_BANNER = "https://i.imgur.com/cpnzBpT.jpeg"
@@ -71,10 +80,10 @@ LINK_BANNER = "https://i.imgur.com/5Eo9qNz.jpeg"
 END_BANNER = "https://i.imgur.com/FE8kfRq.jpeg"
 WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/1482361429188284606/Welcome_1.png"
 
-EMBED_COLOR=0xEECB69
 bot_start_time = datetime.datetime.now(datetime.UTC)
 
-DATA_FILE = "roblox_links.json"
+# Roblox verification data storage
+DATA_FILE = ROBLOX_LINKS_FILE
 
 def load_data():
     if not os.path.exists(DATA_FILE):
@@ -83,6 +92,7 @@ def load_data():
         return json.load(f)
 
 def save_data(data):
+    os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
@@ -730,6 +740,7 @@ async def on_raw_reaction_remove(payload):
 # -------- BLACKLIST STORAGE --------
 async def load_blacklist():
     async with blacklist_lock:
+        os.makedirs(SYSTEMS_DATA_PATH, exist_ok=True)
         if not os.path.exists(BLACKLIST_FILE):
             with open(BLACKLIST_FILE, "w") as f:
                 json.dump([], f)
@@ -751,6 +762,7 @@ async def load_blacklist():
 
 async def save_blacklist(data):
     async with blacklist_lock:
+        os.makedirs(SYSTEMS_DATA_PATH, exist_ok=True)
         dir_name = os.path.dirname(BLACKLIST_FILE)
 
         with tempfile.NamedTemporaryFile("w", delete=False, dir=dir_name) as tmp:
@@ -762,6 +774,7 @@ async def save_blacklist(data):
 
 # -------- REGISTRATION STORAGE --------
 async def load_registrations():
+    os.makedirs(PROFILES_DATA_PATH, exist_ok=True)
     if not os.path.exists(REGISTRATION_FILE):
         with open(REGISTRATION_FILE, "w") as f:
             json.dump({}, f)
@@ -772,7 +785,8 @@ async def load_registrations():
 
 
 async def save_registrations(data):
-    with tempfile.NamedTemporaryFile("w", delete=False, dir=DATA_DIR) as tmp:
+    os.makedirs(PROFILES_DATA_PATH, exist_ok=True)
+    with tempfile.NamedTemporaryFile("w", delete=False, dir=PROFILES_DATA_PATH) as tmp:
         json.dump(data, tmp, indent=4)
         temp_name = tmp.name
 
@@ -1488,7 +1502,7 @@ class PartnershipRequestModal(ui.Modal, title="Partnership Request"):
         )
 
         await ticket_channel.send(
-            content=f"{member.mention} <@&1486271938631434363>",
+            content=f"{member.mention} <@&1474123995375992873>",
             embed=embed,
             view=PartnershipTicketView(),
             allowed_mentions=discord.AllowedMentions(users=True, roles=True)
@@ -1733,7 +1747,7 @@ async def ticketpanel(interaction: discord.Interaction):
         ),
         color=0xEECB69
     )
-    embed.set_image(url="https://i.imgur.com/FsQIqHn.jpeg")
+    embed.set_image(url="https://i.imgur.com/255bhKc.png")
 
     await interaction.response.send_message("Support panel sent.", ephemeral=True)
     await interaction.channel.send(embed=embed, view=TicketPanelView())
@@ -2705,7 +2719,7 @@ early_access.setup(
     bot,
     EMBED_COLOR,
     FOOTER_ICON,
-    DATA_DIR,
+    SYSTEMS_DATA_PATH,
     get_convoy_active=lambda: startup_active,
     get_convoy_host=lambda: startup_host,
 )

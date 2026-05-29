@@ -26,10 +26,14 @@ ROB_SUCCESS_CHANCE = 0.50
 ROB_STEAL_PERCENT_MIN = 0.15
 ROB_STEAL_PERCENT_MAX = 0.40
 
-DEFAULT_DB_PATH = os.path.join(
-    os.getenv("DATA_DIR", "/mnt/disk"),
-    "economy.db",
-)
+# Persistent storage paths - Render mounted disk
+BASE_DATA_PATH = "/mnt/disk/data"
+ECONOMY_DATA_PATH = f"{BASE_DATA_PATH}/economy"
+
+# Ensure economy data directory exists
+os.makedirs(ECONOMY_DATA_PATH, exist_ok=True)
+
+DEFAULT_DB_PATH = os.path.join(ECONOMY_DATA_PATH, "economy.db")
 
 _USER_SELECT = (
     "SELECT user_id, balance, bank_balance, last_daily_timestamp, inventory "
