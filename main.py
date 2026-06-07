@@ -79,7 +79,7 @@ FOOTER_ICON = "https://i.imgur.com/JaJ24WD.png"
 STARTUP_BANNER = "https://i.imgur.com/cpnzBpT.jpeg"
 LINK_BANNER = "https://i.imgur.com/5Eo9qNz.jpeg"
 END_BANNER = "https://i.imgur.com/FE8kfRq.jpeg"
-WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/1482361429188284606/Welcome_1.png"
+WELCOME_BANNER = "https://i.imgur.com/NzHB0Gw.png"
 
 bot_start_time = datetime.datetime.now(datetime.UTC)
 
@@ -359,20 +359,16 @@ async def on_member_join(member):
     channel = bot.get_channel(WELCOME_CHANNEL)
     if channel:
         embed = discord.Embed(
-            title="Welcome to __**Greenville Roleplay Global**__",
+            title="__**Welcome to Greenville Roleplay Global**__",
             description=(
-                "<:yellowheart:1491007395546005514> **Welcome to __Greenville Roleplay Global!__**\n"
-                "We are honored to have you here with us! Before you venture off into **GVRPG**, please "
-                "**[verify](https://discord.com/channels/1441901639739904125/1471452917163884738)** "
-                "to gain full access to our server.\n\n"
-                "<:dmsarrow:1491008371682443325> We host daily Roleplays, Events, Occasional Giveaways "
-                "and other fun surprises! We look forward to seeing you participate in the full life of "
-                "__**Greenville Roleplay Global**__. If you require any form of assistance, please do not "
-                "hesitate to contact our Staff Team "
-                "**[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**. "
+                "Welcome to **Greenville Roleplay Global**! Before going off into your adventure, please "
+                "[**verify**](https://discord.com/channels/1441901639739904125/1471452917163884738) to obtain access to everything **Global** has to offer. Please also familiarize yourself with the relevant "
+                "[**server information**](https://discord.com/channels/1441901639739904125/1493177836083613807).\n\n"
+                ">  **Need assistance?** Reach out to our __Staff Team__ through our [**support system**](https://discord.com/channels/1441901639739904125/1443980437184577556) today and we will be able to assist!"
             ),
             color=EMBED_COLOR
         )
+        embed.set_image(url=WELCOME_BANNER)
         embed.set_footer(text="Greenville Roleplay Global", icon_url=FOOTER_ICON)
         await channel.send(content=member.mention, embed=embed)
 
