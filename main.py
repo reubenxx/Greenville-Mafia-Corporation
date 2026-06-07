@@ -359,7 +359,7 @@ async def on_member_join(member):
     channel = bot.get_channel(WELCOME_CHANNEL)
     if channel:
         embed = discord.Embed(
-            title="__**Welcome to Greenville Roleplay Global**__",
+            title="<a:lightbluemovingstars:1496088120062738035> __**Welcome to Greenville Roleplay Global**__ <a:lightbluemovingstars:1496088120062738035>",
             description=(
                 "Welcome to **Greenville Roleplay Global**! Before going off into your adventure, please "
                 "[**verify**](https://discord.com/channels/1441901639739904125/1471452917163884738) to obtain access to everything **Global** has to offer. Please also familiarize yourself with the relevant "
