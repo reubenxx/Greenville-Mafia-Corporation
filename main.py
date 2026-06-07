@@ -359,12 +359,12 @@ async def on_member_join(member):
     channel = bot.get_channel(WELCOME_CHANNEL)
     if channel:
         embed = discord.Embed(
-            title="<a:lightbluemovingstars:1496088120062738035> __**Welcome to Greenville Roleplay Global**__ <a:lightbluemovingstars:1496088120062738035>",
+            title="<a:lightbluemovingstars:1496088120062378035> __**Welcome to Greenville Roleplay Global**__ <a:lightbluemovingstars:1496088120062378035>",
             description=(
                 "Welcome to **Greenville Roleplay Global**! Before going off into your adventure, please "
                 "[**verify**](https://discord.com/channels/1441901639739904125/1471452917163884738) to obtain access to everything **Global** has to offer. Please also familiarize yourself with the relevant "
                 "[**server information**](https://discord.com/channels/1441901639739904125/1493177836083613807).\n\n"
-                ">  **Need assistance?** Reach out to our __Staff Team__ through our [**support system**](https://discord.com/channels/1441901639739904125/1443980437184577556) today and we will be able to assist!"
+                "> <:arrow:1513005161545728202> **Need assistance?** Reach out to our __Staff Team__ through our [**support system**](https://discord.com/channels/1441901639739904125/1443980437184577556) today and we will be able to assist!"
             ),
             color=EMBED_COLOR
         )
