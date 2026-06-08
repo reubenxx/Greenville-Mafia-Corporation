@@ -2556,7 +2556,7 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
                 f"> <:roblox:1502473899349377045> Roblox Profile: {roblox_display}\n"
                 f"> <:licence:1508378444684197991> License Status: {license_status}\n"
                 f"> <:registration:1508379502319767653> Registration(s): `{reg_count}`\n"
-                f"{f'> ✅ {status_line}\n' if status_line else ''}"
+                f"{f'> -# {status_line}\n' if status_line else ''}"
                 f"-# <:arrow:1513005161545728202> To **register a vehicle**, use `/register`"
             ),
             color=EMBED_COLOR
