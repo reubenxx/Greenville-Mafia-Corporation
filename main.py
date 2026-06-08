@@ -853,70 +853,27 @@ def _cache_profile(discord_id: int, profile: dict[str, Any]) -> None:
     BLOXLINK_CACHE[discord_id] = profile
 
 
+def _build_profile_unavailable_embed() -> discord.Embed:
+    embed = discord.Embed(
+        title="Greenville Roleplay Global | Civilian Profile",
+        description="Profile unavailable at the moment",
+        color=EMBED_COLOR,
+    )
+    embed.set_footer(text="Greenville Roleplay Global", icon_url=FOOTER_ICON)
+    return embed
+
+
 async def _fetch_roblox_profile(discord_id: int) -> dict[str, Any] | None:
     url = f"https://api.blox.link/v4/public/guilds/{BLOXLINK_GUILD_ID}/discord-to-roblox/{discord_id}"
     headers = {"Authorization": BLOXLINK_TOKEN} if BLOXLINK_TOKEN else {}
+    timeout = aiohttp.ClientTimeout(total=10)
 
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=timeout) as session:
         for attempt in range(2):
             try:
-                async with session.get(url, headers=headers, timeout=10) as resp:
+                print("[PROFILE] step: bloxlink request")
+                async with session.get(url, headers=headers) as resp:
                     print(f"[BLOXLINK] {resp.status} -> {url}")
-
-                    if resp.status == 200:
-                        data = await resp.json()
-                        print("[BLOXLINK RAW]", data)
-
-                        if isinstance(data, dict):
-                            roblox_id = (
-                                data.get("robloxId")
-                                or data.get("robloxID")
-                                or data.get("userId")
-                                or data.get("id")
-                                or (
-                                    data.get("user", {}).get("robloxId")
-                                    if isinstance(data.get("user"), dict)
-                                    else None
-                                )
-                            )
-
-                            if roblox_id is None:
-                                return {"roblox_id": None, "username": None, "avatar_url": None}
-
-                            try:
-                                roblox_id = int(roblox_id)
-                            except (TypeError, ValueError):
-                                return None
-
-                            username = None
-                            avatar_url = None
-
-                            try:
-                                async with session.get(f"https://users.roblox.com/v1/users/{roblox_id}") as user_resp:
-                                    print("[ROBLOX USER STATUS]", user_resp.status)
-                                    if user_resp.status == 200:
-                                        user_data = await user_resp.json()
-                                        username = user_data.get("name") or user_data.get("username")
-                            except Exception as e:
-                                print("[ROBLOX USER FETCH ERROR]", e)
-
-                            try:
-                                async with session.get(
-                                    f"https://thumbnails.roblox.com/v1/users/avatar"
-                                    f"?userIds={roblox_id}&size=420x420&format=Png&isCircular=false"
-                                ) as avatar_resp:
-                                    print("[ROBLOX AVATAR STATUS]", avatar_resp.status)
-                                    if avatar_resp.status == 200:
-                                        avatar_data = await avatar_resp.json()
-                                        avatar_url = avatar_data["data"][0].get("imageUrl")
-                            except Exception as e:
-                                print("[ROBLOX AVATAR FETCH ERROR]", e)
-
-                            return {
-                                "roblox_id": roblox_id,
-                                "username": username,
-                                "avatar_url": avatar_url,
-                            }
 
                     if resp.status == 404:
                         return {"roblox_id": None, "username": None, "avatar_url": None}
@@ -932,14 +889,93 @@ async def _fetch_roblox_profile(discord_id: int) -> dict[str, Any] | None:
                         await asyncio.sleep(wait)
                         continue
 
-                    print(f"[BLOXLINK ERROR] Unexpected status {resp.status}")
-                    return None
+                    if resp.status != 200:
+                        print(f"[BLOXLINK ERROR] Unexpected status {resp.status}")
+                        return None
+
+                    try:
+                        data = await resp.json()
+                    except Exception as e:
+                        print("[BLOXLINK ERROR] Unable to decode JSON", e)
+                        return None
+
+                    print("[BLOXLINK RAW]", data)
+                    if not isinstance(data, dict):
+                        return {"roblox_id": None, "username": None, "avatar_url": None}
+
+                    roblox_id = (
+                        data.get("robloxId")
+                        or data.get("robloxID")
+                        or data.get("userId")
+                        or data.get("id")
+                        or (
+                            data.get("user", {}).get("robloxId")
+                            if isinstance(data.get("user"), dict)
+                            else None
+                        )
+                    )
+
+                    if roblox_id is None:
+                        return {"roblox_id": None, "username": None, "avatar_url": None}
+
+                    try:
+                        roblox_id = int(roblox_id)
+                    except (TypeError, ValueError):
+                        return None
+
+                    username = None
+                    avatar_url = None
+
+                    try:
+                        print("[PROFILE] step: roblox user fetch")
+                        async with session.get(f"https://users.roblox.com/v1/users/{roblox_id}") as user_resp:
+                            print("[ROBLOX USER STATUS]", user_resp.status)
+                            if user_resp.status == 200:
+                                try:
+                                    user_data = await user_resp.json()
+                                    username = user_data.get("name") or user_data.get("username")
+                                except Exception as e:
+                                    print("[ROBLOX USER FETCH ERROR] JSON", e)
+                    except Exception as e:
+                        print("[ROBLOX USER FETCH ERROR]", e)
+
+                    try:
+                        print("[PROFILE] step: avatar fetch")
+                        async with session.get(
+                            f"https://thumbnails.roblox.com/v1/users/avatar"
+                            f"?userIds={roblox_id}&size=420x420&format=Png&isCircular=false"
+                        ) as avatar_resp:
+                            print("[ROBLOX AVATAR STATUS]", avatar_resp.status)
+                            if avatar_resp.status == 200:
+                                try:
+                                    avatar_data = await avatar_resp.json()
+                                    avatar_url = avatar_data.get("data", [])[0].get("imageUrl") if (
+                                        isinstance(avatar_data, dict)
+                                        and isinstance(avatar_data.get("data"), list)
+                                        and avatar_data.get("data")
+                                    ) else None
+                                except Exception as e:
+                                    print("[ROBLOX AVATAR FETCH ERROR] JSON", e)
+                    except Exception as e:
+                        print("[ROBLOX AVATAR FETCH ERROR]", e)
+
+                    return {
+                        "roblox_id": roblox_id,
+                        "username": username,
+                        "avatar_url": avatar_url,
+                    }
+            except asyncio.TimeoutError as e:
+                print("[BLOXLINK ERROR] Timeout", e)
+                if attempt == 0:
+                    await asyncio.sleep(0.5)
+                    continue
+                return None
             except Exception as e:
                 print("[BLOXLINK ERROR]", e)
                 if attempt == 0:
                     await asyncio.sleep(0.5)
-                else:
-                    break
+                    continue
+                return None
 
     return None
 
@@ -2473,56 +2509,59 @@ async def info(interaction: discord.Interaction):
 @bot.tree.command(name="profile", description="View a civilian profile")
 @app_commands.describe(user="User to view")
 async def profile(interaction: discord.Interaction, user: discord.Member = None):
-
     await interaction.response.defer()
 
     target = user or interaction.user
 
-    profile_data = await get_bloxlink_profile(target.id)
-    roblox_id = profile_data.get("roblox_id") if profile_data else None
-    username = profile_data.get("username") if profile_data else None
-    profile_url = f"https://www.roblox.com/users/{roblox_id}/profile" if roblox_id else None
-    avatar_url = profile_data.get("avatar_url") if profile_data else None
+    try:
+        profile_data = await asyncio.wait_for(get_bloxlink_profile(target.id), timeout=10)
+        roblox_id = profile_data.get("roblox_id") if profile_data else None
+        username = profile_data.get("username") if profile_data else None
+        profile_url = f"https://www.roblox.com/users/{roblox_id}/profile" if roblox_id else None
+        avatar_url = profile_data.get("avatar_url") if profile_data else None
 
-    if not profile_data:
-        print("[PROFILE] No Bloxlink profile data available")
+        if not profile_data:
+            print("[PROFILE] No Bloxlink profile data available")
 
-    # -------- REGISTRATIONS --------
-    data = await load_registrations()
-    reg_count = len(data.get(str(target.id), []))
+        # -------- REGISTRATIONS --------
+        data = await load_registrations()
+        reg_count = len(data.get(str(target.id), []))
 
-    # -------- LICENSE STATUS --------
-    license_status = "Suspended" if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles) else "Active"
+        # -------- LICENSE STATUS --------
+        license_status = "Suspended" if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles) else "Active"
 
-    # -------- EMBED --------
-    if roblox_id:
-        username = username or str(roblox_id)
-        roblox_display = f"[{username}]({profile_url})"
-        status_line = "Verified via Bloxlink"
-    else:
-        roblox_display = "User is **not verified via Bloxlink**"
-        status_line = None
+        # -------- EMBED --------
+        if roblox_id:
+            username = username or str(roblox_id)
+            roblox_display = f"[{username}]({profile_url})"
+            status_line = "Verified via Bloxlink"
+        else:
+            roblox_display = "User is **not verified via Bloxlink**"
+            status_line = None
 
-    embed = discord.Embed(
-        title="Greenville Roleplay Global | Civilian Profile",
-        description=(
-            f"> You are currently viewing {target.display_name}'s profile.\n\n"
-            f"> <:roblox:1502473899349377045> Roblox Profile: {roblox_display}\n"
-            f"> <:licence:1508378444684197991> License Status: {license_status}\n"
-            f"> <:registration:1508379502319767653> Registration(s): `{reg_count}`\n"
-            f"{f'> ✅ {status_line}\n' if status_line else ''}"
-            f"-# <:arrow:1513005161545728202> To **register a vehicle**, use `/register`"
-        ),
-        color=EMBED_COLOR
-    )
+        embed = discord.Embed(
+            title="Greenville Roleplay Global | Civilian Profile",
+            description=(
+                f"> You are currently viewing {target.display_name}'s profile.\n\n"
+                f"> <:roblox:1502473899349377045> Roblox Profile: {roblox_display}\n"
+                f"> <:licence:1508378444684197991> License Status: {license_status}\n"
+                f"> <:registration:1508379502319767653> Registration(s): `{reg_count}`\n"
+                f"{f'> ✅ {status_line}\n' if status_line else ''}"
+                f"-# <:arrow:1513005161545728202> To **register a vehicle**, use `/register`"
+            ),
+            color=EMBED_COLOR
+        )
 
-    embed.set_thumbnail(url=avatar_url or target.display_avatar.url)
+        embed.set_thumbnail(url=avatar_url or target.display_avatar.url)
+        embed.set_footer(text="Greenville Roleplay Global", icon_url=FOOTER_ICON)
 
-    embed.set_footer(text="Greenville Roleplay Global", icon_url=FOOTER_ICON)
-
-    view = RegistrationView(target.id)
-
-    await interaction.followup.send(embed=embed, view=view)
+        view = RegistrationView(target.id)
+        await interaction.followup.send(embed=embed, view=view)
+        print("[PROFILE] completed")
+    except Exception as exc:
+        print("[PROFILE] error", exc)
+        error_embed = _build_profile_unavailable_embed()
+        await interaction.followup.send(embed=error_embed)
     
 # -------- MEMBERCOUNT COMMAND --------
 @bot.tree.command(name="membercount", description="Show total member count")
