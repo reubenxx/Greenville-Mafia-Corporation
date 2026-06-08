@@ -876,47 +876,20 @@ async def _fetch_roblox_profile(discord_id: int) -> dict[str, Any] | None:
         for attempt in range(2):
             try:
                 print(f"[PROFILE] Bloxlink request attempt {attempt + 1}")
-                async with session.get(url, headers=headers) as resp:
-                    print(f"[PROFILE] response status: {resp.status}")
+                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    text = await resp.text()
 
-                    if resp.status == 404:
-                        print("[PROFILE] Bloxlink: user not linked (404)")
-                        return {"roblox_id": None, "username": None, "avatar_url": None}
-
-                    if resp.status == 401:
-                        print("[PROFILE] Bloxlink: unauthorized (401) - check API key")
-                        return None
-
-                    if resp.status == 429:
-                        retry_after = resp.headers.get("Retry-After")
-                        wait = float(retry_after) if retry_after and retry_after.isdigit() else 1.0
-                        print(f"[PROFILE] Bloxlink rate limit: retry after {wait}s")
-                        await asyncio.sleep(wait)
-                        continue
+                    print("[BLOXLINK STATUS]", resp.status)
+                    print("[BLOXLINK RESPONSE]", text)
 
                     if resp.status != 200:
-                        try:
-                            raw_text = await resp.text()
-                        except Exception:
-                            raw_text = "[unable to read response]"
-                        print(f"[PROFILE] Bloxlink error {resp.status}: {raw_text}")
                         return None
 
                     try:
                         data = await resp.json()
                     except Exception as e:
-                        try:
-                            raw_text = await resp.text()
-                        except Exception:
-                            raw_text = "[unable to read response]"
                         print(f"[PROFILE] JSON decode error: {repr(e)}")
-                        print(f"[PROFILE] raw response: {raw_text}")
                         return None
-
-                    print(f"[PROFILE] raw response: {data}")
-                    if not isinstance(data, dict):
-                        print(f"[PROFILE] response is not dict: {type(data)}")
-                        return {"roblox_id": None, "username": None, "avatar_url": None}
 
                     roblox_id = (
                         data.get("robloxId")
