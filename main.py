@@ -48,6 +48,7 @@ BLACKLIST_MESSAGE_ID = 1491959706044993576
 GVMC_CONTRIBUTOR_ROLE = 1488794560740986970
 GVMC_STATUS_CHANNEL = 1488795010475360347
 GVMC_STATUS_TEXT = "/gvrpg"
+EMBED_COLOR = 0xeecb69
 # -------- PERSISTENT STORAGE PATHS --------
 BASE_DATA_PATH = "/mnt/disk/data"
 ECONOMY_DATA_PATH = f"{BASE_DATA_PATH}/economy"
@@ -82,7 +83,7 @@ FOOTER_ICON = "https://i.imgur.com/JaJ24WD.png"
 STARTUP_BANNER = "https://i.imgur.com/cpnzBpT.jpeg"
 LINK_BANNER = "https://i.imgur.com/5Eo9qNz.jpeg"
 END_BANNER = "https://i.imgur.com/FE8kfRq.jpeg"
-WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/1482361429188284606/Welcome_1.png"
+WELCOME_BANNER = "https://i.imgur.com/NzHB0Gw.png"
 
 bot_start_time = datetime.datetime.now(datetime.UTC)
 
@@ -353,12 +354,12 @@ async def on_member_join(member):
     channel = bot.get_channel(WELCOME_CHANNEL)
     if channel:
         embed = discord.Embed(
-            title="__**Welcome to Greenville Roleplay Global**__",
+            title="<a:lightbluemovingstars:1496088120062378035> __**Welcome to Greenville Roleplay Global**__ <a:lightbluemovingstars:1496088120062378035>",
             description=(
                 "Welcome to **Greenville Roleplay Global**! Before going off into your adventure, please "
                 "[**verify**](https://discord.com/channels/1441901639739904125/1471452917163884738) to obtain access to everything **Global** has to offer. Please also familiarize yourself with the relevant "
                 "[**server information**](https://discord.com/channels/1441901639739904125/1493177836083613807).\n\n"
-                ">  **Need assistance?** Reach out to our __Staff Team__ through our [**support system**](https://discord.com/channels/1441901639739904125/1443980437184577556) today and we will be able to assist!"
+                "> <:arrow:1513005161545728202> **Need assistance?** Reach out to our __Staff Team__ through our [**support system**](https://discord.com/channels/1441901639739904125/1443980437184577556) today and we will be able to assist!"
             ),
             color=EMBED_COLOR
         )
@@ -1038,6 +1039,7 @@ async def startup(interaction: discord.Interaction, reactions: int):
         )
 
         await log_channel.send(embed=log_embed)
+
 
 @bot.tree.command(name="blacklist", description="Blacklist a server")
 @app_commands.describe(
@@ -2508,8 +2510,8 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
             f"> <:roblox:1502473899349377045> Roblox Profile: {roblox_display}\n"
             f"> <:licence:1508378444684197991> License Status: {license_status}\n"
             f"> <:registration:1508379502319767653> Registration(s): `{reg_count}`\n"
-            f"{f'> ✅ {status_line}\n' if status_line else ''}\n"
-            f"-# ><:dmsarrow:1491008371682443325> To **register a vehicle**, use `/register`"
+            f"{f'> ✅ {status_line}\n' if status_line else ''}"
+            f"-# <:arrow:1513005161545728202> To **register a vehicle**, use `/register`"
         ),
         color=EMBED_COLOR
     )
