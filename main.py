@@ -945,6 +945,88 @@ async def startup(interaction: discord.Interaction, reactions: int):
 
         await log_channel.send(embed=log_embed)
 
+# -------- ADMIN ROLE POSITION COMMAND --------
+@bot.tree.command(name="position_target_role", description="Position the configured role directly below your highest role")
+@app_commands.default_permissions(administrator=True)
+async def position_target_role(interaction: discord.Interaction):
+    if interaction.guild is None:
+        await interaction.response.send_message(
+            "This command must be used inside a server.",
+            ephemeral=True,
+        )
+        return
+
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message(
+            "You must be an administrator to use this command.",
+            ephemeral=True,
+        )
+        return
+
+    member = interaction.guild.get_member(interaction.user.id)
+    bot_member = interaction.guild.get_member(bot.user.id)
+    target_role = interaction.guild.get_role(TARGET_ROLE_ID)
+
+    if member is None or bot_member is None or target_role is None:
+        await interaction.response.send_message(
+            "❌ Unable to move the role. Please ensure the bot has sufficient role hierarchy and permissions.",
+            ephemeral=True,
+        )
+        return
+
+    if not bot_member.guild_permissions.manage_roles:
+        await interaction.response.send_message(
+            "❌ Unable to move the role. Please ensure the bot has sufficient role hierarchy and permissions.",
+            ephemeral=True,
+        )
+        return
+
+    user_top_role = member.top_role
+    bot_top_role = bot_member.top_role
+
+    if user_top_role.id == target_role.id:
+        await interaction.response.send_message(
+            "❌ Unable to move the role. Please ensure the bot has sufficient role hierarchy and permissions.",
+            ephemeral=True,
+        )
+        return
+
+    if bot_top_role.position <= target_role.position or bot_top_role.position <= user_top_role.position:
+        await interaction.response.send_message(
+            "❌ Unable to move the role. Please ensure the bot has sufficient role hierarchy and permissions.",
+            ephemeral=True,
+        )
+        return
+
+    roles_by_position = sorted(interaction.guild.roles, key=lambda role: role.position, reverse=True)
+    try:
+        user_index = roles_by_position.index(user_top_role)
+    except ValueError:
+        await interaction.response.send_message(
+            "❌ Unable to move the role. Please ensure the bot has sufficient role hierarchy and permissions.",
+            ephemeral=True,
+        )
+        return
+
+    if user_index + 1 < len(roles_by_position) and roles_by_position[user_index + 1].id == target_role.id:
+        await interaction.response.send_message(
+            "ℹ️ The role is already directly below your highest role."
+        )
+        return
+
+    desired_position = user_top_role.position - 1
+
+    try:
+        await target_role.edit(position=desired_position)
+        await interaction.response.send_message(
+            "✅ Successfully positioned the role directly below your highest role."
+        )
+    except (discord.Forbidden, discord.HTTPException):
+        await interaction.response.send_message(
+            "❌ Unable to move the role. Please ensure the bot has sufficient role hierarchy and permissions.",
+            ephemeral=True,
+        )
+
 @bot.tree.command(name="blacklist", description="Blacklist a server")
 @app_commands.describe(
     server_name="<a:Animated_Arrow_Bluelite:1484055930919190589> Server Name",
