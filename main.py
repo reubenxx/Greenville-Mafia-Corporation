@@ -868,39 +868,54 @@ async def _fetch_roblox_profile(discord_id: int) -> dict[str, Any] | None:
     headers = {"Authorization": BLOXLINK_TOKEN} if BLOXLINK_TOKEN else {}
     timeout = aiohttp.ClientTimeout(total=10)
 
+    print(f"[PROFILE] calling Bloxlink for user {discord_id}")
+    print(f"[PROFILE] URL: {url}")
+    print(f"[PROFILE] headers: {bool(headers)}")
+
     async with aiohttp.ClientSession(timeout=timeout) as session:
         for attempt in range(2):
             try:
-                print("[PROFILE] step: bloxlink request")
+                print(f"[PROFILE] Bloxlink request attempt {attempt + 1}")
                 async with session.get(url, headers=headers) as resp:
-                    print(f"[BLOXLINK] {resp.status} -> {url}")
+                    print(f"[PROFILE] response status: {resp.status}")
 
                     if resp.status == 404:
+                        print("[PROFILE] Bloxlink: user not linked (404)")
                         return {"roblox_id": None, "username": None, "avatar_url": None}
 
                     if resp.status == 401:
-                        print("[BLOXLINK ERROR] Invalid API key or unauthorized request.")
+                        print("[PROFILE] Bloxlink: unauthorized (401) - check API key")
                         return None
 
                     if resp.status == 429:
                         retry_after = resp.headers.get("Retry-After")
                         wait = float(retry_after) if retry_after and retry_after.isdigit() else 1.0
-                        print(f"[BLOXLINK RATE LIMIT] retry after {wait}s")
+                        print(f"[PROFILE] Bloxlink rate limit: retry after {wait}s")
                         await asyncio.sleep(wait)
                         continue
 
                     if resp.status != 200:
-                        print(f"[BLOXLINK ERROR] Unexpected status {resp.status}")
+                        try:
+                            raw_text = await resp.text()
+                        except Exception:
+                            raw_text = "[unable to read response]"
+                        print(f"[PROFILE] Bloxlink error {resp.status}: {raw_text}")
                         return None
 
                     try:
                         data = await resp.json()
                     except Exception as e:
-                        print("[BLOXLINK ERROR] Unable to decode JSON", e)
+                        try:
+                            raw_text = await resp.text()
+                        except Exception:
+                            raw_text = "[unable to read response]"
+                        print(f"[PROFILE] JSON decode error: {repr(e)}")
+                        print(f"[PROFILE] raw response: {raw_text}")
                         return None
 
-                    print("[BLOXLINK RAW]", data)
+                    print(f"[PROFILE] raw response: {data}")
                     if not isinstance(data, dict):
+                        print(f"[PROFILE] response is not dict: {type(data)}")
                         return {"roblox_id": None, "username": None, "avatar_url": None}
 
                     roblox_id = (
@@ -915,12 +930,17 @@ async def _fetch_roblox_profile(discord_id: int) -> dict[str, Any] | None:
                         )
                     )
 
+                    print(f"[PROFILE] extracted roblox_id: {roblox_id}")
+
                     if roblox_id is None:
+                        print("[PROFILE] no roblox_id found in response")
                         return {"roblox_id": None, "username": None, "avatar_url": None}
 
                     try:
                         roblox_id = int(roblox_id)
-                    except (TypeError, ValueError):
+                        print(f"[PROFILE] converted roblox_id to int: {roblox_id}")
+                    except (TypeError, ValueError) as e:
+                        print(f"[PROFILE] failed to convert roblox_id to int: {repr(e)}")
                         return None
 
                     username = None
@@ -929,15 +949,18 @@ async def _fetch_roblox_profile(discord_id: int) -> dict[str, Any] | None:
                     try:
                         print("[PROFILE] step: roblox user fetch")
                         async with session.get(f"https://users.roblox.com/v1/users/{roblox_id}") as user_resp:
-                            print("[ROBLOX USER STATUS]", user_resp.status)
+                            print(f"[PROFILE] roblox user status: {user_resp.status}")
                             if user_resp.status == 200:
                                 try:
                                     user_data = await user_resp.json()
                                     username = user_data.get("name") or user_data.get("username")
+                                    print(f"[PROFILE] roblox username: {username}")
                                 except Exception as e:
-                                    print("[ROBLOX USER FETCH ERROR] JSON", e)
+                                    print(f"[PROFILE] roblox user JSON error: {repr(e)}")
+                            else:
+                                print(f"[PROFILE] roblox user API returned {user_resp.status}")
                     except Exception as e:
-                        print("[ROBLOX USER FETCH ERROR]", e)
+                        print(f"[PROFILE] roblox user fetch error: {repr(e)}")
 
                     try:
                         print("[PROFILE] step: avatar fetch")
@@ -945,7 +968,7 @@ async def _fetch_roblox_profile(discord_id: int) -> dict[str, Any] | None:
                             f"https://thumbnails.roblox.com/v1/users/avatar"
                             f"?userIds={roblox_id}&size=420x420&format=Png&isCircular=false"
                         ) as avatar_resp:
-                            print("[ROBLOX AVATAR STATUS]", avatar_resp.status)
+                            print(f"[PROFILE] avatar status: {avatar_resp.status}")
                             if avatar_resp.status == 200:
                                 try:
                                     avatar_data = await avatar_resp.json()
@@ -954,29 +977,35 @@ async def _fetch_roblox_profile(discord_id: int) -> dict[str, Any] | None:
                                         and isinstance(avatar_data.get("data"), list)
                                         and avatar_data.get("data")
                                     ) else None
+                                    print(f"[PROFILE] avatar URL: {bool(avatar_url)}")
                                 except Exception as e:
-                                    print("[ROBLOX AVATAR FETCH ERROR] JSON", e)
+                                    print(f"[PROFILE] avatar JSON error: {repr(e)}")
+                            else:
+                                print(f"[PROFILE] avatar API returned {avatar_resp.status}")
                     except Exception as e:
-                        print("[ROBLOX AVATAR FETCH ERROR]", e)
+                        print(f"[PROFILE] avatar fetch error: {repr(e)}")
 
-                    return {
+                    result = {
                         "roblox_id": roblox_id,
                         "username": username,
                         "avatar_url": avatar_url,
                     }
+                    print(f"[PROFILE] success: {result}")
+                    return result
             except asyncio.TimeoutError as e:
-                print("[BLOXLINK ERROR] Timeout", e)
+                print(f"[PROFILE] timeout error: {repr(e)}")
                 if attempt == 0:
                     await asyncio.sleep(0.5)
                     continue
                 return None
             except Exception as e:
-                print("[BLOXLINK ERROR]", e)
+                print(f"[PROFILE] general error: {repr(e)}")
                 if attempt == 0:
                     await asyncio.sleep(0.5)
                     continue
                 return None
 
+    print("[PROFILE] all attempts exhausted")
     return None
 
 
@@ -2512,20 +2541,26 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
     await interaction.response.defer()
 
     target = user or interaction.user
+    print(f"[PROFILE] command started for user {target.id}")
 
     try:
+        print(f"[PROFILE] waiting for Bloxlink profile (timeout=10s)")
         profile_data = await asyncio.wait_for(get_bloxlink_profile(target.id), timeout=10)
+        print(f"[PROFILE] got profile_data: {profile_data}")
+        
         roblox_id = profile_data.get("roblox_id") if profile_data else None
         username = profile_data.get("username") if profile_data else None
         profile_url = f"https://www.roblox.com/users/{roblox_id}/profile" if roblox_id else None
         avatar_url = profile_data.get("avatar_url") if profile_data else None
 
         if not profile_data:
-            print("[PROFILE] No Bloxlink profile data available")
+            print("[PROFILE] no profile_data returned")
 
         # -------- REGISTRATIONS --------
+        print(f"[PROFILE] loading registrations")
         data = await load_registrations()
         reg_count = len(data.get(str(target.id), []))
+        print(f"[PROFILE] registrations: {reg_count}")
 
         # -------- LICENSE STATUS --------
         license_status = "Suspended" if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles) else "Active"
@@ -2535,9 +2570,11 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
             username = username or str(roblox_id)
             roblox_display = f"[{username}]({profile_url})"
             status_line = "Verified via Bloxlink"
+            print(f"[PROFILE] showing verified profile: {roblox_id}")
         else:
             roblox_display = "User is **not verified via Bloxlink**"
             status_line = None
+            print(f"[PROFILE] no roblox_id, showing unverified")
 
         embed = discord.Embed(
             title="Greenville Roleplay Global | Civilian Profile",
@@ -2557,9 +2594,15 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
 
         view = RegistrationView(target.id)
         await interaction.followup.send(embed=embed, view=view)
-        print("[PROFILE] completed")
+        print("[PROFILE] embed sent successfully")
+    except asyncio.TimeoutError as exc:
+        print(f"[PROFILE] timeout error: {repr(exc)}")
+        error_embed = _build_profile_unavailable_embed()
+        await interaction.followup.send(embed=error_embed)
     except Exception as exc:
-        print("[PROFILE] error", exc)
+        print(f"[PROFILE] exception: {repr(exc)}")
+        import traceback
+        traceback.print_exc()
         error_embed = _build_profile_unavailable_embed()
         await interaction.followup.send(embed=error_embed)
     
