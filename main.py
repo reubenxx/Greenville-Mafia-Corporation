@@ -5,12 +5,13 @@ import datetime
 import os
 import sys
 import json
+from typing import Any
 import asyncio 
 import time
-import tempfile
-import shutil
 import aiohttp
 import io
+
+import db
 
 blacklist_lock = asyncio.Lock()
 
@@ -61,7 +62,10 @@ for dir_path in [ECONOMY_DATA_PATH, PROFILES_DATA_PATH, SYSTEMS_DATA_PATH, LOGS_
 # File paths organized by category
 BLACKLIST_FILE = f"{SYSTEMS_DATA_PATH}/blacklist.json"
 REGISTRATION_FILE = f"{PROFILES_DATA_PATH}/registrations.json"
-ROBLOX_LINKS_FILE = f"{PROFILES_DATA_PATH}/roblox_links.json"
+BLOXLINK_TOKEN = os.getenv("BLOXLINK_TOKEN")
+BLOXLINK_GUILD_ID = 1441901639739904125
+BLOXLINK_CACHE: dict[int, dict[str, Any]] = {}
+BLOXLINK_CACHE_TTL_SECONDS = 900
 STATUS_FILE = f"{SYSTEMS_DATA_PATH}/ticket_status.json"
 
 # --- Channel IDs ---
@@ -82,36 +86,27 @@ WELCOME_BANNER = "https://cdn.discordapp.com/attachments/1467783372469178442/148
 
 bot_start_time = datetime.datetime.now(datetime.UTC)
 
-# Roblox verification data storage
-DATA_FILE = ROBLOX_LINKS_FILE
-
-def load_data():
-    if not os.path.exists(DATA_FILE):
+async def _load_status_data() -> dict:
+    row = await db.db.fetchrow(
+        "SELECT value FROM system_state WHERE key = $1",
+        "ticket_status",
+    )
+    if row is None:
         return {}
-    with open(DATA_FILE, "r") as f:
-        return json.load(f)
+    value = _row_get(row, "value", {})
+    return value if isinstance(value, dict) else {}
 
-def save_data(data):
-    os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=4)
-
-
-def _load_status_data() -> dict:
+async def _save_status_data(data: dict) -> None:
     try:
-        if not os.path.exists(STATUS_FILE):
-            return {}
-        with open(STATUS_FILE, "r") as f:
-            return json.load(f)
-    except Exception:
-        return {}
-
-
-def _save_status_data(data: dict) -> None:
-    try:
-        os.makedirs(os.path.dirname(STATUS_FILE), exist_ok=True)
-        with open(STATUS_FILE, "w") as f:
-            json.dump(data, f)
+        await db.db.execute(
+            """
+            INSERT INTO system_state (key, value)
+            VALUES ($1, $2)
+            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+            """,
+            "ticket_status",
+            data,
+        )
     except Exception as e:
         print(f"Failed to save status data: {e}")
 
@@ -199,7 +194,7 @@ async def _ensure_status_message():
         print("Status channel not found")
         return None
 
-    status_data = _load_status_data()
+    status_data = await _load_status_data()
     persisted_id = status_data.get("status_message_id")
     if persisted_id:
         try:
@@ -211,7 +206,7 @@ async def _ensure_status_message():
     msg = await _find_existing_status_message(channel)
     if msg:
         status_data["status_message_id"] = msg.id
-        _save_status_data(status_data)
+        await _save_status_data(status_data)
         return msg
 
     ts = int(time.time())
@@ -230,7 +225,7 @@ async def _ensure_status_message():
             "last_heartbeat_ts": ts,
             "operational": False,
         })
-        _save_status_data(status_data)
+        await _save_status_data(status_data)
         return new_msg
     except Exception as e:
         print(f"Failed to create status message: {e}")
@@ -264,7 +259,7 @@ async def _update_status_message(status_msg: discord.Message) -> discord.Message
         "last_heartbeat_ts": ts,
         "operational": operational,
     }
-    _save_status_data(status_data)
+    await _save_status_data(status_data)
     return status_msg
 
 
@@ -358,20 +353,16 @@ async def on_member_join(member):
     channel = bot.get_channel(WELCOME_CHANNEL)
     if channel:
         embed = discord.Embed(
-            title="Welcome to __**Greenville Roleplay Global**__",
+            title="__**Welcome to Greenville Roleplay Global**__",
             description=(
-                "<:yellowheart:1491007395546005514> **Welcome to __Greenville Roleplay Global!__**\n"
-                "We are honored to have you here with us! Before you venture off into **GVRPG**, please "
-                "**[verify](https://discord.com/channels/1441901639739904125/1471452917163884738)** "
-                "to gain full access to our server.\n\n"
-                "<:dmsarrow:1491008371682443325> We host daily Roleplays, Events, Occasional Giveaways "
-                "and other fun surprises! We look forward to seeing you participate in the full life of "
-                "__**Greenville Roleplay Global**__. If you require any form of assistance, please do not "
-                "hesitate to contact our Staff Team "
-                "**[here](https://discord.com/channels/1441901639739904125/1443980437184577556)**. "
+                "Welcome to **Greenville Roleplay Global**! Before going off into your adventure, please "
+                "[**verify**](https://discord.com/channels/1441901639739904125/1471452917163884738) to obtain access to everything **Global** has to offer. Please also familiarize yourself with the relevant "
+                "[**server information**](https://discord.com/channels/1441901639739904125/1493177836083613807).\n\n"
+                ">  **Need assistance?** Reach out to our __Staff Team__ through our [**support system**](https://discord.com/channels/1441901639739904125/1443980437184577556) today and we will be able to assist!"
             ),
             color=EMBED_COLOR
         )
+        embed.set_image(url=WELCOME_BANNER)
         embed.set_footer(text="Greenville Roleplay Global", icon_url=FOOTER_ICON)
         await channel.send(content=member.mention, embed=embed)
 
@@ -740,57 +731,83 @@ async def on_raw_reaction_remove(payload):
 # -------- BLACKLIST STORAGE --------
 async def load_blacklist():
     async with blacklist_lock:
-        os.makedirs(SYSTEMS_DATA_PATH, exist_ok=True)
-        if not os.path.exists(BLACKLIST_FILE):
-            with open(BLACKLIST_FILE, "w") as f:
-                json.dump([], f)
-            return []
-
-        try:
-            with open(BLACKLIST_FILE, "r") as f:
-                return json.load(f)
-        except json.JSONDecodeError:
-            backup_path = BLACKLIST_FILE + ".corrupt"
-            shutil.copy(BLACKLIST_FILE, backup_path)
-
-            with open(BLACKLIST_FILE, "w") as f:
-                json.dump([], f)
-
-            print(f"Blacklist corrupted. Backup saved to {backup_path}")
-            return []
+        rows = await db.db.fetch(
+            """
+            SELECT server_name, server_id, reason, notes
+            FROM blacklist
+            ORDER BY created_at ASC, id ASC
+            """
+        )
+        return [
+            {
+                "server_name": _row_get(row, "server_name", ""),
+                "server_id": _row_get(row, "server_id", ""),
+                "reason": _row_get(row, "reason", ""),
+                "notes": _row_get(row, "notes", ""),
+            }
+            for row in rows
+        ]
 
 
 async def save_blacklist(data):
     async with blacklist_lock:
-        os.makedirs(SYSTEMS_DATA_PATH, exist_ok=True)
-        dir_name = os.path.dirname(BLACKLIST_FILE)
-
-        with tempfile.NamedTemporaryFile("w", delete=False, dir=dir_name) as tmp:
-            json.dump(data, tmp, indent=4)
-            temp_name = tmp.name
-
-        os.replace(temp_name, BLACKLIST_FILE)
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute("DELETE FROM blacklist")
+                for entry in data:
+                    if not isinstance(entry, dict):
+                        continue
+                    await conn.execute(
+                        """
+                        INSERT INTO blacklist (server_name, server_id, reason, notes)
+                        VALUES ($1, $2, $3, $4)
+                        """,
+                        str(entry.get("server_name", "")),
+                        str(entry.get("server_id", "")),
+                        str(entry.get("reason", "")),
+                        str(entry.get("notes", "")),
+                    )
 
 
 # -------- REGISTRATION STORAGE --------
 async def load_registrations():
-    os.makedirs(PROFILES_DATA_PATH, exist_ok=True)
-    if not os.path.exists(REGISTRATION_FILE):
-        with open(REGISTRATION_FILE, "w") as f:
-            json.dump({}, f)
-        return {}
-
-    with open(REGISTRATION_FILE, "r") as f:
-        return json.load(f)
+    rows = await db.db.fetch(
+        "SELECT discord_id, registrations FROM registrations"
+    )
+    data: dict[str, Any] = {}
+    for row in rows:
+        discord_id = _row_get(row, "discord_id")
+        if discord_id is None:
+            continue
+        registrations = _row_get(row, "registrations", [])
+        data[str(int(discord_id))] = (
+            registrations if isinstance(registrations, list) else []
+        )
+    return data
 
 
 async def save_registrations(data):
-    os.makedirs(PROFILES_DATA_PATH, exist_ok=True)
-    with tempfile.NamedTemporaryFile("w", delete=False, dir=PROFILES_DATA_PATH) as tmp:
-        json.dump(data, tmp, indent=4)
-        temp_name = tmp.name
-
-    os.replace(temp_name, REGISTRATION_FILE)
+    pool = await db.db._get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute("DELETE FROM registrations")
+            for raw_id, registrations in data.items():
+                try:
+                    discord_id = int(raw_id)
+                except (TypeError, ValueError):
+                    continue
+                if not isinstance(registrations, list):
+                    continue
+                await conn.execute(
+                    """
+                    INSERT INTO registrations (discord_id, registrations)
+                    VALUES ($1, $2)
+                    ON CONFLICT (discord_id) DO UPDATE SET registrations = EXCLUDED.registrations
+                    """,
+                    discord_id,
+                    registrations,
+                )
     
 # -------- UPDATE BLACKLIST MESSAGE --------
 async def update_blacklist_message(bot):
@@ -825,48 +842,122 @@ async def update_blacklist_message(bot):
     message = await channel.fetch_message(BLACKLIST_MESSAGE_ID)
     await message.edit(embed=embed)
 
-async def get_roblox_data(discord_id: int, guild_id: int):
-    urls = [
-        f"https://api.blox.link/v4/public/guilds/{guild_id}/discord-to-roblox/{discord_id}",
-        f"https://api.blox.link/v4/public/discord-to-roblox/{discord_id}"
-    ]
+def _is_cache_valid(entry: dict[str, Any]) -> bool:
+    timestamp = entry.get("timestamp")
+    return isinstance(timestamp, (int, float)) and (timestamp + BLOXLINK_CACHE_TTL_SECONDS) > time.time()
+
+
+def _cache_profile(discord_id: int, profile: dict[str, Any]) -> None:
+    profile["timestamp"] = time.time()
+    BLOXLINK_CACHE[discord_id] = profile
+
+
+async def _fetch_roblox_profile(discord_id: int) -> dict[str, Any] | None:
+    url = f"https://api.blox.link/v4/public/guilds/{BLOXLINK_GUILD_ID}/discord-to-roblox/{discord_id}"
+    headers = {"Authorization": BLOXLINK_TOKEN} if BLOXLINK_TOKEN else {}
 
     async with aiohttp.ClientSession() as session:
-        for url in urls:
+        for attempt in range(2):
             try:
-                async with session.get(url, timeout=10) as resp:
+                async with session.get(url, headers=headers, timeout=10) as resp:
                     print(f"[BLOXLINK] {resp.status} -> {url}")
 
-                    if resp.status != 200:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        print("[BLOXLINK RAW]", data)
+
+                        if isinstance(data, dict):
+                            roblox_id = (
+                                data.get("robloxId")
+                                or data.get("robloxID")
+                                or data.get("userId")
+                                or data.get("id")
+                                or (
+                                    data.get("user", {}).get("robloxId")
+                                    if isinstance(data.get("user"), dict)
+                                    else None
+                                )
+                            )
+
+                            if roblox_id is None:
+                                return {"roblox_id": None, "username": None, "avatar_url": None}
+
+                            try:
+                                roblox_id = int(roblox_id)
+                            except (TypeError, ValueError):
+                                return None
+
+                            username = None
+                            avatar_url = None
+
+                            try:
+                                async with session.get(f"https://users.roblox.com/v1/users/{roblox_id}") as user_resp:
+                                    print("[ROBLOX USER STATUS]", user_resp.status)
+                                    if user_resp.status == 200:
+                                        user_data = await user_resp.json()
+                                        username = user_data.get("name") or user_data.get("username")
+                            except Exception as e:
+                                print("[ROBLOX USER FETCH ERROR]", e)
+
+                            try:
+                                async with session.get(
+                                    f"https://thumbnails.roblox.com/v1/users/avatar"
+                                    f"?userIds={roblox_id}&size=420x420&format=Png&isCircular=false"
+                                ) as avatar_resp:
+                                    print("[ROBLOX AVATAR STATUS]", avatar_resp.status)
+                                    if avatar_resp.status == 200:
+                                        avatar_data = await avatar_resp.json()
+                                        avatar_url = avatar_data["data"][0].get("imageUrl")
+                            except Exception as e:
+                                print("[ROBLOX AVATAR FETCH ERROR]", e)
+
+                            return {
+                                "roblox_id": roblox_id,
+                                "username": username,
+                                "avatar_url": avatar_url,
+                            }
+
+                    if resp.status == 404:
+                        return {"roblox_id": None, "username": None, "avatar_url": None}
+
+                    if resp.status == 401:
+                        print("[BLOXLINK ERROR] Invalid API key or unauthorized request.")
+                        return None
+
+                    if resp.status == 429:
+                        retry_after = resp.headers.get("Retry-After")
+                        wait = float(retry_after) if retry_after and retry_after.isdigit() else 1.0
+                        print(f"[BLOXLINK RATE LIMIT] retry after {wait}s")
+                        await asyncio.sleep(wait)
                         continue
 
-                    data = await resp.json()
-                    print("[BLOXLINK RAW]", data)
-
-                    roblox_id = None
-
-                    if isinstance(data, dict):
-                        roblox_id = (
-                            data.get("robloxId")
-                            or data.get("robloxID")
-                            or data.get("userId")
-                            or data.get("id")
-                            or (data.get("user", {}).get("robloxId")
-                                if isinstance(data.get("user"), dict)
-                                else None)
-                        )
-
-                    if roblox_id:
-                        try:
-                            return int(roblox_id)
-                        except:
-                            return None
-
+                    print(f"[BLOXLINK ERROR] Unexpected status {resp.status}")
+                    return None
             except Exception as e:
                 print("[BLOXLINK ERROR]", e)
+                if attempt == 0:
+                    await asyncio.sleep(0.5)
+                else:
+                    break
 
     return None
-            
+
+
+async def get_bloxlink_profile(discord_id: int) -> dict[str, Any] | None:
+    cached = BLOXLINK_CACHE.get(discord_id)
+    if cached and _is_cache_valid(cached):
+        return cached
+
+    live_profile = await _fetch_roblox_profile(discord_id)
+    if live_profile is not None:
+        _cache_profile(discord_id, live_profile)
+        return live_profile
+
+    if cached:
+        return cached
+
+    return None
+
 # -------- STARTUP COMMAND --------
 @bot.tree.command(name="startup", description="Start a convoy session.")
 @app_commands.describe(reactions="Number of reactions required to release link")
@@ -2329,194 +2420,6 @@ async def unregister(interaction: discord.Interaction):
         ephemeral=True
     )
 
-@bot.tree.command(name="verifyall", description="Verify all users whose nickname matches a Roblox account")
-async def verifyall(interaction: discord.Interaction):
-
-    # admin only
-    if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message(
-            "❌ You do not have permission to use this command.",
-            ephemeral=True
-        )
-        return
-
-    await interaction.response.defer(ephemeral=True)
-
-    guild = interaction.guild
-
-    if guild is None:
-        await interaction.followup.send(
-            "❌ This command can only be used in a server."
-        )
-        return
-
-    db = load_data()
-
-    verified_count = 0
-
-    async with aiohttp.ClientSession() as session:
-
-        for member in guild.members:
-
-            # skip bots
-            if member.bot:
-                continue
-
-            # skip already verified
-            if str(member.id) in db:
-                continue
-
-            nickname = member.nick or member.name
-
-            try:
-
-                async with session.post(
-                    "https://users.roblox.com/v1/usernames/users",
-                    json={
-                        "usernames": [nickname],
-                        "excludeBannedUsers": True
-                    }
-                ) as resp:
-
-                    data = await resp.json()
-
-                    if not data.get("data"):
-                        continue
-
-                    user = data["data"][0]
-
-                    roblox_id = user["id"]
-                    username = user["name"]
-
-                    # save verification
-                    db[str(member.id)] = {
-                        "roblox_id": roblox_id,
-                        "username": username
-                    }
-
-                    verified_count += 1
-
-                # prevent rate limits
-                await asyncio.sleep(0.35)
-
-            except Exception as e:
-                print(f"[VERIFYALL ERROR] {member.id}: {e}")
-
-    save_data(db)
-
-    await interaction.followup.send(
-        f"✅ Verified {verified_count} users successfully."
-    )
-
-@bot.tree.command(name="verifyuser", description="Manually verify a user")
-@app_commands.describe(
-    member="Discord user to verify",
-    robloxname="Roblox username"
-)
-async def verifyuser(
-    interaction: discord.Interaction,
-    member: discord.Member,
-    robloxname: str
-):
-
-    # admin only
-    if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message(
-            "❌ You do not have permission to use this command.",
-            ephemeral=True
-        )
-        return
-
-    await interaction.response.defer(ephemeral=True)
-
-    async with aiohttp.ClientSession() as session:
-
-        try:
-
-            async with session.post(
-                "https://users.roblox.com/v1/usernames/users",
-                json={
-                    "usernames": [robloxname],
-                    "excludeBannedUsers": True
-                }
-            ) as resp:
-
-                data = await resp.json()
-
-                if not data.get("data"):
-                    await interaction.followup.send(
-                        "❌ Roblox user not found."
-                    )
-                    return
-
-                user = data["data"][0]
-
-                roblox_id = user["id"]
-                username = user["name"]
-
-        except Exception as e:
-            await interaction.followup.send(
-                f"❌ Error: {e}"
-            )
-            return
-
-    db = load_data()
-
-    db[str(member.id)] = {
-        "roblox_id": roblox_id,
-        "username": username
-    }
-
-    save_data(db)
-
-    await interaction.followup.send(
-        f"✅ Successfully verified {member.mention} as **{username}**"
-    )
-
-@bot.tree.command(name="verify", description="Link your Roblox account")
-@app_commands.describe(robloxname="Your Roblox username")
-async def verify(interaction: discord.Interaction, robloxname: str):
-
-    await interaction.response.defer(ephemeral=True)
-
-    # OPTIONAL SAFETY: must match nickname (prevents random linking abuse)
-    nickname = interaction.user.nick or interaction.user.name
-
-    async with aiohttp.ClientSession() as session:
-
-        async with session.post(
-            "https://users.roblox.com/v1/usernames/users",
-            json={"usernames": [robloxname], "excludeBannedUsers": True}
-        ) as resp:
-
-            data = await resp.json()
-
-            if not data.get("data"):
-                await interaction.followup.send("User could not be fetched. Please ensure you are verified via bloxlink before contiuing.")
-                return
-
-            user = data["data"][0]
-            roblox_id = user["id"]
-            username = user["name"]
-
-        # 🔒 BASIC ANTI-IMPERSONATION CHECK
-        if robloxname.lower() != nickname.lower():
-            await interaction.followup.send(
-                "Your Discord username must match your Roblox username. Please verify via bloxlink before continuing."
-            )
-            return
-
-    db = load_data()
-
-    db[str(interaction.user.id)] = {
-        "roblox_id": roblox_id,
-        "username": username
-    }
-
-    save_data(db)
-
-    await interaction.followup.send(f"✅ Verified as **{username}**")
-    
 # -------- INFO COMMAND --------
 @bot.tree.command(name="botinfo", description="View the Bot's information")
 async def info(interaction: discord.Interaction):
@@ -2571,56 +2474,16 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
 
     await interaction.response.defer()
 
-    print("🔥 PROFILE COMMAND IS RUNNING")
-
     target = user or interaction.user
 
-    print("[PROFILE] Target:", target.id)
+    profile_data = await get_bloxlink_profile(target.id)
+    roblox_id = profile_data.get("roblox_id") if profile_data else None
+    username = profile_data.get("username") if profile_data else None
+    profile_url = f"https://www.roblox.com/users/{roblox_id}/profile" if roblox_id else None
+    avatar_url = profile_data.get("avatar_url") if profile_data else None
 
-    # -------- ROBLOX FROM YOUR DATABASE (NO BLOXLINK) --------
-    db = load_data()
-    user_data = db.get(str(target.id))
-
-    roblox_id = None
-    username = None
-    profile_url = None
-    avatar_url = None
-
-    if user_data:
-        roblox_id = user_data.get("roblox_id")
-        username = user_data.get("username")
-
-    print("[PROFILE] Roblox ID:", roblox_id)
-
-    # -------- ROBLOX FETCH --------
-    if roblox_id:
-        profile_url = f"https://www.roblox.com/users/{roblox_id}/profile"
-
-        try:
-            async with aiohttp.ClientSession() as session:
-
-                async with session.get(f"https://users.roblox.com/v1/users/{roblox_id}") as resp:
-                    print("[ROBLOX USER STATUS]", resp.status)
-
-                    if resp.status == 200:
-                        data = await resp.json()
-                        username = data.get("name", username)
-
-                async with session.get(
-                    f"https://thumbnails.roblox.com/v1/users/avatar"
-                    f"?userIds={roblox_id}&size=420x420&format=Png&isCircular=false"
-                ) as resp:
-                    print("[ROBLOX AVATAR STATUS]", resp.status)
-
-                    if resp.status == 200:
-                        avatar_data = await resp.json()
-                        avatar_url = avatar_data["data"][0]["imageUrl"]
-
-        except Exception as e:
-            print("[ROBLOX ERROR]", e)
-
-    else:
-        print("[PROFILE] No Roblox link found")
+    if not profile_data:
+        print("[PROFILE] No Bloxlink profile data available")
 
     # -------- REGISTRATIONS --------
     data = await load_registrations()
@@ -2630,10 +2493,13 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
     license_status = "Suspended" if any(role.id == LICENSE_SUSPENDED_ROLE for role in target.roles) else "Active"
 
     # -------- EMBED --------
-    if roblox_id and username:
+    if roblox_id:
+        username = username or str(roblox_id)
         roblox_display = f"[{username}]({profile_url})"
+        status_line = "Verified via Bloxlink"
     else:
-        roblox_display = "Not Linked"
+        roblox_display = "User is **not verified via Bloxlink**"
+        status_line = None
 
     embed = discord.Embed(
         title="Greenville Roleplay Global | Civilian Profile",
@@ -2641,7 +2507,8 @@ async def profile(interaction: discord.Interaction, user: discord.Member = None)
             f"> You are currently viewing {target.display_name}'s profile.\n\n"
             f"> <:roblox:1502473899349377045> Roblox Profile: {roblox_display}\n"
             f"> <:licence:1508378444684197991> License Status: {license_status}\n"
-            f"> <:registration:1508379502319767653> Registration(s): `{reg_count}`\n\n"
+            f"> <:registration:1508379502319767653> Registration(s): `{reg_count}`\n"
+            f"{f'> ✅ {status_line}\n' if status_line else ''}\n"
             f"-# ><:dmsarrow:1491008371682443325> To **register a vehicle**, use `/register`"
         ),
         color=EMBED_COLOR

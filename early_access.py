@@ -5,13 +5,23 @@ Early Access session panel — persistent storage, host-only /early-access, role
 from __future__ import annotations
 
 import asyncio
-import json
 import os
-import tempfile
 from typing import Any, Callable
 
+import db
 import discord
 from discord import app_commands, ui
+
+
+def _row_get(row: Any, key: str, default: Any = None) -> Any:
+    if row is None:
+        return default
+    try:
+        if hasattr(row, "keys") and key not in row.keys():
+            return default
+        return row[key]
+    except (KeyError, IndexError, TypeError):
+        return default
 
 EARLY_ACCESS_ROLE_ID = 1508411766189850728
 STAFF_ROLE_ID = 1474123995375992873
@@ -34,55 +44,90 @@ class EarlyAccessStore:
     def __init__(self, data_path: str):
         self.data_path = data_path
         self._lock = asyncio.Lock()
-        os.makedirs(os.path.dirname(data_path) or ".", exist_ok=True)
-        if not os.path.exists(data_path):
-            self._write_sync(DEFAULT_STATE.copy())
 
-    def _write_sync(self, data: dict[str, Any]) -> None:
-        directory = os.path.dirname(self.data_path) or "."
-        with tempfile.NamedTemporaryFile("w", delete=False, dir=directory) as tmp:
-            json.dump(data, tmp, indent=4)
-            temp_name = tmp.name
-        os.replace(temp_name, self.data_path)
+    async def _ensure_row(self, conn: Any) -> None:
+        await conn.execute(
+            """
+            INSERT INTO early_access (id, session_active, server_link, panel_channel_id, panel_message_id, joined_user_ids)
+            VALUES (1, FALSE, '', NULL, NULL, '[]'::jsonb)
+            ON CONFLICT (id) DO NOTHING
+            """
+        )
 
-    def _read_sync(self) -> dict[str, Any]:
-        if not os.path.exists(self.data_path):
+    def _normalize_state(self, row: Any | None) -> dict[str, Any]:
+        if row is None:
             return DEFAULT_STATE.copy()
-        try:
-            with open(self.data_path, "r") as f:
-                data = json.load(f)
-        except (json.JSONDecodeError, OSError):
-            return DEFAULT_STATE.copy()
-        merged = DEFAULT_STATE.copy()
-        merged.update(data)
-        merged["joined_user_ids"] = list(merged.get("joined_user_ids") or [])
-        return merged
+        return {
+            "session_active": bool(_row_get(row, "session_active", False)),
+            "server_link": str(_row_get(row, "server_link", "")) if _row_get(row, "server_link", "") is not None else "",
+            "panel_channel_id": _row_get(row, "panel_channel_id"),
+            "panel_message_id": _row_get(row, "panel_message_id"),
+            "joined_user_ids": list(_row_get(row, "joined_user_ids", []) or []),
+        }
 
     async def load(self) -> dict[str, Any]:
         async with self._lock:
-            return await asyncio.to_thread(self._read_sync)
+            pool = await db.db._get_pool()
+            async with pool.acquire() as conn:
+                await self._ensure_row(conn)
+                row = await conn.fetchrow(
+                    "SELECT session_active, server_link, panel_channel_id, panel_message_id, joined_user_ids FROM early_access WHERE id = 1"
+                )
+                return self._normalize_state(row)
 
     async def save(self, data: dict[str, Any]) -> None:
         async with self._lock:
-            await asyncio.to_thread(self._write_sync, data)
+            pool = await db.db._get_pool()
+            async with pool.acquire() as conn:
+                async with conn.transaction():
+                    await self._ensure_row(conn)
+                    await conn.execute(
+                        """
+                        UPDATE early_access
+                        SET session_active = $1,
+                            server_link = $2,
+                            panel_channel_id = $3,
+                            panel_message_id = $4,
+                            joined_user_ids = $5
+                        WHERE id = 1
+                        """,
+                        bool(data.get("session_active", False)),
+                        str(data.get("server_link", "")),
+                        data.get("panel_channel_id"),
+                        data.get("panel_message_id"),
+                        list(data.get("joined_user_ids") or []),
+                    )
 
     async def reset_session(self) -> None:
-        data = await self.load()
-        data["session_active"] = False
-        data["server_link"] = ""
-        data["joined_user_ids"] = []
-        await self.save(data)
+        state = await self.load()
+        state["session_active"] = False
+        state["server_link"] = ""
+        state["joined_user_ids"] = []
+        await self.save(state)
 
     async def record_join(self, user_id: int) -> tuple[bool, dict[str, Any]]:
         async with self._lock:
-            data = self._read_sync()
-            joined = data.get("joined_user_ids") or []
-            is_new = user_id not in joined
-            if is_new:
-                joined.append(user_id)
-                data["joined_user_ids"] = joined
-                self._write_sync(data)
-            return is_new, data
+            pool = await db.db._get_pool()
+            async with pool.acquire() as conn:
+                async with conn.transaction():
+                    await self._ensure_row(conn)
+                    row = await conn.fetchrow(
+                        "SELECT joined_user_ids FROM early_access WHERE id = 1 FOR UPDATE"
+                    )
+                    joined = list(_row_get(row, "joined_user_ids", []) or [])
+                    is_new = user_id not in joined
+                    if is_new:
+                        joined.append(user_id)
+                        await conn.execute(
+                            "UPDATE early_access SET joined_user_ids = $1 WHERE id = 1",
+                            joined,
+                        )
+                    state_row = await conn.fetchrow(
+                        "SELECT session_active, server_link, panel_channel_id, panel_message_id, joined_user_ids FROM early_access WHERE id = 1"
+                    )
+                    state = self._normalize_state(state_row)
+                    state["joined_user_ids"] = joined
+                    return is_new, state
 
 
 def _can_join_early_access(member: discord.Member) -> bool:

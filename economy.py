@@ -9,12 +9,13 @@ import asyncio
 import json
 import os
 import random
-import sqlite3
 import time
 from typing import Any
 
 import discord
 from discord import app_commands
+
+import db
 
 DAILY_REWARD = 500
 DAILY_COOLDOWN_SECONDS = 86400
@@ -37,7 +38,7 @@ DEFAULT_DB_PATH = os.path.join(ECONOMY_DATA_PATH, "economy.db")
 
 _USER_SELECT = (
     "SELECT user_id, balance, bank_balance, last_daily_timestamp, inventory "
-    "FROM users WHERE user_id = ?"
+    "FROM economy_users WHERE user_id = $1"
 )
 
 
@@ -134,68 +135,346 @@ def _resolve_amount(value: str, available: int) -> tuple[bool, int, str]:
 
 
 class EconomyStore:
-    """SQLite-backed economy storage. Every mutation commits before returning."""
+    """PostgreSQL-backed economy storage. Every mutation commits before returning."""
 
     def __init__(self, db_path: str = DEFAULT_DB_PATH):
         self.db_path = db_path
         self._lock = asyncio.Lock()
-        os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
-        self._init_schema()
-
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path, timeout=30.0)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=FULL")
-        return conn
-
-    def _migrate_schema_sync(self, conn: sqlite3.Connection) -> None:
-        """Add any missing columns without dropping existing data."""
-        table = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
-        ).fetchone()
-        if table is None:
-            return
-
-        existing = {row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
-        migrations = [
-            ("balance", "INTEGER NOT NULL DEFAULT 0"),
-            ("bank_balance", "INTEGER NOT NULL DEFAULT 0"),
-            ("last_daily_timestamp", "REAL"),
-            ("inventory", "TEXT NOT NULL DEFAULT '[]'"),
-        ]
-        for column, definition in migrations:
-            if column not in existing:
-                conn.execute(f"ALTER TABLE users ADD COLUMN {column} {definition}")
-
-    def _init_schema(self) -> None:
-        with self._connect() as conn:
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS users (
-                    user_id INTEGER PRIMARY KEY,
-                    balance INTEGER NOT NULL DEFAULT 0 CHECK (balance >= 0),
-                    bank_balance INTEGER NOT NULL DEFAULT 0 CHECK (bank_balance >= 0),
-                    last_daily_timestamp REAL,
-                    inventory TEXT NOT NULL DEFAULT '[]'
-                )
-                """
-            )
-            self._migrate_schema_sync(conn)
-            conn.commit()
 
     async def _run(self, fn, *args, **kwargs):
         async with self._lock:
-            return await asyncio.to_thread(fn, *args, **kwargs)
+            result = fn(*args, **kwargs)
+            if asyncio.iscoroutine(result):
+                return await result
+            return result
 
-    def _ensure_user_sync(self, conn: sqlite3.Connection, user_id: int) -> None:
-        conn.execute(
-            "INSERT OR IGNORE INTO users (user_id, balance, bank_balance, inventory) "
-            "VALUES (?, 0, 0, '[]')",
-            (user_id,),
+    async def _ensure_user(self, conn: Any, user_id: int) -> None:
+        await conn.execute(
+            "INSERT INTO economy_users (user_id, balance, bank_balance, inventory) "
+            "VALUES ($1, $2, $3, $4) ON CONFLICT (user_id) DO NOTHING",
+            user_id,
+            0,
+            0,
+            {"items": [], "cooldowns": {}},
         )
 
-    def _default_user_dict(self, user_id: int) -> dict[str, Any]:
+    async def _fetch_user_row(self, conn: Any, user_id: int) -> Any:
+        await self._ensure_user(conn, user_id)
+        return await conn.fetchrow(_USER_SELECT, user_id)
+
+    async def _user_dict_from_conn(self, conn: Any, user_id: int) -> dict[str, Any]:
+        row = await self._fetch_user_row(conn, user_id)
+        if row is None:
+            return self._default_user_dict(user_id)
+        return self._row_to_dict(row, user_id)
+
+    async def _save_inventory_sync(self, conn: Any, user_id: int, inventory: dict) -> None:
+        await conn.execute(
+            "UPDATE economy_users SET inventory = $1 WHERE user_id = $2",
+            inventory,
+            user_id,
+        )
+
+    async def _get_user_sync(self, user_id: int) -> dict[str, Any]:
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            row = await self._fetch_user_row(conn, user_id)
+            if row is None:
+                return self._default_user_dict(user_id)
+            return self._row_to_dict(row, user_id)
+
+    async def _get_rank_sync(self, user_id: int) -> int:
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            await self._ensure_user(conn, user_id)
+            row = await conn.fetchrow(
+                """
+                SELECT 1 + COUNT(*) AS rank
+                FROM economy_users
+                WHERE (balance + bank_balance) > (
+                    SELECT (balance + bank_balance) FROM economy_users WHERE user_id = $1
+                )
+                """,
+                user_id,
+            )
+            return int(_row_get(row, "rank", 1)) if row else 1
+
+    async def _claim_daily_sync(self, user_id: int) -> tuple[bool, str, dict[str, Any]]:
+        now = time.time()
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await self._ensure_user(conn, user_id)
+                row = await conn.fetchrow(
+                    "SELECT balance, last_daily_timestamp FROM economy_users WHERE user_id = $1 FOR UPDATE",
+                    user_id,
+                )
+                if row is None:
+                    return False, "Could not load your profile. Try again.", self._default_user_dict(user_id)
+
+                last_daily = _row_get(row, "last_daily_timestamp")
+                if last_daily is not None and (now - float(last_daily)) < DAILY_COOLDOWN_SECONDS:
+                    remaining = int(DAILY_COOLDOWN_SECONDS - (now - float(last_daily)))
+                    user = await self._user_dict_from_conn(conn, user_id)
+                    return False, f"Daily already claimed. Come back in **{_format_eta(remaining)}**.", user
+
+                await conn.execute(
+                    "UPDATE economy_users SET balance = balance + $1, last_daily_timestamp = $2 WHERE user_id = $3",
+                    DAILY_REWARD,
+                    now,
+                    user_id,
+                )
+                return True, f"Collected **{DAILY_REWARD:,}** from your daily.", await self._user_dict_from_conn(conn, user_id)
+
+    async def _deposit_sync(self, user_id: int, amount: int) -> tuple[bool, str, dict[str, Any]]:
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await self._ensure_user(conn, user_id)
+                row = await conn.fetchrow(
+                    "SELECT balance FROM economy_users WHERE user_id = $1 FOR UPDATE",
+                    user_id,
+                )
+                if row is None:
+                    return False, "Could not load your profile. Try again.", self._default_user_dict(user_id)
+                if int(_row_get(row, "balance", 0)) < amount:
+                    profile = await self._user_dict_from_conn(conn, user_id)
+                    return False, "Not enough in your wallet.", profile
+
+                await conn.execute(
+                    "UPDATE economy_users SET balance = balance - $1, bank_balance = bank_balance + $1 WHERE user_id = $2",
+                    amount,
+                    user_id,
+                )
+                return True, f"Deposited **{amount:,}** into your bank.", await self._user_dict_from_conn(conn, user_id)
+
+    async def _withdraw_sync(self, user_id: int, amount: int) -> tuple[bool, str, dict[str, Any]]:
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await self._ensure_user(conn, user_id)
+                row = await conn.fetchrow(
+                    "SELECT bank_balance FROM economy_users WHERE user_id = $1 FOR UPDATE",
+                    user_id,
+                )
+                if row is None:
+                    return False, "Could not load your profile. Try again.", self._default_user_dict(user_id)
+                if int(_row_get(row, "bank_balance", 0)) < amount:
+                    profile = await self._user_dict_from_conn(conn, user_id)
+                    return False, "Not enough in your bank.", profile
+
+                await conn.execute(
+                    "UPDATE economy_users SET balance = balance + $1, bank_balance = bank_balance - $1 WHERE user_id = $2",
+                    amount,
+                    user_id,
+                )
+                return True, f"Withdrew **{amount:,}** to your wallet.", await self._user_dict_from_conn(conn, user_id)
+
+    async def _transfer_sync(
+        self, sender_id: int, receiver_id: int, amount: int
+    ) -> tuple[bool, str]:
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                first_id, second_id = sorted([sender_id, receiver_id])
+                await self._ensure_user(conn, first_id)
+                await self._ensure_user(conn, second_id)
+                sender = await conn.fetchrow(
+                    "SELECT balance FROM economy_users WHERE user_id = $1 FOR UPDATE",
+                    sender_id,
+                )
+                if sender is None or int(_row_get(sender, "balance", 0)) < amount:
+                    return False, "Not enough cash in your wallet."
+
+                await conn.execute(
+                    "UPDATE economy_users SET balance = balance - $1 WHERE user_id = $2",
+                    amount,
+                    sender_id,
+                )
+                await conn.execute(
+                    "UPDATE economy_users SET balance = balance + $1 WHERE user_id = $2",
+                    amount,
+                    receiver_id,
+                )
+                return True, "Done."
+
+    async def _admin_adjust_sync(
+        self, user_id: int, amount: int, add: bool
+    ) -> tuple[bool, str, dict[str, Any]]:
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await self._ensure_user(conn, user_id)
+                row = await conn.fetchrow(
+                    "SELECT balance FROM economy_users WHERE user_id = $1 FOR UPDATE",
+                    user_id,
+                )
+                if row is None:
+                    return False, "Could not load user.", self._default_user_dict(user_id)
+                balance = int(_row_get(row, "balance", 0))
+                if add:
+                    await conn.execute(
+                        "UPDATE economy_users SET balance = balance + $1 WHERE user_id = $2",
+                        amount,
+                        user_id,
+                    )
+                    msg = f"Added **{amount:,}** to <@{user_id}>'s wallet."
+                else:
+                    new_balance = max(0, balance - amount)
+                    removed = balance - new_balance
+                    await conn.execute(
+                        "UPDATE economy_users SET balance = $1 WHERE user_id = $2",
+                        new_balance,
+                        user_id,
+                    )
+                    msg = f"Removed **{removed:,}** from <@{user_id}>'s wallet."
+                return True, msg, await self._user_dict_from_conn(conn, user_id)
+
+    async def _activity_sync(
+        self,
+        user_id: int,
+        cooldown_key: str,
+        cooldown_seconds: int,
+        stories: list,
+        amount_range: tuple[int, int],
+    ) -> tuple[bool, str, dict[str, Any] | None]:
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await self._ensure_user(conn, user_id)
+                row = await conn.fetchrow(
+                    "SELECT balance, inventory FROM economy_users WHERE user_id = $1 FOR UPDATE",
+                    user_id,
+                )
+                if row is None:
+                    return False, "Could not load your profile. Try again.", None
+
+                user = self._row_to_dict(row, user_id)
+                remaining = self._cooldown_remaining(user["inventory"], cooldown_key)
+                if remaining > 0:
+                    return False, f"Cooldown — try again in **{_format_eta(remaining)}**.", None
+
+                template, is_gain = random.choice(stories)
+                amt = random.randint(amount_range[0], amount_range[1])
+                balance = int(_row_get(row, "balance", 0))
+
+                if is_gain:
+                    balance += amt
+                    await conn.execute(
+                        "UPDATE economy_users SET balance = $1 WHERE user_id = $2",
+                        balance,
+                        user_id,
+                    )
+                else:
+                    loss = min(amt, balance)
+                    balance -= loss
+                    await conn.execute(
+                        "UPDATE economy_users SET balance = $1 WHERE user_id = $2",
+                        balance,
+                        user_id,
+                    )
+                    amt = loss
+
+                self._set_cooldown(user["inventory"], cooldown_key, cooldown_seconds)
+                await self._save_inventory_sync(conn, user_id, user["inventory"])
+                story = template.format(amt=amt)
+                return True, story, await self._user_dict_from_conn(conn, user_id)
+
+    async def _rob_sync(
+        self, robber_id: int, victim_id: int
+    ) -> tuple[bool, str, dict[str, Any] | None]:
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                first_id, second_id = sorted([robber_id, victim_id])
+                await self._ensure_user(conn, first_id)
+                await self._ensure_user(conn, second_id)
+
+                robber_row = await conn.fetchrow(
+                    "SELECT balance, inventory FROM economy_users WHERE user_id = $1 FOR UPDATE",
+                    robber_id,
+                )
+                victim_row = await conn.fetchrow(
+                    "SELECT balance FROM economy_users WHERE user_id = $1 FOR UPDATE",
+                    victim_id,
+                )
+
+                if robber_row is None:
+                    return False, "Could not load your profile. Try again.", None
+
+                robber = self._row_to_dict(robber_row, robber_id)
+                remaining = self._cooldown_remaining(robber["inventory"], "rob")
+                if remaining > 0:
+                    return False, f"Rob cooldown — try again in **{_format_eta(remaining)}**.", None
+
+                victim_balance = int(_row_get(victim_row, "balance", 0))
+                robber_balance = int(_row_get(robber_row, "balance", 0))
+
+                if victim_balance <= 0:
+                    return False, "That user has nothing in their wallet to steal.", None
+
+                success = random.random() < ROB_SUCCESS_CHANCE
+                if success:
+                    pct = random.uniform(ROB_STEAL_PERCENT_MIN, ROB_STEAL_PERCENT_MAX)
+                    stolen = max(1, int(victim_balance * pct))
+                    stolen = min(stolen, victim_balance)
+                    await conn.execute(
+                        "UPDATE economy_users SET balance = balance - $1 WHERE user_id = $2",
+                        stolen,
+                        victim_id,
+                    )
+                    await conn.execute(
+                        "UPDATE economy_users SET balance = balance + $1 WHERE user_id = $2",
+                        stolen,
+                        robber_id,
+                    )
+                    story = random.choice(ROB_SUCCESS_STORIES).format(
+                        amt=stolen, target=f"<@{victim_id}>"
+                    )
+                else:
+                    loss_cap = max(500, int(robber_balance * 0.15))
+                    loss = min(random.randint(1000, 25000), robber_balance, loss_cap)
+                    if loss <= 0:
+                        story = random.choice(ROB_FAIL_STORIES).format(
+                            amt=0, target=f"<@{victim_id}>"
+                        )
+                    else:
+                        await conn.execute(
+                            "UPDATE economy_users SET balance = balance - $1 WHERE user_id = $2",
+                            loss,
+                            robber_id,
+                        )
+                        story = random.choice(ROB_FAIL_STORIES).format(
+                            amt=loss, target=f"<@{victim_id}>"
+                        )
+
+                self._set_cooldown(robber["inventory"], "rob", ROB_COOLDOWN_SECONDS)
+                await self._save_inventory_sync(conn, robber_id, robber["inventory"])
+                return True, story, await self._user_dict_from_conn(conn, robber_id)
+
+    async def _leaderboard_sync(self, limit: int) -> list[dict[str, Any]]:
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT user_id, balance, bank_balance,
+                       (balance + bank_balance) AS net_worth
+                FROM economy_users
+                WHERE (balance + bank_balance) > 0
+                ORDER BY net_worth DESC
+                LIMIT $1
+                """,
+                limit,
+            )
+            return [
+                {
+                    "user_id": _row_get(row, "user_id"),
+                    "balance": _row_get(row, "balance", 0),
+                    "bank_balance": _row_get(row, "bank_balance", 0),
+                    "net_worth": _row_get(row, "net_worth", 0),
+                }
+                for row in rows
+            ]
         return {
             "user_id": user_id,
             "balance": 0,
@@ -204,7 +483,7 @@ class EconomyStore:
             "inventory": _normalize_inventory([]),
         }
 
-    def _row_to_dict(self, row: sqlite3.Row | None, user_id: int | None = None) -> dict[str, Any]:
+    def _row_to_dict(self, row: Any | None, user_id: int | None = None) -> dict[str, Any]:
         if row is None:
             return self._default_user_dict(user_id or 0)
 
@@ -212,11 +491,15 @@ class EconomyStore:
         if uid is None:
             uid = user_id or 0
 
-        inventory_raw = _row_get(row, "inventory", "[]") or "[]"
-        try:
-            parsed = json.loads(inventory_raw)
-        except json.JSONDecodeError:
-            parsed = []
+        inventory_value = _row_get(row, "inventory", {"items": [], "cooldowns": {}})
+        if isinstance(inventory_value, str):
+            try:
+                parsed = json.loads(inventory_value)
+            except json.JSONDecodeError:
+                parsed = []
+        else:
+            parsed = inventory_value
+
         return {
             "user_id": int(uid),
             "balance": int(_row_get(row, "balance", 0) or 0),
@@ -225,25 +508,7 @@ class EconomyStore:
             "inventory": _normalize_inventory(parsed),
         }
 
-    def _fetch_user_row_sync(
-        self, conn: sqlite3.Connection, user_id: int
-    ) -> sqlite3.Row | None:
-        self._ensure_user_sync(conn, user_id)
-        return conn.execute(_USER_SELECT, (user_id,)).fetchone()
-
-    def _user_dict_from_conn(self, conn: sqlite3.Connection, user_id: int) -> dict[str, Any]:
-        row = self._fetch_user_row_sync(conn, user_id)
-        if row is None:
-            return self._default_user_dict(user_id)
-        return self._row_to_dict(row, user_id)
-
-    def _save_inventory_sync(self, conn: sqlite3.Connection, user_id: int, inventory: dict) -> None:
-        conn.execute(
-            "UPDATE users SET inventory = ? WHERE user_id = ?",
-            (json.dumps(inventory), user_id),
-        )
-
-    def _cooldown_remaining(self, inventory: dict, key: str) -> int:
+    async def _cooldown_remaining(self, inventory: dict, key: str) -> int:
         cooldowns = inventory.get("cooldowns", {})
         ends_at = cooldowns.get(key)
         if ends_at is None:
@@ -253,167 +518,161 @@ class EconomyStore:
     def _set_cooldown(self, inventory: dict, key: str, duration: int) -> None:
         inventory.setdefault("cooldowns", {})[key] = time.time() + duration
 
-    def _get_user_sync(self, user_id: int) -> dict[str, Any]:
-        with self._connect() as conn:
-            row = self._fetch_user_row_sync(conn, user_id)
-            conn.commit()
+    async def _get_user_sync(self, user_id: int) -> dict[str, Any]:
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            row = await self._fetch_user_row(conn, user_id)
             if row is None:
                 return self._default_user_dict(user_id)
             return self._row_to_dict(row, user_id)
 
-    def _get_rank_sync(self, user_id: int) -> int:
-        with self._connect() as conn:
-            self._ensure_user_sync(conn, user_id)
-            row = conn.execute(
+    async def _get_rank_sync(self, user_id: int) -> int:
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            await self._ensure_user(conn, user_id)
+            row = await conn.fetchrow(
                 """
                 SELECT 1 + COUNT(*) AS rank
-                FROM users
+                FROM economy_users
                 WHERE (balance + bank_balance) > (
-                    SELECT (balance + bank_balance) FROM users WHERE user_id = ?
+                    SELECT (balance + bank_balance) FROM economy_users WHERE user_id = $1
                 )
                 """,
-                (user_id,),
-            ).fetchone()
-            conn.commit()
+                user_id,
+            )
             return int(_row_get(row, "rank", 1)) if row else 1
 
-    def _claim_daily_sync(self, user_id: int) -> tuple[bool, str, dict[str, Any]]:
+    async def _claim_daily_sync(self, user_id: int) -> tuple[bool, str, dict[str, Any]]:
         now = time.time()
-        with self._connect() as conn:
-            self._ensure_user_sync(conn, user_id)
-            row = self._fetch_user_row_sync(conn, user_id)
-            if row is None:
-                conn.commit()
-                return False, "Could not load your profile. Try again.", self._default_user_dict(user_id)
-
-            last_daily = _row_get(row, "last_daily_timestamp")
-            if last_daily is not None and (now - float(last_daily)) < DAILY_COOLDOWN_SECONDS:
-                remaining = int(DAILY_COOLDOWN_SECONDS - (now - float(last_daily)))
-                conn.commit()
-                user_row = self._fetch_user_row_sync(conn, user_id)
-                user = self._row_to_dict(user_row, user_id)
-                return False, f"Daily already claimed. Come back in **{_format_eta(remaining)}**.", user
-
-            conn.execute(
-                "UPDATE users SET balance = balance + ?, last_daily_timestamp = ? WHERE user_id = ?",
-                (DAILY_REWARD, now, user_id),
-            )
-            conn.commit()
-            return True, f"Collected **{DAILY_REWARD:,}** from your daily.", self._user_dict_from_conn(conn, user_id)
-
-    def _deposit_sync(self, user_id: int, amount: int) -> tuple[bool, str, dict[str, Any]]:
-        with self._connect() as conn:
-            try:
-                conn.execute("BEGIN IMMEDIATE")
-                self._ensure_user_sync(conn, user_id)
-                row = self._fetch_user_row_sync(conn, user_id)
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await self._ensure_user(conn, user_id)
+                row = await conn.fetchrow(
+                    "SELECT balance, last_daily_timestamp FROM economy_users WHERE user_id = $1 FOR UPDATE",
+                    user_id,
+                )
                 if row is None:
-                    conn.rollback()
+                    return False, "Could not load your profile. Try again.", self._default_user_dict(user_id)
+
+                last_daily = _row_get(row, "last_daily_timestamp")
+                if last_daily is not None and (now - float(last_daily)) < DAILY_COOLDOWN_SECONDS:
+                    remaining = int(DAILY_COOLDOWN_SECONDS - (now - float(last_daily)))
+                    user = await self._user_dict_from_conn(conn, user_id)
+                    return False, f"Daily already claimed. Come back in **{_format_eta(remaining)}**.", user
+
+                await conn.execute(
+                    "UPDATE economy_users SET balance = balance + $1, last_daily_timestamp = $2 WHERE user_id = $3",
+                    DAILY_REWARD,
+                    now,
+                    user_id,
+                )
+                return True, f"Collected **{DAILY_REWARD:,}** from your daily.", await self._user_dict_from_conn(conn, user_id)
+
+    async def _deposit_sync(self, user_id: int, amount: int) -> tuple[bool, str, dict[str, Any]]:
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await self._ensure_user(conn, user_id)
+                row = await conn.fetchrow(
+                    "SELECT balance FROM economy_users WHERE user_id = $1 FOR UPDATE",
+                    user_id,
+                )
+                if row is None:
                     return False, "Could not load your profile. Try again.", self._default_user_dict(user_id)
                 if int(_row_get(row, "balance", 0)) < amount:
-                    profile = self._row_to_dict(row, user_id)
-                    conn.rollback()
+                    profile = await self._user_dict_from_conn(conn, user_id)
                     return False, "Not enough in your wallet.", profile
 
-                conn.execute(
-                    "UPDATE users SET balance = balance - ?, bank_balance = bank_balance + ? "
-                    "WHERE user_id = ?",
-                    (amount, amount, user_id),
+                await conn.execute(
+                    "UPDATE economy_users SET balance = balance - $1, bank_balance = bank_balance + $1 WHERE user_id = $2",
+                    amount,
+                    user_id,
                 )
-                conn.commit()
-                return True, f"Deposited **{amount:,}** into your bank.", self._user_dict_from_conn(conn, user_id)
-            except Exception:
-                conn.rollback()
-                raise
+                return True, f"Deposited **{amount:,}** into your bank.", await self._user_dict_from_conn(conn, user_id)
 
-    def _withdraw_sync(self, user_id: int, amount: int) -> tuple[bool, str, dict[str, Any]]:
-        with self._connect() as conn:
-            try:
-                conn.execute("BEGIN IMMEDIATE")
-                self._ensure_user_sync(conn, user_id)
-                row = self._fetch_user_row_sync(conn, user_id)
+    async def _withdraw_sync(self, user_id: int, amount: int) -> tuple[bool, str, dict[str, Any]]:
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await self._ensure_user(conn, user_id)
+                row = await conn.fetchrow(
+                    "SELECT bank_balance FROM economy_users WHERE user_id = $1 FOR UPDATE",
+                    user_id,
+                )
                 if row is None:
-                    conn.rollback()
                     return False, "Could not load your profile. Try again.", self._default_user_dict(user_id)
                 if int(_row_get(row, "bank_balance", 0)) < amount:
-                    profile = self._row_to_dict(row, user_id)
-                    conn.rollback()
+                    profile = await self._user_dict_from_conn(conn, user_id)
                     return False, "Not enough in your bank.", profile
 
-                conn.execute(
-                    "UPDATE users SET balance = balance + ?, bank_balance = bank_balance - ? "
-                    "WHERE user_id = ?",
-                    (amount, amount, user_id),
+                await conn.execute(
+                    "UPDATE economy_users SET balance = balance + $1, bank_balance = bank_balance - $1 WHERE user_id = $2",
+                    amount,
+                    user_id,
                 )
-                conn.commit()
-                return True, f"Withdrew **{amount:,}** to your wallet.", self._user_dict_from_conn(conn, user_id)
-            except Exception:
-                conn.rollback()
-                raise
+                return True, f"Withdrew **{amount:,}** to your wallet.", await self._user_dict_from_conn(conn, user_id)
 
-    def _transfer_sync(
+    async def _transfer_sync(
         self, sender_id: int, receiver_id: int, amount: int
     ) -> tuple[bool, str]:
-        with self._connect() as conn:
-            try:
-                conn.execute("BEGIN IMMEDIATE")
-                self._ensure_user_sync(conn, sender_id)
-                self._ensure_user_sync(conn, receiver_id)
-
-                sender = conn.execute(
-                    "SELECT balance FROM users WHERE user_id = ?", (sender_id,)
-                ).fetchone()
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await self._ensure_user(conn, sender_id)
+                await self._ensure_user(conn, receiver_id)
+                sender = await conn.fetchrow(
+                    "SELECT balance FROM economy_users WHERE user_id = $1 FOR UPDATE",
+                    sender_id,
+                )
                 if sender is None or int(_row_get(sender, "balance", 0)) < amount:
-                    conn.rollback()
                     return False, "Not enough cash in your wallet."
 
-                conn.execute(
-                    "UPDATE users SET balance = balance - ? WHERE user_id = ?",
-                    (amount, sender_id),
+                await conn.execute(
+                    "UPDATE economy_users SET balance = balance - $1 WHERE user_id = $2",
+                    amount,
+                    sender_id,
                 )
-                conn.execute(
-                    "UPDATE users SET balance = balance + ? WHERE user_id = ?",
-                    (amount, receiver_id),
+                await conn.execute(
+                    "UPDATE economy_users SET balance = balance + $1 WHERE user_id = $2",
+                    amount,
+                    receiver_id,
                 )
-                conn.commit()
                 return True, "Done."
-            except Exception:
-                conn.rollback()
-                raise
 
-    def _admin_adjust_sync(
+    async def _admin_adjust_sync(
         self, user_id: int, amount: int, add: bool
     ) -> tuple[bool, str, dict[str, Any]]:
-        with self._connect() as conn:
-            try:
-                conn.execute("BEGIN IMMEDIATE")
-                self._ensure_user_sync(conn, user_id)
-                row = self._fetch_user_row_sync(conn, user_id)
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await self._ensure_user(conn, user_id)
+                row = await conn.fetchrow(
+                    "SELECT balance FROM economy_users WHERE user_id = $1 FOR UPDATE",
+                    user_id,
+                )
                 if row is None:
-                    conn.rollback()
                     return False, "Could not load user.", self._default_user_dict(user_id)
                 balance = int(_row_get(row, "balance", 0))
                 if add:
-                    conn.execute(
-                        "UPDATE users SET balance = balance + ? WHERE user_id = ?",
-                        (amount, user_id),
+                    await conn.execute(
+                        "UPDATE economy_users SET balance = balance + $1 WHERE user_id = $2",
+                        amount,
+                        user_id,
                     )
                     msg = f"Added **{amount:,}** to <@{user_id}>'s wallet."
                 else:
                     new_balance = max(0, balance - amount)
                     removed = balance - new_balance
-                    conn.execute(
-                        "UPDATE users SET balance = ? WHERE user_id = ?",
-                        (new_balance, user_id),
+                    await conn.execute(
+                        "UPDATE economy_users SET balance = $1 WHERE user_id = $2",
+                        new_balance,
+                        user_id,
                     )
                     msg = f"Removed **{removed:,}** from <@{user_id}>'s wallet."
-                conn.commit()
-                return True, msg, self._user_dict_from_conn(conn, user_id)
-            except Exception:
-                conn.rollback()
-                raise
+                return True, msg, await self._user_dict_from_conn(conn, user_id)
 
-    def _activity_sync(
+    async def _activity_sync(
         self,
         user_id: int,
         cooldown_key: str,
@@ -421,79 +680,78 @@ class EconomyStore:
         stories: list,
         amount_range: tuple[int, int],
     ) -> tuple[bool, str, dict[str, Any] | None]:
-        with self._connect() as conn:
-            try:
-                conn.execute("BEGIN IMMEDIATE")
-                self._ensure_user_sync(conn, user_id)
-                row = self._fetch_user_row_sync(conn, user_id)
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await self._ensure_user(conn, user_id)
+                row = await conn.fetchrow(
+                    "SELECT balance, inventory FROM economy_users WHERE user_id = $1 FOR UPDATE",
+                    user_id,
+                )
                 if row is None:
-                    conn.rollback()
                     return False, "Could not load your profile. Try again.", None
 
                 user = self._row_to_dict(row, user_id)
                 remaining = self._cooldown_remaining(user["inventory"], cooldown_key)
                 if remaining > 0:
-                    conn.rollback()
                     return False, f"Cooldown — try again in **{_format_eta(remaining)}**.", None
 
                 template, is_gain = random.choice(stories)
                 amt = random.randint(amount_range[0], amount_range[1])
                 balance = int(_row_get(row, "balance", 0))
-                bank = int(_row_get(row, "bank_balance", 0))
 
                 if is_gain:
                     balance += amt
-                    conn.execute(
-                        "UPDATE users SET balance = ? WHERE user_id = ?",
-                        (balance, user_id),
+                    await conn.execute(
+                        "UPDATE economy_users SET balance = $1 WHERE user_id = $2",
+                        balance,
+                        user_id,
                     )
                 else:
                     loss = min(amt, balance)
                     balance -= loss
-                    conn.execute(
-                        "UPDATE users SET balance = ? WHERE user_id = ?",
-                        (balance, user_id),
+                    await conn.execute(
+                        "UPDATE economy_users SET balance = $1 WHERE user_id = $2",
+                        balance,
+                        user_id,
                     )
                     amt = loss
 
                 self._set_cooldown(user["inventory"], cooldown_key, cooldown_seconds)
-                self._save_inventory_sync(conn, user_id, user["inventory"])
-                conn.commit()
+                await self._save_inventory_sync(conn, user_id, user["inventory"])
                 story = template.format(amt=amt)
-                return True, story, self._user_dict_from_conn(conn, user_id)
-            except Exception:
-                conn.rollback()
-                raise
+                return True, story, await self._user_dict_from_conn(conn, user_id)
 
-    def _rob_sync(
+    async def _rob_sync(
         self, robber_id: int, victim_id: int
     ) -> tuple[bool, str, dict[str, Any] | None]:
-        with self._connect() as conn:
-            try:
-                conn.execute("BEGIN IMMEDIATE")
-                self._ensure_user_sync(conn, robber_id)
-                self._ensure_user_sync(conn, victim_id)
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await self._ensure_user(conn, robber_id)
+                await self._ensure_user(conn, victim_id)
 
-                robber_row = self._fetch_user_row_sync(conn, robber_id)
-                victim_row = conn.execute(
-                    "SELECT balance FROM users WHERE user_id = ?", (victim_id,)
-                ).fetchone()
+                robber_row = await conn.fetchrow(
+                    "SELECT balance, inventory FROM economy_users WHERE user_id = $1 FOR UPDATE",
+                    robber_id,
+                )
+                victim_row = await conn.fetchrow(
+                    "SELECT balance FROM economy_users WHERE user_id = $1 FOR UPDATE",
+                    victim_id,
+                )
 
                 if robber_row is None:
-                    conn.rollback()
                     return False, "Could not load your profile. Try again.", None
 
                 robber = self._row_to_dict(robber_row, robber_id)
                 remaining = self._cooldown_remaining(robber["inventory"], "rob")
                 if remaining > 0:
-                    conn.rollback()
                     return False, f"Rob cooldown — try again in **{_format_eta(remaining)}**.", None
 
                 victim_balance = int(_row_get(victim_row, "balance", 0))
                 robber_balance = int(_row_get(robber_row, "balance", 0))
 
                 if victim_balance <= 0:
-                    conn.rollback()
                     return False, "That user has nothing in their wallet to steal.", None
 
                 success = random.random() < ROB_SUCCESS_CHANCE
@@ -501,13 +759,15 @@ class EconomyStore:
                     pct = random.uniform(ROB_STEAL_PERCENT_MIN, ROB_STEAL_PERCENT_MAX)
                     stolen = max(1, int(victim_balance * pct))
                     stolen = min(stolen, victim_balance)
-                    conn.execute(
-                        "UPDATE users SET balance = balance - ? WHERE user_id = ?",
-                        (stolen, victim_id),
+                    await conn.execute(
+                        "UPDATE economy_users SET balance = balance - $1 WHERE user_id = $2",
+                        stolen,
+                        victim_id,
                     )
-                    conn.execute(
-                        "UPDATE users SET balance = balance + ? WHERE user_id = ?",
-                        (stolen, robber_id),
+                    await conn.execute(
+                        "UPDATE economy_users SET balance = balance + $1 WHERE user_id = $2",
+                        stolen,
+                        robber_id,
                     )
                     story = random.choice(ROB_SUCCESS_STORIES).format(
                         amt=stolen, target=f"<@{victim_id}>"
@@ -516,41 +776,37 @@ class EconomyStore:
                     loss_cap = max(500, int(robber_balance * 0.15))
                     loss = min(random.randint(1000, 25000), robber_balance, loss_cap)
                     if loss <= 0:
-                        loss = 0
                         story = random.choice(ROB_FAIL_STORIES).format(
                             amt=0, target=f"<@{victim_id}>"
                         )
                     else:
-                        conn.execute(
-                            "UPDATE users SET balance = balance - ? WHERE user_id = ?",
-                            (loss, robber_id),
+                        await conn.execute(
+                            "UPDATE economy_users SET balance = balance - $1 WHERE user_id = $2",
+                            loss,
+                            robber_id,
                         )
                         story = random.choice(ROB_FAIL_STORIES).format(
                             amt=loss, target=f"<@{victim_id}>"
                         )
 
                 self._set_cooldown(robber["inventory"], "rob", ROB_COOLDOWN_SECONDS)
-                self._save_inventory_sync(conn, robber_id, robber["inventory"])
-                conn.commit()
-                return True, story, self._user_dict_from_conn(conn, robber_id)
-            except Exception:
-                conn.rollback()
-                raise
+                await self._save_inventory_sync(conn, robber_id, robber["inventory"])
+                return True, story, await self._user_dict_from_conn(conn, robber_id)
 
-    def _leaderboard_sync(self, limit: int) -> list[dict[str, Any]]:
-        with self._connect() as conn:
-            rows = conn.execute(
+    async def _leaderboard_sync(self, limit: int) -> list[dict[str, Any]]:
+        pool = await db.db._get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
                 """
                 SELECT user_id, balance, bank_balance,
                        (balance + bank_balance) AS net_worth
-                FROM users
+                FROM economy_users
                 WHERE (balance + bank_balance) > 0
                 ORDER BY net_worth DESC
-                LIMIT ?
+                LIMIT $1
                 """,
-                (limit,),
-            ).fetchall()
-            conn.commit()
+                limit,
+            )
             return [
                 {
                     "user_id": _row_get(row, "user_id"),
